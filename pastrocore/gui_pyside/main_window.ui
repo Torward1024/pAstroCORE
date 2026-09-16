@@ -202,6 +202,45 @@
     </property>
    </widget>
   </widget>
+  <widget class="QToolBar" name="mainToolBar">
+   <property name="windowTitle">
+    <string>Main</string>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>24</width>
+     <height>24</height>
+    </size>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionNewProject"/>
+   <addaction name="actionOpenProject"/>
+   <addaction name="actionSaveProject"/>
+   <addaction name="separator"/>
+   <addaction name="actionImport_VEX"/>
+   <addaction name="actionExport_VEX"/>
+   <addaction name="actionExport_Calulcated_Data"/>
+   <addaction name="separator"/>
+   <addaction name="actionCalculate"/>
+   <addaction name="actionVisualize"/>
+   <addaction name="actionAnalysis"/>
+   <addaction name="separator"/>
+   <addaction name="actionGenerate_Observations"/>
+   <addaction name="actionSession"/>
+   <addaction name="separator"/>
+   <addaction name="actionPreferences"/>
+  </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="contextMenuPolicy">
     <enum>Qt::ContextMenuPolicy::PreventContextMenu</enum>
@@ -240,6 +279,9 @@
    </widget>
   </widget>
   <action name="actionNewProject">
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/new_project.svg</normaloff>:/icons/new_project.svg</iconset>
@@ -249,6 +291,9 @@
    </property>
   </action>
   <action name="actionOpenProject">
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/open_project_icon.svg</normaloff>:/icons/open_project_icon.svg</iconset>
@@ -258,6 +303,9 @@
    </property>
   </action>
   <action name="actionSaveProject">
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/save_project_icon.svg</normaloff>:/icons/save_project_icon.svg</iconset>
@@ -269,7 +317,7 @@
   <action name="actionOpen_Package">
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/import_icon.svg</normaloff>:/icons/import_icon.svg</iconset>
+     <normaloff>:/icons/package_import.svg</normaloff>:/icons/package_import.svg</iconset>
    </property>
    <property name="text">
     <string>Import Project</string>
@@ -281,7 +329,7 @@
   <action name="actionPackage_Project">
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+     <normaloff>:/icons/package_export.svg</normaloff>:/icons/package_export.svg</iconset>
    </property>
    <property name="text">
     <string>Export Project</string>
@@ -291,6 +339,13 @@
    </property>
   </action>
   <action name="actionExport_VEX">
+   <property name="shortcut">
+    <string>Ctrl+Shift+E</string>
+   </property>
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+   </property>
    <property name="text">
     <string>VEX...</string>
    </property>
@@ -299,6 +354,13 @@
    </property>
   </action>
   <action name="actionImport_VEX">
+   <property name="shortcut">
+    <string>Ctrl+I</string>
+   </property>
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/import_icon.svg</normaloff>:/icons/import_icon.svg</iconset>
+   </property>
    <property name="text">
     <string>VEX...</string>
    </property>
@@ -307,6 +369,10 @@
    </property>
   </action>
   <action name="actionImport_CFX">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/cfx_import.svg</normaloff>:/icons/cfx_import.svg</iconset>
+   </property>
    <property name="text">
     <string>CFX...</string>
    </property>
@@ -315,6 +381,10 @@
    </property>
   </action>
   <action name="actionExport_CFX">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/cfx_export.svg</normaloff>:/icons/cfx_export.svg</iconset>
+   </property>
    <property name="text">
     <string>CFX...</string>
    </property>
@@ -323,9 +393,12 @@
    </property>
   </action>
   <action name="actionAnalysis">
+   <property name="shortcut">
+    <string>Ctrl+Shift+A</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
+     <normaloff>:/icons/analyze.svg</normaloff>:/icons/analyze.svg</iconset>
    </property>
    <property name="text">
     <string>Analyze</string>
@@ -335,6 +408,9 @@
    </property>
   </action>
   <action name="actionExit">
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/exit_icon.svg</normaloff>:/icons/exit_icon.svg</iconset>
@@ -347,6 +423,9 @@
    </property>
   </action>
   <action name="actionPreferences">
+   <property name="shortcut">
+    <string>Ctrl+,</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
@@ -356,6 +435,9 @@
    </property>
   </action>
   <action name="actionAbout">
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/about_icon.svg</normaloff>:/icons/about_icon.svg</iconset>
@@ -365,6 +447,13 @@
    </property>
   </action>
   <action name="actionProject_Explorer">
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/explorer.svg</normaloff>:/icons/explorer.svg</iconset>
+   </property>
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -378,7 +467,7 @@
   <action name="actionSource_Catalog_Manager">
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
+     <normaloff>:/icons/catalog_sources.svg</normaloff>:/icons/catalog_sources.svg</iconset>
    </property>
    <property name="text">
     <string>Source Catalog Browser</string>
@@ -387,13 +476,16 @@
   <action name="actionTelescope_Catalog_Manager">
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
+     <normaloff>:/icons/catalog_telescopes.svg</normaloff>:/icons/catalog_telescopes.svg</iconset>
    </property>
    <property name="text">
     <string>Telescope Catalog Browser</string>
    </property>
   </action>
   <action name="actionSave_Project_As">
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/save_project_as_icon.svg</normaloff>:/icons/save_project_as_icon.svg</iconset>
@@ -405,7 +497,7 @@
   <action name="actionImport_Observation">
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/import_icon.svg</normaloff>:/icons/import_icon.svg</iconset>
+     <normaloff>:/icons/observation_import.svg</normaloff>:/icons/observation_import.svg</iconset>
    </property>
    <property name="text">
     <string>Import Observation</string>
@@ -414,13 +506,16 @@
   <action name="actionExport_Observation">
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+     <normaloff>:/icons/observation_export.svg</normaloff>:/icons/observation_export.svg</iconset>
    </property>
    <property name="text">
     <string>Export Observation</string>
    </property>
   </action>
   <action name="actionCalculate">
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/calculate.svg</normaloff>:/icons/calculate.svg</iconset>
@@ -430,6 +525,9 @@
    </property>
   </action>
   <action name="actionVisualize">
+   <property name="shortcut">
+    <string>Ctrl+Shift+V</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/visualize.svg</normaloff>:/icons/visualize.svg</iconset>
@@ -439,6 +537,13 @@
    </property>
   </action>
   <action name="actionSession">
+   <property name="shortcut">
+    <string>Ctrl+J</string>
+   </property>
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/session.svg</normaloff>:/icons/session.svg</iconset>
+   </property>
    <property name="text">
     <string>Session Viewer</string>
    </property>
@@ -447,12 +552,15 @@
    </property>
   </action>
   <action name="actionLast_Run_Report">
-   <property name="enabled">
-    <bool>false</bool>
+   <property name="shortcut">
+    <string>Ctrl+Shift+R</string>
    </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/about_icon.svg</normaloff>:/icons/about_icon.svg</iconset>
+     <normaloff>:/icons/report.svg</normaloff>:/icons/report.svg</iconset>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Calculations Report</string>
@@ -462,17 +570,27 @@
    </property>
   </action>
   <action name="actionGenerate_Observations">
+   <property name="shortcut">
+    <string>Ctrl+G</string>
+   </property>
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/generate.svg</normaloff>:/icons/generate.svg</iconset>
+   </property>
    <property name="text">
     <string>Generate Observations</string>
    </property>
   </action>
   <action name="actionExport_Calulcated_Data">
+   <property name="shortcut">
+    <string>Ctrl+E</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
-     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+     <normaloff>:/icons/data_export.svg</normaloff>:/icons/data_export.svg</iconset>
    </property>
    <property name="text">
-    <string>Export Calulcated Data</string>
+    <string>Export Calculated Data</string>
    </property>
   </action>
  </widget>

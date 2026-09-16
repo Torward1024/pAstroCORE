@@ -1,31 +1,45 @@
 <RCC>
   <qresource prefix="/icons">
-    <file>catalog.svg</file>
-    <file>calculate.svg</file>
-    <file>visualize.svg</file>
-    <file>preferences.svg</file>
     <file>about_icon.svg</file>
-    <file>open_project_icon.svg</file>
-    <file>exit_icon.svg</file>
-    <file>save_project_as_icon.svg</file>
-    <file>new_project.svg</file>
-    <file>pAstroCORE_icon.png</file>
-    <file>add_observation_icon.svg</file>
+    <file>active_icon.svg</file>
     <file>add_icon.svg</file>
-    <file>remove_icon.svg</file>
-    <file>up_arrow_icon.svg</file>
+    <file>add_observation_icon.svg</file>
+    <file>analyze.svg</file>
+    <file>calculate.svg</file>
+    <file>catalog.svg</file>
+    <file>catalog_sources.svg</file>
+    <file>catalog_telescopes.svg</file>
+    <file>cfx_export.svg</file>
+    <file>cfx_import.svg</file>
+    <file>check_icon.svg</file>
+    <file>check_icon_disabled.svg</file>
+    <file>check_icon_hover.svg</file>
+    <file>data_export.svg</file>
     <file>down_arrow_icon.svg</file>
     <file>edit_icon.svg</file>
-    <file>active_icon.svg</file>
-    <file>inactive_icon.svg</file>
-    <file>import_icon.svg</file>
-    <file>export_icon.svg</file>
-    <file>remove_observation_icon.svg</file>
     <file>edit_observation_icon.svg</file>
+    <file>exit_icon.svg</file>
+    <file>explorer.svg</file>
+    <file>export_icon.svg</file>
+    <file>generate.svg</file>
+    <file>import_icon.svg</file>
+    <file>inactive_icon.svg</file>
+    <file>new_project.svg</file>
+    <file>observation_export.svg</file>
+    <file>observation_import.svg</file>
+    <file>open_project_icon.svg</file>
+    <file>pAstroCORE_icon.png</file>
+    <file>package_export.svg</file>
+    <file>package_import.svg</file>
+    <file>preferences.svg</file>
+    <file>remove_icon.svg</file>
+    <file>remove_observation_icon.svg</file>
     <file>remove_project_icon.svg</file>
+    <file>report.svg</file>
+    <file>save_project_as_icon.svg</file>
     <file>save_project_icon.svg</file>
-    <file>check_icon.svg</file>
-    <file>check_icon_hover.svg</file>
-    <file>check_icon_disabled.svg</file>
+    <file>session.svg</file>
+    <file>up_arrow_icon.svg</file>
+    <file>visualize.svg</file>
   </qresource>
 </RCC>

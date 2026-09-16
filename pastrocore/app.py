@@ -88,6 +88,10 @@ class PAstroCoreMainWindow(QMainWindow):
         self.setup_ui()
         self.setup_connections()
         self.rebuild_recent_menu()
+        # The status bar reads the log rather than being written to from here (G13).
+        from pastrocore.gui.p_status_bar import WindowStatusBar
+
+        self.status = WindowStatusBar(self.ui.mainStatusBar, self)
 
     def _offer_abandoned_sessions(self, root=None):
         """Offer back results left by a session that did not close normally.
@@ -1672,6 +1676,8 @@ class PAstroCoreMainWindow(QMainWindow):
                     return
 
         self.clear_connections()
+        # Before the widgets go: a logging handler left behind writes to a label that is gone.
+        self.status.close()
         try:
             if self.project is not None:
                 self.project.scratch.discard()
