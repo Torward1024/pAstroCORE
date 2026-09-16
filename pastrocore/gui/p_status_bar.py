@@ -70,6 +70,7 @@ class WindowStatusBar(QObject):
         # Permanent, so a message of any length cannot push it off the end of the bar.
         bar.addPermanentWidget(self.memory)
 
+        self._closed = False
         self._records = _Records()
         self._records.arrived.connect(self.say)
         self._handler = _StatusHandler(self._records)
@@ -89,6 +90,8 @@ class WindowStatusBar(QObject):
             - The property is what the stylesheet selects on, and Qt only re-reads it when the
               widget is re-polished, which is what the two calls below are for.
         """
+        if self._closed:
+            return
         self.message.setProperty("level", self.LEVELS.get(level, ""))
         self.message.style().unpolish(self.message)
         self.message.style().polish(self.message)
@@ -98,6 +101,8 @@ class WindowStatusBar(QObject):
     @Slot()
     def refresh_memory(self) -> None:
         """Show what this process is holding."""
+        if self._closed:
+            return
         held = as_size(process_memory())
         self.memory.setText(f"Memory: {held}" if held else "")
 
@@ -110,7 +115,8 @@ class WindowStatusBar(QObject):
         """
         self._timer.stop()
         self._logger.removeHandler(self._handler)
-        try:
-            self._records.arrived.disconnect(self.say)
-        except (RuntimeError, TypeError):
-            pass
+        # Marked rather than disconnected: a record logged a moment ago may still be on its way
+        # across the threads, and `say` would then write to a label whose widget has gone.
+        # Disconnecting by hand at this point only made Qt warn that there was nothing to
+        # disconnect, which is not the same as being safe.
+        self._closed = True
