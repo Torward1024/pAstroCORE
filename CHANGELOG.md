@@ -8,6 +8,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.11.0] - 2026-09-16
+
+Stage 2 of the roadmap: the main window.
+
+### Added
+
+- **A toolbar** (G11) of twelve of the menu's own actions -- the same `QAction`s, so an action the
+  window disables is disabled in both places.
+- **Keyboard shortcuts** (G12), seventeen of them: the platform's own keys where there is one --
+  New, Open, Save, Save As, Quit -- plus `Ctrl+R` to calculate, `Ctrl+Shift+V` to visualize,
+  `Ctrl+G` to generate, `Ctrl+J` for the session, `F1` for about. No two actions answer to the same
+  keys, which a test holds to.
+- **A status bar** (G13): the last thing the log said, in the colour of its level -- amber for a
+  warning, red for an error -- and what the process is holding, re-read every two seconds. It reads
+  the log rather than being written to from call sites, so everything the application already
+  reports arrives without anything being wired up for it, including from a calculation or a save
+  running in a thread.
+- **Thirteen new icons and nine redrawn** (G10). Every action has its own now: a project packaged
+  in and out, an observation in and out, the correlator's file in and out, results leaving,
+  analysis, generation, the session, the explorer, the two catalogues, the run report. All of them
+  24x24, strokes only, one colour stated once on the root, width 2, round caps and joins.
+- `test_icons` and `test_main_window`: an action without an icon, two actions sharing one, an icon
+  outside the style or missing from the resource, an icon that renders blank, a toolbar button that
+  is a copy rather than the action itself, two actions on one key, and a status bar that does not
+  follow the log all fail the build.
+
+### Fixed
+
+- A convention test turned logging off for the whole process with `logging.disable` and never put it
+  back, so every test after it ran silenced.
+
 ## [1.10.0] - 2026-09-15
 
 Stage 1 of the roadmap: what got in the way every day.

@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.10.0 shipped.** What is left, what was decided against, and why.
+**1.11.0 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
@@ -10,16 +10,7 @@ its criterion holds, not when it feels tidy.
 Fifteen items from using it, ranked: what cost an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 They land in this order, a stage or an item per release, unless a later one turns out to need an
-earlier one. **Stage 1 shipped in 1.10.0.**
-
-### Stage 2 -- the main window
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| G10 | **The icon set, complete** | Every menu action has an icon in the existing style -- 24x24, stroke `#005BB5`, width 2, round caps and joins, no fill, no Illustrator preamble. A test fails on an action without one and on an SVG outside that style. The stroke is one colour, so U1 can recolour the set rather than redraw it |
-| G11 | **A toolbar** | New, Open, Save, Import, Export, Calculate, Visualize, Analysis, Generate, Session, Preferences -- the menu's own `QAction`s, so a disabled action is disabled in both places. Defined in `main_window.ui` |
-| G12 | **Shortcuts** | The platform's standard keys where one exists (`QKeySequence.New`, `Open`, `Save`, `SaveAs`, `Preferences`, `Quit`), `Ctrl+R` calculate, `Ctrl+Shift+V` visualize, `F1` about. No two actions share one: a test fails on a collision |
-| G13 | **A status bar** | The process's memory (resident set, from `psutil`, already a dependency), refreshed every two seconds, and the last log message at INFO or above -- warnings in amber, errors in red -- from a logging handler, not from call sites |
+earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0.**
 
 ### Stage 3 -- what it cannot do yet
 
@@ -79,6 +70,7 @@ that happens when one is sent.
 | **1.8.0** | An audit against physics rather than against what the code used to say: the beam pattern was drawn pi times too wide, time on source was one step short per block. Atomic saves; a calculation about twice as fast |
 | **1.9.0** | Moving stations (velocities in m/yr taken as m/s, 9 500 km off), sources at -0 degrees, editors that rounded on save, X/Y polarizations, and a calculation that scales linearly with scans. 1.9.1--1.9.3: no orbit step without a spacecraft, the Mollweide and spacecraft tabs draw, and plots redraw clean |
 | **1.10.0** | **G7, G8, G9.** Select All and Clear under every list a plot is chosen from; nothing on a form overlaps or is cut off, and no window is pinned to a size; saving shows how far it has got and the window keeps answering |
+| **1.11.0** | **G10--G13.** The icon set complete and in one style; a toolbar of the menu's own actions; the platform's keys and a few of our own; a status bar showing the last log line and what the process holds |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in
