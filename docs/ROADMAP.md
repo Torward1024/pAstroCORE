@@ -7,10 +7,21 @@ its criterion holds, not when it feels tidy.
 
 ## Next -- finishing it
 
-Fifteen items from using it, ranked: what cost an hour every day first, what a new user sees
+Seventeen items from using it, ranked: what cost an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 They land in this order, a stage or an item per release, unless a later one turns out to need an
 earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0.**
+
+### Seen in use, not explained -- before anything else in stage 3 if either reproduces
+
+An item here is finished by an answer, not by a change: either a reproduction with the fix and the
+test that holds it, or a measurement that shows it is not happening, written down here so it is not
+chased twice.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| R1 | **Result files go missing from a project directory** | Seen, not tracked down. A session that saves, calculates, renames, saves again, saves elsewhere and reopens is driven at scale, and every result the project claims to have is on disk at every step with its own bytes. The paths worth suspecting first: `migrate_to` copies out of scratch and the scratch is discarded afterwards; `to_directory` **removes the result directory of any observation the project no longer has**, which a rename passes through; eviction under the residency budget; `release()`; and the sweep that offers back an abandoned session's scratch. Finished when a file that disappears is caught by a test that fails without the fix, or when the walk above holds and says so |
+| M1 | **Memory grows through a session and does not come back** | 260 MB to 327 MB over an hour of ordinary work, by the status bar. A harness opens and closes every dialog and every visualization tab many times over and records the resident set after each cycle, with the caches that are *meant* to hold -- the results in hand under the residency budget, matplotlib's font cache, astropy's tables -- named and accounted for. Finished when what is left grows no further with the cycles, or when what does is fixed and a test holds it at a bound |
 
 ### Stage 3 -- what it cannot do yet
 
