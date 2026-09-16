@@ -565,11 +565,8 @@ class ScheduleProject(Project):
         """
         released = 0
         for observation in self.observations():
-            if hasattr(observation, "cleanup"):
-                try:
-                    observation.cleanup()
-                except Exception as e:                  # noqa: BLE001 - one failure frees the rest
-                    logger.debug("Could not clean up '%s': %s", observation.name, str(e))
+            # There was a `cleanup()` call here, guarded by `hasattr`: nothing in the model or the
+            # framework defines one, so the guard was true of nothing and the call reached nothing.
             for reference in ("_project", "_manipulator", "_parent"):
                 if hasattr(observation, reference):
                     setattr(observation, reference, None)
@@ -580,18 +577,24 @@ class ScheduleProject(Project):
         return released
 
     def remove_all(self) -> None:
-        """Remove every observation, releasing the results each was holding first.
+        """Remove every observation, letting go of the results each was holding first.
 
         Notes:
             - This was called `clear`, which msb_arch 1.9.0 deprecated and 2.0.0 removed: one
               name meant three different jobs depending on what it was called on. The name is
               now the one the framework uses, and it does the same work.
-            - The results are released before the observations go, because an observation that
+            - The results are let go of before the observations go, because an observation that
               has already left the project cannot be asked to let go of anything.
+            - **Let go of, not deleted.** This called `clear_calculated_data`, which erases the
+              results *on disk* as well -- and `release`, which a window runs on every File ->
+              New Project and every Open, comes through here. So opening a second project
+              deleted the first one's results out of its directory, silently, after it had been
+              saved. Nothing changes the disk except a save, which removes the results of
+              observations the project no longer has, and the deliberate Clear Data.
         """
         for observation in self.observations():
             try:
-                observation.clear_calculated_data()
+                observation.calculated_data.release()
             except Exception as e:                      # noqa: BLE001 - one bad result frees the rest
                 logger.debug("Could not release the results of '%s': %s",
                              observation.get_observation_code(), str(e))
