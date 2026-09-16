@@ -137,6 +137,17 @@ class VisualizationDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to load visualization types: {str(e)}")
 
     @Slot(int)
+    def done(self, result: int):
+        """Close the tabs before the dialog goes.
+
+        Notes:
+            - A child widget is destroyed with its parent and is **not** sent a close event, so a
+              tab's own teardown never ran when the dialog was closed with plots still open -- and
+              every figure it held stayed until the collector came round.
+        """
+        self.clear_visualization_tabs()
+        super().done(result)
+
     def close_tab(self, index: int):
         """Close the visualization tab at the specified index.
 
@@ -161,12 +172,14 @@ class VisualizationDialog(QDialog):
             else:
                 logger.debug("Closing tab '%s' at index %s", vis_type, index)
 
-            if hasattr(tab_widget, '_clear_canvas'):
-                try:
-                    tab_widget._clear_canvas()
-                    logger.debug("Canvas cleared for tab '%s'", vis_type)
-                except Exception as e:
-                    logger.error("Failed to clear canvas for tab '%s': %s", vis_type, str(e))
+            # **Closed, not merely removed** (M1). A tab lets go of its figure in `closeEvent`,
+            # and `removeTab` does not send one: the arrays a day's sampling makes were left for
+            # whenever the collector next ran. This cleared the canvas instead, which redraws an
+            # empty plot and frees nothing the tab is holding.
+            try:
+                tab_widget.close()
+            except Exception as e:                      # noqa: BLE001 - teardown never raises
+                logger.error("Failed to close tab '%s': %s", vis_type, str(e))
 
             self.ui.tabWidget.removeTab(index)
             tab_widget.deleteLater()
