@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.11.0 shipped.** What is left, what was decided against, and why.
+**1.12.0 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
@@ -10,24 +10,12 @@ its criterion holds, not when it feels tidy.
 Seventeen items from using it, ranked: what cost an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 They land in this order, a stage or an item per release, unless a later one turns out to need an
-earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0.**
-
-### Seen in use, not explained -- before anything else in stage 3 if either reproduces
-
-An item here is finished by an answer, not by a change: either a reproduction with the fix and the
-test that holds it, or a measurement that shows it is not happening, written down here so it is not
-chased twice.
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| R1 | **Result files go missing from a project directory** | **Answered, 16.09.2026: they were deleted by File -> New Project and by File -> Open.** A window lets go of a project through `compute(method="release")`, which reached `ScheduleProject.remove_all`, which asked each observation to `clear_calculated_data` -- and that erases the results *on disk* as well as in memory. So opening a second project deleted the first one's results out of its saved directory, silently. `remove_all` lets go of what is in hand now; the disk is changed by a save (which drops the results of observations the project no longer has) and by the deliberate Clear Data, and by nothing else. `test_results_survive` walks a session and fails on the old code in four places |
-| M1 | **Memory grows through a session and does not come back** | **Answered, 16.09.2026: caches filling, not a leak -- and it stops.** A harness opens the visualization dialog, draws every plot it offers and opens four editors, over and over. Objects grew by 1 300 a round for a dozen rounds and then by 5: matplotlib's text metrics are an `lru_cache(4096)`, and a new tab means a new renderer, so every round filled it with new keys (about 400 `FontProperties` each) until it was full. The resident set flattens with it -- 339 MB to 377 MB over twelve rounds, then 378 MB at twenty-four. The other two things that grow are bounded by settings: the request journal at `session_limit` (5 000 entries of plain data -- what a request named is recorded by name, so nothing in the model is pinned), and the results in hand at the residency budget, which is the design. Nothing else accumulates: widgets, tabs and figures all reach zero. Two things were fixed on the way -- the visualization dialog removed a tab without closing it, so the tab's own teardown never freed its figure, and the same on the dialog's own close; `test_memory_bounds` holds both, and the journal's limit |
+earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0; O1 in 1.12.0.**
 
 ### Stage 3 -- what it cannot do yet
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| O1 | **The generator, finished** | A generation plan -- sources, stations, bands, times, pattern -- saves to a file and loads back into the dialog whole; today a preset keeps the timing and drops what it was for. The end time a pattern implies is computed by the backend, not by the dialog, and the two built-in presets come from the backend too |
 | C1 | **Editing the catalogues** | Add, edit and remove sources and stations in the catalogue managers, and save to the same file or a new one. **A catalogue is JSON** -- the same `Sources` and `Telescopes` a project serializes, so a space telescope and any field added later have somewhere to go; `.dat` files still open, and are saved as JSON. The shipped catalogues are converted once, and read back equal to what the `.dat` gave |
 | S1 | **Editing a session** | A session can be cut down to what is worth repeating: rows removed, the rest saved, and a filter showing only the requests that change the model. **Everything is still recorded** -- what the window asked is what a bug report needs. Whether an operation only reads is declared on the operation, in MSB, not listed here |
 | L4 | **Everything from the command line** | Every operation the window can ask for can be asked from the command line: `pastrocore-cli ask <operation> <object> key=value`, and an interactive `pastrocore-cli shell` that completes operations, methods and objects. **No new language**: both are built from the catalogue of requests MSB already describes, so nothing is a command table to keep in step with the window, and a script is a session file, which already replays |
@@ -40,6 +28,16 @@ chased twice.
 | U1 | **A redesign** | The window looks like a current application rather than an early Windows 8 one. Designed as tokens -- palette, type scale, spacing, radii, one light and one dark theme -- from which the stylesheet and the plots' matplotlib style are both generated, so a colour is changed in one place. Mockups of the main window, a visualization tab and an editor are agreed before any form is touched; then every form, restyled, with its pixels regenerated deliberately and before/after shown for each. The theme is a choice in Preferences. The icons from G10 take their stroke from the palette, so they follow rather than get redrawn |
 | I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
 | D1 | **The documentation, whole** | An astronomer with no Python reaches a VEX file from the manual alone: installing, a first observation from the catalogues, every tab and dialog, calculations and what each plot shows, formats, sessions, the command line, troubleshooting. Screenshots are made by a script from the application, so they are regenerated rather than going stale; every code block runs in the suite, as now; the command-line reference comes from the command line itself. Built as a site in CI and published with each release |
+
+## Seen in use, and answered
+
+Two reports from using it, both answered in 1.12.0 -- one a fix, one a measurement. Kept here so
+that neither is chased twice.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| R1 | **Result files go missing from a project directory** | **Answered, 16.09.2026: they were deleted by File -> New Project and by File -> Open.** A window lets go of a project through `compute(method="release")`, which reached `ScheduleProject.remove_all`, which asked each observation to `clear_calculated_data` -- and that erases the results *on disk* as well as in memory. So opening a second project deleted the first one's results out of its saved directory, silently. `remove_all` lets go of what is in hand now; the disk is changed by a save (which drops the results of observations the project no longer has) and by the deliberate Clear Data, and by nothing else. `test_results_survive` walks a session and fails on the old code in four places |
+| M1 | **Memory grows through a session and does not come back** | **Answered, 16.09.2026: caches filling, not a leak -- and it stops.** A harness opens the visualization dialog, draws every plot it offers and opens four editors, over and over. Objects grew by 1 300 a round for a dozen rounds and then by 5: matplotlib's text metrics are an `lru_cache(4096)`, and a new tab means a new renderer, so every round filled it with new keys (about 400 `FontProperties` each) until it was full. The resident set flattens with it -- 339 MB to 377 MB over twelve rounds, then 378 MB at twenty-four. The other two things that grow are bounded by settings: the request journal at `session_limit` (5 000 entries of plain data -- what a request named is recorded by name, so nothing in the model is pinned), and the results in hand at the residency budget, which is the design. Nothing else accumulates: widgets, tabs and figures all reach zero. Two things were fixed on the way -- the visualization dialog removed a tab without closing it, so the tab's own teardown never freed its figure, and the same on the dialog's own close; `test_memory_bounds` holds both, and the journal's limit |
 
 ## Parked
 
@@ -82,6 +80,7 @@ that happens when one is sent.
 | **1.9.0** | Moving stations (velocities in m/yr taken as m/s, 9 500 km off), sources at -0 degrees, editors that rounded on save, X/Y polarizations, and a calculation that scales linearly with scans. 1.9.1--1.9.3: no orbit step without a spacecraft, the Mollweide and spacecraft tabs draw, and plots redraw clean |
 | **1.10.0** | **G7, G8, G9.** Select All and Clear under every list a plot is chosen from; nothing on a form overlaps or is cut off, and no window is pinned to a size; saving shows how far it has got and the window keeps answering |
 | **1.11.0** | **G10--G13.** The icon set complete and in one style; a toolbar of the menu's own actions; the platform's keys and a few of our own; a status bar showing the last log line and what the process holds |
+| **1.12.0** | **O1.** A generation is a plan: saved whole, timed by the backend, its presets the model's. **R1, M1** answered -- opening a second project deleted the first one's results, and the memory that climbs through a session is caches filling, with a bound |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in

@@ -8,6 +8,46 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.12.0] - 2026-09-16
+
+### Fixed
+
+- **Opening a second project deleted the first one's results** (R1), out of the directory it had just
+  been saved to, with nothing said. A window lets go of a project through a `release` request before
+  it opens another or starts a new one, and that asked every observation to clear its results --
+  which erases them on disk as well as in memory. Letting go of a project is not a decision to delete
+  a day of calculation. What changes the disk now is a save, which drops the results of observations
+  the project no longer has, and the deliberate Clear Data, and nothing else.
+- **A saved project called its results unsaved for ever** (R1). A save copies them out of the
+  session's scratch rather than moving them, and nobody cleared the copies afterwards -- so closing
+  the window asked about results that were already saved, answering Save left the count unchanged and
+  the window refused to close, and every File -> New Project left a scratch directory the next start
+  offered to recover. A save clears the scratch when it has finished writing.
+- **Memory climbing through a session** (M1) was measured rather than argued about: it is caches
+  filling, and it stops. Objects grow by 1 300 a round of work for a dozen rounds and then by 5, as
+  matplotlib's text-metrics `lru_cache(4096)` fills; the resident set flattens with it. The other two
+  things that grow are bounded by settings -- the request journal at `session_limit`, and the results
+  in hand at the residency budget. Two real holds were fixed: the visualization dialog removed a tab
+  without closing it, so the tab's teardown never let go of its figure, and the same when the dialog
+  itself was closed.
+- Editing a frequency in the generator had always ended in an error box: it called a method the band
+  editor was renamed out of years ago, and nothing reached the call.
+- The generator's Save and Load buttons were disabled in the form and enabled nowhere, so neither had
+  ever been pressed.
+
+### Added
+
+- **O1: a generation is a plan.** Sources, stations, bands, times and pattern save to a file and load
+  back into the dialog whole -- a preset used to keep the timing and drop what it was for. How long a
+  pattern takes, and the scan duration that fits a given end, are the backend's arithmetic now, where
+  the generator's own always was; the dialog asked for a second copy of both. The two built-in
+  patterns come from the model, like every other list the interface shows.
+- Tests that hold what was found: a session of ordinary work loses no result file; a window keeps the
+  results of the project it replaces; a save takes its scratch copies with it; ten plots opened and
+  closed leave no tab and no figure; the journal stops at the size it was given; a control disabled
+  in a form that no code enables fails the build; and a widget calling a method another widget does
+  not have fails it too.
+
 ## [1.11.0] - 2026-09-16
 
 Stage 2 of the roadmap: the main window.
