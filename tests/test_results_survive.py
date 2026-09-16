@@ -131,7 +131,7 @@ def test_clear_data_still_deletes_the_results_it_is_asked_to(calculated):
 
     core.compute(obj=project, method="clear")
 
-    assert on_disk(directory) == {}, "Clear Data left the results on disk"
+    assert not any(on_disk(directory).values()), "Clear Data left the results on disk"
     assert not any(claimed(project).values()), "the project still claims results it cleared"
 
 
@@ -181,3 +181,89 @@ def test_a_session_of_ordinary_work_loses_nothing(project, tmp_path):
     core.compute(obj=project, method="release")
     nothing_missing(reopened, second, "7. after the first project was let go of")
     nothing_missing(ScheduleProject.open(str(first)), first, "8. and the first is still readable")
+
+
+# --- and the scratch a save has copied out of ---------------------------------------------------------
+
+def test_a_save_takes_the_scratch_copies_with_it(project, tmp_path):
+    """`migrate_to` copies rather than moves -- a save that fails half way must leave the results
+    where they were -- and nothing cleared the copies afterwards. `unsaved_results` counts what is in
+    the scratch, so a saved project went on reporting every result as unsaved for the rest of the
+    session: the recovery offer at the next start, and the question on closing, were about results
+    that were safely in the project directory."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    project._scratch = ScratchSpace(root=tmp_path / "scratch")
+    project.hold_results_in_scratch()
+    core = ScheduleManipulator(project)
+    core.compute(obj=None, method="run", targets=project.observations(),
+                 calculations=["uv_coverage"], time_step=600.0, recalculate=True)
+    held = project.scratch.path
+    assert project.unsaved_results() > 0, "nothing was calculated into the scratch"
+
+    directory = tmp_path / "saved"
+    core.save(obj=project, path=str(directory))
+
+    assert project.unsaved_results() == 0, "a saved project still calls its results unsaved"
+    assert not held.exists(), "the copies were left in the scratch"
+    nothing_missing(project, directory, "saved")
+
+
+def test_a_project_that_was_never_saved_keeps_what_it_calculated(project, tmp_path):
+    """The other half of the rule: what has nowhere else to be is left where it is, so the next
+    start can offer it back."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    project._scratch = ScratchSpace(root=tmp_path / "scratch")
+    project.hold_results_in_scratch()
+    core = ScheduleManipulator(project)
+    core.compute(obj=None, method="run", targets=project.observations(),
+                 calculations=["uv_coverage"], time_step=600.0, recalculate=True)
+
+    tidied = core.export(obj=project, method="tidy")
+
+    assert tidied == {"discarded": False, "held": project.unsaved_results()}
+    assert project.unsaved_results() > 0
+    assert project.scratch.path.exists(), "results nobody has saved were thrown away"
+
+
+def test_the_window_closes_after_a_save_without_asking_about_saved_results(qt_application, project,
+                                                                          tmp_path, monkeypatch):
+    """Reported shape: save, then close. The window asked about results that were already saved and,
+    when told to save them again, refused to close -- the count it re-read never changed."""
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.base.scratch import ScratchSpace
+
+    window = PAstroCoreMainWindow()
+    window.project = project
+    window.manipulator = ScheduleManipulator(project)
+    project._scratch = ScratchSpace(root=tmp_path / "scratch")
+    project.hold_results_in_scratch()
+    window.manipulator.compute(obj=None, method="run", targets=project.observations(),
+                               calculations=["uv_coverage"], time_step=600.0, recalculate=True)
+
+    directory = tmp_path / "saved"
+    directory.mkdir()
+    asked = []
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", staticmethod(lambda *a, **k: str(directory)))
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: (asked.append(1), QMessageBox.StandardButton.Save)[1]))
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: None))
+    try:
+        window.save_project_as()
+        assert window._ask_what_is_unsaved() == 0
+
+        closed = window.close()
+
+        assert asked == [], "the window asked about results it had just saved"
+        assert closed, "the window refused to close after saving"
+        assert on_disk(directory), "closing took the saved results with it"
+    finally:
+        # Whatever the assertions said: a window left standing is closed again by the suite's
+        # own teardown, and one that refuses to close is closed twice, which ends the process.
+        window.project = None
+        window.close()
+        window.deleteLater()
+        qt_application.processEvents()

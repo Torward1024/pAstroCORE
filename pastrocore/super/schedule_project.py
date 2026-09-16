@@ -352,6 +352,15 @@ class ScheduleProject(Project):
         if dropped:
             logger.info("Dropped results for %s observation(s) no longer in the project", dropped)
 
+        # **The copies in the scratch have somewhere better to be now.** `migrate_to` copies
+        # rather than moves -- a save that fails half way must leave the results where they were --
+        # and nobody cleared them afterwards, so every result stayed duplicated in the scratch for
+        # the rest of the session. `unsaved_results` counts what is in there, so a saved project
+        # went on reporting the same results as unsaved: closing the window asked about them, and
+        # answering "Save" left the count unchanged, so the window refused to close. Cleared here,
+        # after everything is written, and never before.
+        self.scratch.discard()
+
         report(100, "Saved")
         logger.info("Saved project '%s' to '%s': %s result(s) written", self.name, path, written)
 
