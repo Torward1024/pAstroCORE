@@ -1,5 +1,5 @@
 # unit_scheduling/super/schedule_project.py
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
 from pastrocore.base.result_store import (PARTIAL_SUFFIX, ResidencyBudget, ResultStore, json_safe,
@@ -461,6 +461,56 @@ class ScheduleProject(Project):
               existed. A project that is opened and closed without calculating leaves nothing.
         """
         self.attach_results_store(self.scratch.store)
+
+    # --- what a generation would be (O1) ---------------------------------------------------
+
+    def get_generation_presets(self) -> List[Dict[str, Any]]:
+        """The patterns a generation can start from.
+
+        Returns:
+            List[Dict[str, Any]]: `{"name": str, "plan": dict}` for each, the plan being what
+                `GenerationPlan.from_dict` reads.
+
+        Notes:
+            - Asked of the model rather than written into the dialog, like every other list the
+                interface shows. A preset says what pattern, never what to observe.
+        """
+        from pastrocore.base.generation_plan import presets
+
+        return presets()
+
+    def get_generation_span(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+        """How long a generation plan takes, and when it ends.
+
+        Args:
+            plan (Dict[str, Any]): A plan as `GenerationPlan.to_dict` writes it. Asked as
+                `inspect(obj=project, get_generation_span={"plan": ...})`, because a dictionary in
+                a request is the method's keyword arguments rather than one value.
+
+        Returns:
+            Dict[str, Any]: `per_observation` and `total` in seconds, and `end` as a string, or
+                None when the plan does not say when it starts.
+        """
+        from pastrocore.base.generation_plan import TIME_FORMAT, GenerationPlan
+
+        asked = GenerationPlan.of(plan)
+        end = asked.end()
+        return {"per_observation": asked.span_per_observation(), "total": asked.span(),
+                "end": end.strftime(TIME_FORMAT) if end else None}
+
+    def get_generation_scan_duration(self, plan: Dict[str, Any], seconds: float) -> float:
+        """The scan duration that makes a plan take a given number of seconds.
+
+        Args:
+            plan (Dict[str, Any]): A plan as `GenerationPlan.to_dict` writes it.
+            seconds (float): How long the whole plan should take.
+
+        Returns:
+            float: Seconds per scan; 0 when the intervals alone are already longer than that.
+        """
+        from pastrocore.base.generation_plan import GenerationPlan
+
+        return GenerationPlan.of(plan).scan_duration_for(float(seconds or 0.0))
 
     @staticmethod
     def is_directory_project(path: str) -> bool:

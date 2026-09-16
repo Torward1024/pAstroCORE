@@ -1153,3 +1153,32 @@ def test_no_widget_hides_a_qt_method_behind_an_attribute():
 
     assert not offenders, (
         "an attribute hides a Qt method of the same name:\n  " + "\n  ".join(offenders))
+
+
+def test_no_control_is_disabled_in_a_form_and_never_enabled_anywhere():
+    """A button that starts disabled and is never turned on cannot be pressed, ever, and looks like
+    a feature that does not work rather than one that is not there.
+
+    The generator's Save Plan and Load Plan buttons were like that from the day they were drawn: the
+    dialog wired them to methods nobody could reach. What this allows is the deliberate case -- the
+    calculation report is disabled until there has been a run -- which the code turns on by name.
+    """
+    import re
+
+    forms = sorted((ROOT / "pastrocore" / "gui_pyside").glob("*.ui"))
+    code = "\n".join(path.read_text(encoding="utf-8") for path in
+                     sorted((ROOT / "pastrocore").rglob("*.py"))
+                     if not path.name.startswith(("ui_", "rc_")))
+
+    asleep = {}
+    for form in forms:
+        text = form.read_text(encoding="utf-8")
+        for match in re.finditer(r'<(?:widget|action) class="[^"]*" name="(\w+)">(.*?)'
+                                 r'(?=<(?:widget|action) class=|</widget>|</action>)', text, re.S):
+            name, body = match.group(1), match.group(2)
+            if re.search(r'<property name="enabled">\s*<bool>false</bool>', body) \
+                    and f"{name}.setEnabled" not in code:
+                asleep.setdefault(form.name, []).append(name)
+
+    assert not asleep, ("disabled in the form and never enabled in the code:\n  "
+                        + "\n  ".join(f"{form}: {', '.join(names)}" for form, names in asleep.items()))

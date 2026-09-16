@@ -153,18 +153,20 @@ class Ui_GenerateObservationsDialog(object):
         self.horizontalLayoutPresetButtons.setObjectName(u"horizontalLayoutPresetButtons")
         self.savePresetButton = QPushButton(self.tabPattern)
         self.savePresetButton.setObjectName(u"savePresetButton")
-        self.savePresetButton.setEnabled(False)
 
         self.horizontalLayoutPresetButtons.addWidget(self.savePresetButton)
 
+        self.patternSpacer = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.horizontalLayoutPresetButtons.addItem(self.patternSpacer)
+
         self.loadPresetButton = QPushButton(self.tabPattern)
         self.loadPresetButton.setObjectName(u"loadPresetButton")
-        self.loadPresetButton.setEnabled(False)
 
         self.horizontalLayoutPresetButtons.addWidget(self.loadPresetButton)
 
 
-        self.gridLayout_5.addLayout(self.horizontalLayoutPresetButtons, 6, 0, 1, 1)
+        self.gridLayout_5.addLayout(self.horizontalLayoutPresetButtons, 4, 0, 1, 1)
 
         self.addOffSourceCheck = QCheckBox(self.tabPattern)
         self.addOffSourceCheck.setObjectName(u"addOffSourceCheck")
@@ -176,14 +178,12 @@ class Ui_GenerateObservationsDialog(object):
         self.labelPreset = QLabel(self.tabPattern)
         self.labelPreset.setObjectName(u"labelPreset")
 
-        self.gridLayout_5.addWidget(self.labelPreset, 4, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.labelPreset, 2, 0, 1, 1)
 
         self.presetCombo = QComboBox(self.tabPattern)
-        self.presetCombo.addItem("")
-        self.presetCombo.addItem("")
         self.presetCombo.setObjectName(u"presetCombo")
 
-        self.gridLayout_5.addWidget(self.presetCombo, 5, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.presetCombo, 3, 0, 1, 1)
 
         self.horizontalLayoutInterval = QHBoxLayout()
         self.horizontalLayoutInterval.setObjectName(u"horizontalLayoutInterval")
@@ -206,6 +206,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.gridLayout_5.addItem(self.verticalSpacer_2, 3, 0, 1, 1)
 
+        self.gridLayout_5.setRowStretch(5, 1)
         self.tabWidget.addTab(self.tabPattern, "")
 
         self.verticalLayout.addWidget(self.tabWidget)
@@ -351,13 +352,10 @@ class Ui_GenerateObservationsDialog(object):
         self.frequencyClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
         self.frequencySelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabBasic), QCoreApplication.translate("GenerateObservationsDialog", u"Basic Settings", None))
-        self.savePresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Save Preset", None))
-        self.loadPresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Load Preset", None))
+        self.savePresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Save Plan...", None))
+        self.loadPresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Load Plan...", None))
         self.addOffSourceCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Add Off-Source Scans", None))
         self.labelPreset.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Preset:", None))
-        self.presetCombo.setItemText(0, QCoreApplication.translate("GenerateObservationsDialog", u"Standard VLBI", None))
-        self.presetCombo.setItemText(1, QCoreApplication.translate("GenerateObservationsDialog", u"Quick Single Dish", None))
-
         self.labelInterval.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Interval between Scans (s):", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabPattern), QCoreApplication.translate("GenerateObservationsDialog", u"Pattern Settings", None))
         self.labelObservationType.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Observation Type:", None))

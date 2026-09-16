@@ -15,6 +15,11 @@ import pathlib
 
 import pytest
 
+#: Every module of the interface that defines a widget, found rather than listed.
+GUI_WIDGET_MODULES = sorted(
+    path.stem for path in
+    (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui").glob("p_*.py"))
+
 TABS = {
     "p_tab_vis_uv_coverage": "UVVisualizationTab",
     "p_tab_vis_az_el": None,
@@ -25,8 +30,6 @@ TABS = {
     "p_tab_vis_parallactic": None,
     "p_tab_vis_time_on_source": None,
 }
-
-
 def tab_class(module_name):
     """Return the widget class a tab module defines.
 
@@ -51,13 +54,9 @@ def tab_class(module_name):
                and value.__module__ == module.__name__]
     assert classes, f"{module_name} defines no widget class"
     return classes[0]
-
-
 @pytest.fixture
 def observation(project):
     return project.observations()[0]
-
-
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_can_be_built(module_name, project, observation, qt_application):
     """The floor: it constructs against a real observation."""
@@ -68,8 +67,6 @@ def test_a_tab_can_be_built(module_name, project, observation, qt_application):
         assert widget is not None
     finally:
         widget.deleteLater()
-
-
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_the_methods_a_first_click_reaches_still_run(module_name, project, observation,
                                                      qt_application):
@@ -98,8 +95,6 @@ def test_the_methods_a_first_click_reaches_still_run(module_name, project, obser
         assert called, f"{module_name} exposes none of the methods a first click reaches"
     finally:
         widget.deleteLater()
-
-
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_keeps_the_methods_its_own_signals_are_wired_to(module_name):
     """A deleted method is often still connected to a signal, which raises only when clicked.
@@ -116,8 +111,6 @@ def test_a_tab_keeps_the_methods_its_own_signals_are_wired_to(module_name):
     wired = set(re.findall(r"\.connect\(\s*self\.(\w+)\s*\)", source))
     missing = sorted(name for name in wired if not hasattr(widget, name))
     assert not missing, f"{module_name} connects signals to methods it does not have: {missing}"
-
-
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_uses_no_name_it_never_defines(module_name):
     """The failure that was reported: `source_name` and `current_checks` undefined, because the
@@ -150,8 +143,6 @@ def test_a_tab_uses_no_name_it_never_defines(module_name):
                 problems.append(f"{function.name} uses '{name}' without defining it")
 
     assert not problems, f"{module_name}: " + "; ".join(problems)
-
-
 # --- the dialog that creates the tabs -------------------------------------------------------
 
 def test_the_visualize_dialog_can_actually_open_a_tab(project, qt_application):
@@ -186,8 +177,6 @@ def test_the_visualize_dialog_can_actually_open_a_tab(project, qt_application):
     finally:
         dialog.close()
         dialog.deleteLater()
-
-
 def test_every_offered_visualization_has_a_widget(project, qt_application):
     """The dialog offers what the visualizer can draw and maps each to a widget by hand. If the
     two ever disagree, a user picks something and gets an error box."""
@@ -207,8 +196,6 @@ def test_every_offered_visualization_has_a_widget(project, qt_application):
 
     assert drawable == mapped, (
         f"the visualizer can draw {sorted(drawable - mapped)} but no widget is mapped to them")
-
-
 # --- the run says what it did (M4) -------------------------------------------------------------
 
 def _outcome():
@@ -227,8 +214,6 @@ def _outcome():
         "summary": {"steps": 1, "failed": 1, "seconds": 0.25, "slowest": "time_arrays",
                     "slowest_seconds": 0.25},
     }
-
-
 def test_the_report_shows_every_step_and_names_the_failed_one(qt_application):
     """A run used to end in one message box saying everything worked, with the detail in
     `output.log`. A failure has to be visible in the window."""
@@ -243,8 +228,6 @@ def test_the_report_shows_every_step_and_names_the_failed_one(qt_application):
     assert "1 failed" in dialog.ui.labelSummary.text()
     assert "0.25" in dialog.ui.labelSummary.text()
     dialog.close()
-
-
 def test_the_report_can_be_copied_as_text(qt_application):
     """For a bug report, which is the other reason anybody wants this."""
     from pastrocore.gui.p_dialog_run_report import RunReportDialog
@@ -255,8 +238,6 @@ def test_the_report_can_be_copied_as_text(qt_application):
     assert "UV Coverage" in text and "failed" in text
     assert "Time Arrays" in text
     dialog.close()
-
-
 def test_the_report_outlives_the_dialog_that_showed_it(qt_application, monkeypatch, tmp_path):
     """"Reachable after the run rather than only during it" is the criterion. A run that ended
     twenty minutes ago is exactly when somebody asks which step failed."""
@@ -277,8 +258,6 @@ def test_the_report_outlives_the_dialog_that_showed_it(qt_application, monkeypat
         assert shown.get("rows") == 2
     finally:
         window.close()
-
-
 # --- the explorer opens what was clicked ------------------------------------------------------
 
 def test_an_observation_with_stale_results_still_opens(qt_application, monkeypatch, tmp_path):
@@ -325,8 +304,6 @@ def test_an_observation_with_stale_results_still_opens(qt_application, monkeypat
         assert opened.get("name") == observation.name
     finally:
         window.close()
-
-
 def test_the_explorer_is_refreshed_after_a_run(qt_application, monkeypatch):
     """"12 stale" stayed on an observation whose results had just been recomputed.
 
@@ -367,8 +344,6 @@ def test_the_explorer_is_refreshed_after_a_run(qt_application, monkeypatch):
         assert refreshed, "the explorer still shows what the run has just changed"
     finally:
         window.close()
-
-
 def test_importing_a_frequency_from_a_file_works(qt_application, project, tmp_path):
     """`load` returns the object it read; this path still asked it for `["object"]`, a shape
     that stopped existing when the contract became MSB's own.
@@ -406,8 +381,6 @@ def test_importing_a_frequency_from_a_file_works(qt_application, project, tmp_pa
         assert all(isinstance(item, IF) for item in after)
     finally:
         tab.close()
-
-
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_actually_draws(module_name, project, observation, qt_application):
     """Building is the floor; this is the point of the tab.
@@ -432,8 +405,6 @@ def test_a_tab_actually_draws(module_name, project, observation, qt_application)
     finally:
         widget.close()
         widget.deleteLater()
-
-
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_declares_what_it_draws_rather_than_implementing_it(module_name):
     """What varies between the tabs is a declaration now: which form, which result, which
@@ -445,8 +416,6 @@ def test_a_tab_declares_what_it_draws_rather_than_implementing_it(module_name):
     assert issubclass(widget_class, VisualizationTab), f"{module_name} is not on the base"
     assert widget_class.FORM is not None, f"{module_name} declares no form"
     assert widget_class.STORE_KEY, f"{module_name} declares no result to read"
-
-
 def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observation,
                                                               qt_application):
     """A tab redraws whenever a filter moves, so anything it leaves behind is left behind
@@ -481,8 +450,6 @@ def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observati
     finally:
         widget.close()
         widget.deleteLater()
-
-
 def test_no_figure_is_replaced_at_all(project, observation, qt_application):
     """The tab owns one figure and asks the visualizer to draw *into* it, so a redraw creates
     nothing to let go of.
@@ -526,8 +493,6 @@ def test_no_figure_is_replaced_at_all(project, observation, qt_application):
     finally:
         widget.close()
         widget.deleteLater()
-
-
 def test_the_editor_shows_what_the_band_would_cover(qt_application):
     """`frequency` is an edge, not a middle. 4828 upper and 4844 lower are the same 16 MHz, and
     a project holding both is refused with a message about a rule rather than about the two
@@ -548,8 +513,6 @@ def test_the_editor_shows_what_the_band_would_cover(qt_application):
     finally:
         dialog.close()
         dialog.deleteLater()
-
-
 def test_the_editor_writes_the_sidebands_back(qt_application):
     """Showing them and not saving them would be worse than not showing them."""
     from pastrocore.base.frequencies import IF
@@ -569,8 +532,6 @@ def test_the_editor_writes_the_sidebands_back(qt_application):
     finally:
         dialog.close()
         dialog.deleteLater()
-
-
 def test_a_band_with_no_sideband_cannot_be_saved(qt_application, monkeypatch):
     """The one thing the dialog refuses itself, because there is no sensible default to fall
     back to: a band that says nothing about which way it runs is not a band."""
@@ -593,8 +554,6 @@ def test_a_band_with_no_sideband_cannot_be_saved(qt_application, monkeypatch):
     finally:
         dialog.close()
         dialog.deleteLater()
-
-
 # --- the catalog browsers -------------------------------------------------------------------
 
 @pytest.mark.parametrize("module_name,class_name,rows", [
@@ -635,8 +594,6 @@ def test_a_catalog_browser_opens_and_fills(module_name, class_name, rows, allow_
     finally:
         dialog.close()
         dialog.deleteLater()
-
-
 def test_a_catalog_browser_is_given_the_orchestrator_rather_than_making_one(project):
     """One entry point is the whole point of the framework, so a dialog that cannot reach the
     orchestrator is given it -- it does not build a second one. Checked on the signature
@@ -653,8 +610,6 @@ def test_a_catalog_browser_is_given_the_orchestrator_rather_than_making_one(proj
         source = inspection.getsource(dialog_class)
         assert "ScheduleManipulator(" not in source, (
             f"{dialog_class.__name__} builds an orchestrator of its own")
-
-
 # --- the recently-opened list (G4) -----------------------------------------------------------
 
 def test_a_project_opened_is_remembered_and_survives_a_restart(qt_application, monkeypatch,
@@ -691,8 +646,6 @@ def test_a_project_opened_is_remembered_and_survives_a_restart(qt_application, m
         assert [a.text() for a in again.ui.menuRecent_Projects.actions()] == [str(where)]
     finally:
         again.close()
-
-
 def test_a_project_that_has_gone_is_removed_when_it_is_clicked(qt_application, monkeypatch,
                                                                tmp_path):
     """The other half of the criterion. Checked when clicked rather than when the menu opens:
@@ -719,8 +672,6 @@ def test_a_project_that_has_gone_is_removed_when_it_is_clicked(qt_application, m
             ["Nothing opened yet"]
     finally:
         window.close()
-
-
 # --- work in a thread ------------------------------------------------------------------------
 
 def test_escape_on_a_progress_window_cancels_rather_than_hides(qt_application):
@@ -743,8 +694,6 @@ def test_escape_on_a_progress_window_cancels_rather_than_hides(qt_application):
     window.finish()
     assert not window.isVisible(), "reporting back has to close it"
     window.deleteLater()
-
-
 def test_work_that_must_finish_has_no_cancel_and_escape_does_not_stop_it(qt_application):
     """A save stopped half way leaves a directory half new, so its window offers no Cancel and
     Escape is not one."""
@@ -761,8 +710,6 @@ def test_work_that_must_finish_has_no_cancel_and_escape_does_not_stop_it(qt_appl
     assert window.isVisible() and asked == [], "work that must finish was asked to stop"
     window.finish()
     window.deleteLater()
-
-
 def test_run_with_progress_shows_a_window_only_for_work_that_takes_time(qt_application):
     """A save of a project whose results are all on disk writes one small file; a window flashing
     up for that is noise. Work still running after a moment gets one, and it moves."""
@@ -803,8 +750,6 @@ def test_run_with_progress_shows_a_window_only_for_work_that_takes_time(qt_appli
     finally:
         ProgressDialog.exec = original_exec
         ProgressDialog.update_progress = original_update
-
-
 def test_run_with_progress_raises_what_the_work_raised(qt_application):
     from pastrocore.gui.p_dialog_progress import run_with_progress
 
@@ -813,8 +758,6 @@ def test_run_with_progress_raises_what_the_work_raised(qt_application):
 
     with pytest.raises(IOError, match="the disk is full"):
         run_with_progress(None, "Failing", "", failing)
-
-
 def test_a_calculation_is_cancelled_by_escape_on_its_progress_window(qt_application, project):
     """End to end in the dialog: the thread is told, not just the window."""
     from PySide6.QtCore import Qt
@@ -847,8 +790,6 @@ def test_a_calculation_is_cancelled_by_escape_on_its_progress_window(qt_applicat
         dialog.deleteLater()
     finally:
         p_dialog_calculations.CalculationThread = original
-
-
 def work_dialogs(project):
     """The three dialogs that start work in a thread, built the way the window builds them."""
     from pastrocore.gui.p_dialog_calculations import CalculationDialog
@@ -861,8 +802,6 @@ def work_dialogs(project):
     return {"calculations": lambda: CalculationDialog(core, time_step=600),
             "export": lambda: ExportCalculatedDataDialog(core),
             "generation": lambda: GenerateObservationsDialog(project, core, CatalogManager())}
-
-
 @pytest.mark.parametrize("kind", ["calculations", "export", "generation"])
 def test_cancel_closes_a_dialog_that_started_nothing(qt_application, project, kind):
     """Released in 1.8.0 broken: Cancel printed an AttributeError and the dialog stayed open.
@@ -882,8 +821,6 @@ def test_cancel_closes_a_dialog_that_started_nothing(qt_application, project, ki
 
     assert not dialog.isVisible(), "Cancel did not close the dialog"
     dialog.deleteLater()
-
-
 @pytest.mark.parametrize("kind", ["calculations", "export", "generation"])
 def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, project, kind):
     """A QThread destroyed while running aborts the process, and a dialog's thread goes with
@@ -913,8 +850,6 @@ def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, project,
 
     assert not dialog.worker.isRunning(), "the dialog closed ahead of the work it started"
     dialog.deleteLater()
-
-
 # --- editors keep what they did not change ---------------------------------------------------------
 
 @pytest.mark.parametrize("declination", [(-0.0, 30.0, 15.2), (-12.0, 5.0, 1.25), (0.0, 30.0, 15.2)],
@@ -941,8 +876,6 @@ def test_saving_a_source_unchanged_keeps_its_position(qt_application, declinatio
     assert source.dec_degrees == pytest.approx(before[1], abs=1e-12)
     assert source.ra_degrees == pytest.approx(before[0], abs=1e-12)
     dialog.deleteLater()
-
-
 def test_saving_a_telescope_unchanged_keeps_its_position_and_velocity(qt_application):
     """Two decimal places for metres per year turned a station's -0.01353 into -0.01 and its
     0.00873 into 0.01 -- tectonic motion rounded to centimetres -- the moment it was saved."""
@@ -958,8 +891,6 @@ def test_saving_a_telescope_unchanged_keeps_its_position_and_velocity(qt_applica
 
     assert (saved.x, saved.y, saved.z, saved.vx, saved.vy, saved.vz) == pytest.approx(before, abs=1e-9)
     dialog.deleteLater()
-
-
 def test_the_catalogue_lists_a_source_south_of_the_equator_as_south(qt_application, project):
     """The table's sign came from `de_d >= 0`, which is true of `-0.0`."""
     from pastrocore.base.sources import Source
@@ -977,8 +908,6 @@ def test_the_catalogue_lists_a_source_south_of_the_equator_as_south(qt_applicati
     assert "-00:30:15.2" in shown, shown
     assert "00:00:00.0" in shown, f"59.96 seconds rounded on their own showed as 60.0: {shown}"
     dialog.deleteLater()
-
-
 # --- a tab shows what was drawn -----------------------------------------------------------------------
 
 def visualization_tabs():
@@ -1001,8 +930,6 @@ def visualization_tabs():
             if issubclass(cls, VisualizationTab) and cls is not VisualizationTab and cls.STORE_KEY:
                 found[cls.__name__] = cls
     return sorted(found.values(), key=lambda cls: cls.__name__)
-
-
 @pytest.mark.parametrize("tab_class", visualization_tabs(), ids=lambda cls: cls.__name__)
 def test_a_tab_draws_into_the_figure_it_shows(qt_application, project, tab_class):
     """The Mollweide tab opened and never drew: it built its own request and left out its figure,
@@ -1022,15 +949,11 @@ def test_a_tab_draws_into_the_figure_it_shows(qt_application, project, tab_class
     assert drawn > 0, f"{tab_class.__name__} opened with nothing on its figure"
     tab.close()
     tab.deleteLater()
-
-
 # --- G7: Select All and Clear under every list ----------------------------------------------------
 
 def visualization_forms():
     """Every generated form a visualization tab is laid out with, found from the tabs."""
     return sorted({cls.FORM for cls in visualization_tabs()}, key=lambda form: form.__name__)
-
-
 @pytest.mark.parametrize("form", visualization_forms(), ids=lambda form: form.__name__)
 def test_every_list_a_plot_is_chosen_from_has_select_all_and_clear(qt_application, form):
     """Two hundred baselines, and one wanted: without these it is two hundred clicks. Every list on
@@ -1050,8 +973,6 @@ def test_every_list_a_plot_is_chosen_from_has_select_all_and_clear(qt_applicatio
             assert button.text() == text
             assert not button.autoDefault(), "Enter in a list would press it"
     host.deleteLater()
-
-
 @pytest.mark.parametrize("tab_class", visualization_tabs(), ids=lambda cls: cls.__name__)
 def test_clear_and_select_all_tick_a_whole_list_and_draw_once(qt_application, project, tab_class):
     """Each item's `itemChanged` means redraw; a list ticked one item at a time would draw the plot
@@ -1103,8 +1024,6 @@ def test_clear_and_select_all_tick_a_whole_list_and_draw_once(qt_application, pr
     finally:
         tab.close()
         tab.deleteLater()
-
-
 @pytest.mark.parametrize("tab_class", visualization_tabs(), ids=lambda cls: cls.__name__)
 def test_closing_a_tab_clears_its_figure(qt_application, project, tab_class, caplog):
     """Closing a tab is when a day's sampling is let go of, and it never was: the figure was
@@ -1135,3 +1054,195 @@ def test_closing_a_tab_clears_its_figure(qt_application, project, tab_class, cap
     assert figure.canvas is not tab.canvas, "the figure still points at the Qt canvas being destroyed"
     tab.deleteLater()
     QApplication.processEvents()
+# --- O1: the generator dialog describes a plan and asks the backend everything about it ------------
+
+@pytest.fixture
+def generator(qt_application, project):
+    """The generation dialog, holding the fixture's sources, stations and bands, all selected."""
+    from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.utils.catalogmanager import CatalogManager
+
+    observation = project.observations()[0]
+    dialog = GenerateObservationsDialog(project, ScheduleManipulator(project), CatalogManager())
+    for collection, order, held, refresh, widget in (
+            ("sources", "_source_order", observation.get_sources(), dialog.update_source_list,
+             dialog.ui.sourceList),
+            ("telescopes", "_telescope_order", observation.get_telescopes(),
+             dialog.update_telescope_list, dialog.ui.telescopeList),
+            ("frequencies", "_frequency_order", observation.get_frequencies(),
+             dialog.update_frequency_list, dialog.ui.frequencyList)):
+        setattr(dialog, collection, held)
+        setattr(dialog, order, list(held.get_all().keys()))
+        refresh()
+        widget.selectAll()
+    try:
+        yield dialog
+    finally:
+        dialog.done(0)
+        dialog.deleteLater()
+        qt_application.processEvents()
+def test_the_generator_offers_the_presets_the_backend_has(generator, project):
+    """Two patterns were written into the dialog -- and into the form, as combo box items."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    offered = ScheduleManipulator(project).inspect(obj=project, get_generation_presets=None)
+    shown = [generator.ui.presetCombo.itemText(index)
+             for index in range(generator.ui.presetCombo.count())]
+
+    assert shown[1:] == [entry["name"] for entry in offered]
+    form = (pathlib.Path(__file__).parent.parent / "pastrocore" / "gui_pyside"
+            / "dialog_generate_observations.ui").read_text(encoding="utf-8")
+    assert "Standard VLBI" not in form, "the form lists a preset of its own"
+def test_choosing_a_preset_changes_the_pattern_and_not_what_is_selected(generator):
+    before = len(generator.ui.sourceList.selectedItems())
+    generator.ui.presetCombo.setCurrentIndex(1)
+
+    assert generator.ui.scanDurationSpinBox.value() > 0
+    assert len(generator.ui.sourceList.selectedItems()) == before, "a preset changed the selection"
+def test_the_end_time_is_the_one_the_backend_works_out(generator, qt_application):
+    """The dialog carried its own copy of the generator's arithmetic; it asks now."""
+    generator.ui.chkParallel.setChecked(False)
+    generator.ui.addOffSourceCheck.setChecked(True)
+    generator.ui.scanDurationSpinBox.setValue(120.0)
+    generator.ui.numScansSpinBox.setValue(6)
+    generator.ui.intervalSpinBox.setValue(30)
+    qt_application.processEvents()
+
+    span = generator.span()
+    assert generator.ui.endTimeEdit.dateTime().toString("yyyy-MM-dd HH:mm:ss") == span["end"]
+    assert span["total"] == 6 * 240.0 + 5 * 30.0, "the plan is not what the fields describe"
+def test_an_end_time_typed_in_becomes_the_scan_duration_that_fits(generator, qt_application):
+    generator.ui.numScansSpinBox.setValue(4)
+    generator.ui.intervalSpinBox.setValue(60)
+    generator.ui.chkParallel.setChecked(True)
+    qt_application.processEvents()
+
+    start = generator.ui.startTimeEdit.dateTime()
+    generator.ui.endTimeEdit.setDateTime(start.addSecs(4 * 500 + 3 * 60))
+    qt_application.processEvents()
+
+    assert generator.ui.scanDurationSpinBox.value() == pytest.approx(500.0)
+def test_a_plan_saved_from_the_dialog_comes_back_whole(generator, qt_application, tmp_path,
+                                                        monkeypatch):
+    """What a preset saved was the timing: loading one left a pattern with nothing to point it at."""
+    from PySide6.QtWidgets import QFileDialog
+
+    path = str(tmp_path / "plan.json")
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (path, "")))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: (path, "")))
+
+    generator.ui.scanDurationSpinBox.setValue(42.0)
+    generator.ui.numScansSpinBox.setValue(3)
+    generator.ui.namingMaskEdit.setText("{i}_{s}")
+    qt_application.processEvents()
+    saved = generator.plan()
+    assert generator.ui.savePresetButton.isEnabled(), "the button cannot be pressed at all"
+    generator.ui.savePresetButton.click()
+
+    for widget in (generator.ui.sourceList, generator.ui.telescopeList, generator.ui.frequencyList):
+        widget.clear()
+    generator.ui.scanDurationSpinBox.setValue(300.0)
+    generator.ui.numScansSpinBox.setValue(9)
+    qt_application.processEvents()
+
+    assert generator.ui.loadPresetButton.isEnabled(), "the button cannot be pressed at all"
+    generator.ui.loadPresetButton.click()
+    qt_application.processEvents()
+
+    assert generator.ui.sourceList.count() == len(saved["sources"].get_all())
+    assert generator.ui.telescopeList.count() == len(saved["telescopes"].get_all())
+    assert generator.ui.frequencyList.count() == len(saved["frequencies"].get_all())
+    assert len(generator.ui.sourceList.selectedItems()) == generator.ui.sourceList.count()
+
+    back = generator.plan()
+    for field in ("scan_duration", "num_scans", "interval_sec", "naming_mask", "parallel",
+                  "add_off_source", "observation_type", "start"):
+        assert back[field] == saved[field], f"{field} came back different"
+    for collection in ("sources", "telescopes", "frequencies"):
+        assert list(back[collection].get_all()) == list(saved[collection].get_all()), collection
+def test_the_generator_asks_for_the_plan_it_is_showing(generator, qt_application, monkeypatch):
+    """The request is the plan itself, rather than attributes assembled from the widgets again."""
+    from pastrocore.gui import p_dialog_generate_observations as module
+
+    asked = {}
+
+    class Recorded(module.GenerationThread):
+        def __init__(self, manipulator, project, attributes):
+            asked.update(attributes)
+            super().__init__(manipulator, project, attributes)
+
+        def start(self):
+            self.finished.emit({"status": True, "result": []})
+
+    monkeypatch.setattr(module, "GenerationThread", Recorded)
+    monkeypatch.setattr(module.ProgressDialog, "exec", lambda self: 0)
+    generator.ui.numScansSpinBox.setValue(2)
+    qt_application.processEvents()
+    plan = generator.plan()
+    generator.generate()
+
+    assert asked["plan"]["num_scans"] == 2, "the request does not carry the plan"
+    assert asked["plan"]["naming_mask"] == plan["naming_mask"]
+    assert list(asked["plan"]["sources"].get_all()) == list(plan["sources"].get_all())
+    assert asked["cancelled"] is False
+
+
+# --- a widget calling a method another widget does not have -------------------------------------------
+
+def widget_classes():
+    """Every dialog and tab class the interface defines, by name."""
+    import importlib
+    import inspect as inspection
+
+    from PySide6.QtWidgets import QWidget
+
+    found = {}
+    for path in sorted((pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui")
+                       .glob("p_*.py")):
+        module = importlib.import_module(f"pastrocore.gui.{path.stem}")
+        for name, value in vars(module).items():
+            if inspection.isclass(value) and issubclass(value, QWidget) \
+                    and value.__module__ == module.__name__:
+                found[name] = value
+    return found
+
+
+def calls_that_reach_nothing(module_name, known):
+    """Every `x = SomeWidget(...)` followed by `x.method()` the class does not have."""
+    import ast
+
+    source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
+              / f"{module_name}.py").read_text(encoding="utf-8")
+    missing = []
+    for function in [node for node in ast.walk(ast.parse(source))
+                     if isinstance(node, ast.FunctionDef)]:
+        built = {}
+        for node in ast.walk(function):
+            if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Name) and node.value.func.id in known
+                    and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)):
+                built[node.targets[0].id] = known[node.value.func.id]
+        for node in ast.walk(function):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in built
+                    and not hasattr(built[node.func.value.id], node.func.attr)):
+                missing.append(f"{function.name}: "
+                               f"{built[node.func.value.id].__name__}.{node.func.attr}()"
+                               f" at line {node.lineno}")
+    return missing
+
+
+@pytest.mark.parametrize("module_name", GUI_WIDGET_MODULES)
+def test_a_widget_calls_no_method_another_widget_does_not_have(module_name, qt_application):
+    """What a user found: the generator edited a band through `dialog.get_if_data()`, and the band
+    editor has only ever had `get_if_object`. A rename left the call behind and nothing pointed at
+    it, so editing a band in the generator had always ended in an error box.
+
+    Every `something = SomeDialog(...)` followed by `something.method()` is checked against the
+    class itself. It is the same family as the tabs' `clear`, which MSB had removed: a call nothing
+    reaches is invisible until a user reaches it.
+    """
+    missing = calls_that_reach_nothing(module_name, widget_classes())
+    assert not missing, f"{module_name} calls what does not exist: " + "; ".join(missing)

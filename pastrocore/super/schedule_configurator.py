@@ -1,6 +1,7 @@
 from msb_arch import Configurator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.frequencies import Frequencies
+from pastrocore.base.generation_plan import GenerationPlan
 from pastrocore.base.sources import Sources
 from pastrocore.base.telescopes import Telescopes
 from pastrocore.base.scans import Scan, Scans
@@ -119,6 +120,14 @@ class ScheduleConfigurator(Configurator):
         """
         generated_codes = []
         try:
+            # **A plan is a way of asking for all of it at once** (O1): the window sends what it is
+            # showing, rather than assembling these attributes itself and working out the end time
+            # with its own copy of the arithmetic below.
+            # Updated in place rather than replaced: the caller holds this dictionary and sets
+            # `cancelled` on it while the generation runs, and a copy would never hear the cancel.
+            if attributes.get("plan") is not None:
+                attributes.update(GenerationPlan.of(attributes.pop("plan")).attributes())
+
             sources = attributes.get("sources", Sources())
             telescopes = attributes.get("telescopes", Telescopes())
             frequencies = attributes.get("frequencies", Frequencies())
@@ -181,10 +190,15 @@ class ScheduleConfigurator(Configurator):
                 telescopes = Telescopes(items={telescope_items[0].name: telescope_items[0].copy()})
                 logger.debug("SINGLE_DISH mode: selected telescope '%s'", telescope_items[0].name)
 
-            multiplier = 2 if add_off_source else 1
-            scan_group_duration = multiplier * scan_duration
+            # **How long the pattern takes is the plan's to say** (O1). This worked it out here
+            # and the dialog worked the same formula out again to show an end time, which is two
+            # implementations of one thing; the dialog asks now, and both read this.
+            pattern_plan = GenerationPlan(
+                scan_duration=scan_duration, num_scans=num_scans, interval_sec=interval_sec,
+                add_off_source=add_off_source, parallel=parallel)
+            scan_group_duration = pattern_plan.scan_block
             step_sec = scan_group_duration + interval_sec
-            required_duration_sec = scan_group_duration + (num_scans - 1) * step_sec if num_scans > 0 else 0
+            required_duration_sec = pattern_plan.span_per_observation()
 
             time_tolerance = 0.1 * u.s
 

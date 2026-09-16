@@ -279,6 +279,58 @@ class ScheduleData(Persistence, Loader):
             raise ValueError(f"No 'path' given; there is nowhere to {verb}")
         return path
 
+    def _export_generation_plan(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Write a generation plan to a file (O1).
+
+        Args:
+            obj: Whatever the request was made on; a plan belongs to nothing in the model.
+            attributes: `path`, where to write; `plan`, what `GenerationPlan.to_dict` wrote.
+
+        Returns:
+            Dict[str, Any]: `{"path": str}`.
+
+        Notes:
+            - **The whole plan, collections included.** What the dialog used to save was the timing
+              and not what it was for, so loading one left a pattern with nothing to point it at.
+        """
+        from pastrocore.base.generation_plan import GenerationPlan
+
+        path = self._destination(attributes)
+        # Whatever shape it arrives in: the window sends the collections it is showing, a caller
+        # replaying a session sends their data.
+        text = json.dumps(json_safe(GenerationPlan.of(attributes.get("plan")).to_dict()),
+                          indent=4, allow_nan=False)
+        target = Path(path)
+        partial = target.with_name(target.name + ".partial")
+        try:
+            partial.write_text(text, encoding="utf-8")
+            os.replace(partial, target)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
+        logger.info("Wrote a generation plan to '%s'", path)
+        return {"path": path}
+
+    def _load_generation_plan(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Read a generation plan back.
+
+        Args:
+            obj: Whatever the request was made on.
+            attributes: `path`, the file to read.
+
+        Returns:
+            Dict[str, Any]: The plan's fields, holding the sources, stations and bands themselves,
+                so that whoever asked shows them rather than reading them out of data.
+        """
+        from pastrocore.base.generation_plan import GenerationPlan
+
+        path = self._destination(attributes, verb="load")
+        held = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(held, dict):
+            raise ValueError(f"'{path}' does not hold a generation plan")
+        logger.info("Read a generation plan from '%s'", path)
+        return GenerationPlan.of(held).as_mapping()
+
     def _export_scan_times(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
         """List the scans a result covers for one source, with the time each starts.
 
