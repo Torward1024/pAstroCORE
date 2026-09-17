@@ -62,12 +62,32 @@ def test_a_question_is_asked_of_inspect_and_nothing_else_is(core):
     assert not {"available", "distinct", "scan_times", "unsaved"} & set(described["export"])
 
 
-def test_every_row_says_whether_it_only_reads(core, project, asked):
+def test_every_row_says_whether_it_only_reads_and_what_it_called(core, project, asked):
+    """`call` is the handler when one was named and the model's methods otherwise. The table's
+    Method column showed the handler alone, which is empty for a `get` or a `deactivate_item`."""
     rows = core.inspect(obj=project, method="history")
 
-    kinds = [(row["operation"], row.get("method"), row["reads"]) for row in rows]
-    assert kinds[:4] == [("inspect", None, True), ("inspect", "stale", True),
-                         ("configure", None, False), ("inspect", "catalogue", True)], kinds
+    kinds = [(row["operation"], row["call"], row["reads"]) for row in rows]
+    assert kinds[:4] == [("inspect", "get_observations", True), ("inspect", "stale", True),
+                         ("configure", "deactivate_item", False),
+                         ("inspect", "catalogue", True)], kinds
+
+
+def test_adding_an_observation_shows_what_it_called_and_saves_as_recorded(core, project, tmp_path):
+    """Reported from use: the row read `configure  Untitled Project  Untitled Project` with the
+    Method column empty, while the saved file named `create_item`. Both were right -- `method` is
+    the operation's handler, and none was named -- and the table was the one saying nothing."""
+    core.configure(project, create_item={"item_code": "OBS_ADDED", "isactive": True,
+                                         "observation_type": "VLBI"})
+    row = next(row for row in reversed(core.inspect(obj=project, method="history"))
+               if row["operation"] == "configure")
+    path = tmp_path / "session.json"
+    core.export(obj=project, method="journal", path=str(path), steps=[row])
+
+    assert (row["operation"], row["call"]) == ("configure", "create_item")
+    saved = json.loads(path.read_text(encoding="utf-8"))["steps"][0]
+    assert saved["method"] is None, "the file is the request as it was recorded"
+    assert "create_item" in saved["attributes"] and "call" not in saved
 
 
 def test_a_saved_session_is_the_rows_it_was_given(core, project, asked, tmp_path):
@@ -82,7 +102,7 @@ def test_a_saved_session_is_the_rows_it_was_given(core, project, asked, tmp_path
     saved = json.loads(path.read_text(encoding="utf-8"))["steps"]
     assert written["steps"] == len(changes) == 1
     assert [step["operation"] for step in saved] == ["configure"]
-    assert not {"where", "reads"} & set(saved[0]), "what the table added reached the file"
+    assert not {"where", "reads", "call"} & set(saved[0]), "what the table added reached the file"
     assert len(core.get_journal()) > recorded, "the journal lost what was cut from the file"
 
 
@@ -111,7 +131,7 @@ def test_a_session_written_before_the_questions_moved_still_replays(core, projec
         {"operation": "compute", "method": "catalogue", "attributes": {}, "status": True},
         # As the window recorded it: a facade call keeps the handler among the attributes.
         {"operation": "export", "method": None, "attributes": {"method": "unsaved"}, "status": True},
-        {key: value for key, value in change.items() if key not in ("where", "reads")},
+        {key: value for key, value in change.items() if key not in ("where", "reads", "call")},
     ]}), encoding="utf-8")
     core.configure(observation.get_sources(), activate_item=first)
 
@@ -146,6 +166,7 @@ def test_the_dialog_shows_only_what_changed_something_when_asked(dialog):
     dialog.ui.checkBoxChangesOnly.setChecked(True)
 
     assert operations(dialog) == ["configure"]
+    assert dialog.ui.tableRequests.item(0, 3).text() == "deactivate_item", "the Call column is empty"
     assert "1 shown and saved" in dialog.ui.labelSummary.text()
 
 

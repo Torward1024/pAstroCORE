@@ -38,8 +38,9 @@ from pastrocore.super.schedule_project import ScheduleProject
 #: Results that can be drawn. Anything else is exported as text only.
 
 #: What `inspect(method="history")` adds to a journal row for showing it, and a session file
-#: does not hold: where the object lives, as text, and whether the request only reads.
-SHOWN_ONLY = ("where", "reads")
+#: does not hold: where the object lives, as text, whether the request only reads, and what it
+#: called. A saved session is the requests as they were recorded.
+SHOWN_ONLY = ("where", "reads", "call")
 
 #: Filenames that do not follow from the calculation's name.
 FILE_PREFIXES = {"Beam Pattern": "Beam_Pattern", "Mollweide Tracks": "Mollweide"}

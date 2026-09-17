@@ -36,7 +36,10 @@ class SessionDialog(QDialog):
           its row, which the backend fills from the operation's name.
     """
 
-    COLUMNS = ["Operation", "Object", "Where", "Method", "Seconds", "Outcome"]
+    #: "Call" is what the request called: the operation's handler when one was named -- `run` --
+    #: and the model's methods otherwise -- `create_item`. "Method" showed the handler alone, and
+    #: that is empty for nearly everything the window asks.
+    COLUMNS = ["Operation", "Object", "Where", "Call", "Seconds", "Outcome"]
 
     def __init__(self, manipulator, parent=None):
         super().__init__(parent)
@@ -97,7 +100,7 @@ class SessionDialog(QDialog):
         for index, (position, row) in enumerate(shown):
             worked = bool(row.get("status"))
             cells = [row.get("operation") or "", row.get("object") or "",
-                     row.get("where") or "", row.get("method") or "",
+                     row.get("where") or "", row.get("call") or "",
                      f"{row.get('seconds') or 0.0:.3f}",
                      "ok" if worked else (row.get("error") or "failed")]
             for column, value in enumerate(cells):
