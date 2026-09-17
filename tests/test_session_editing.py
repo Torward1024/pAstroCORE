@@ -17,8 +17,8 @@ import pytest
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
 #: What an operation name promises, one row per kind, as the manipulator documents it.
-CHANGES = {"configure", "calculate", "compute", "load"}
-FILES = {"save", "export", "vex", "cfx"}
+CHANGES = ScheduleManipulator.CHANGING
+FILES = {"save", "load", "export", "vex", "cfx"}
 
 
 @pytest.fixture

@@ -15,6 +15,13 @@ in and what a run did are all asked of the orchestrator, exactly as the dialogs 
     pastrocore-cli run survey.pastro --only uv_coverage --force
     pastrocore-cli export survey.pastro pictures/ --pictures
     pastrocore-cli replay survey.pastro session.json
+
+    pastrocore-cli ask survey.pastro inspect OBS001/telescopes get_items
+    pastrocore-cli ask survey.pastro configure OBS001/sources deactivate_item=3C273
+    pastrocore-cli shell survey.pastro
+
+`ask` and `shell` reach every operation the window reaches, as one request each -- see
+`cli_request` for how a line becomes one, and `cli_shell` for the shell.
 """
 import argparse
 import logging
@@ -452,6 +459,57 @@ def replay(arguments) -> int:
     return 1 if outcome.get("failed") or outcome.get("unresolved") else 0
 
 
+def ask(arguments) -> int:
+    """Send one request, typed as `<operation> <address> key=value`, and print the answer.
+
+    Notes:
+        - **What changes the project is saved** back to where it came from, as `run` and `replay`
+          are; what reads, or reads and writes a file, leaves the project alone. `--dry-run`
+          sends a change and saves nothing.
+        - A package is refused before a change is sent, not after: it cannot be saved over.
+    """
+    from pastrocore import cli_request
+
+    changing = ScheduleManipulator.changes(arguments.operation)
+    saving = changing and not arguments.dry_run
+    project = _open_to_save(arguments.project) if saving else _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    try:
+        _, _, _, response = cli_request.send(
+            manipulator, [arguments.operation, arguments.address, *arguments.attributes])
+    except cli_request.Refused as refusal:
+        print(f"  {refusal}")
+        return 2
+    if not response.ok:
+        print(f"  {response.error}")
+        return 1
+    print(cli_request.render(manipulator, response.value, as_json=arguments.json))
+
+    if saving:
+        saved = manipulator.save(obj=project, path=arguments.project, raise_on_error=False)
+        if not saved.ok:
+            print(f"  not saved: {saved.error}")
+            return 1
+        if not arguments.json:
+            print(f"saved {arguments.project}")
+    return 0
+
+
+def shell(arguments) -> int:
+    """Open a project and take requests one line at a time, with completion."""
+    from pastrocore import cli_shell
+
+    if arguments.project:
+        project = _open(arguments.project)
+        path = None if Path(arguments.project).is_file() else arguments.project
+    else:
+        project, path = ScheduleProject(name="Untitled"), None
+    # Recorded, so the session can be written out and replayed.
+    manipulator = ScheduleManipulator(project, journal_limit=5000)
+    return cli_shell.run(manipulator, path)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Return the argument parser.
 
@@ -557,6 +615,27 @@ def build_parser() -> argparse.ArgumentParser:
     again.add_argument("project")
     again.add_argument("session")
     again.set_defaults(run=replay)
+
+    one = commands.add_parser(
+        "ask", help="send any request: <operation> <address> key=value ...",
+        description="Send one request, as the window would. The address names what it is about: "
+                    "project, OBS001, OBS001/sources, OBS001/telescopes/ALMA, OBS001/scans/#3. "
+                    "A value is JSON when it reads as JSON and text otherwise; @address passes "
+                    "the object there. A request that changes the project saves it.")
+    one.add_argument("project")
+    one.add_argument("operation", help="inspect, configure, compute, calculate, visualize, ...")
+    one.add_argument("address", help="what the request is about")
+    one.add_argument("attributes", nargs="*", metavar="key=value",
+                     help="a method or a handler's attribute; key alone passes nothing")
+    one.add_argument("--json", action="store_true", help="print the answer as JSON")
+    one.add_argument("--dry-run", action="store_true", dest="dry_run",
+                     help="send a change without saving the project")
+    one.set_defaults(run=ask)
+
+    interactive = commands.add_parser(
+        "shell", help="type requests one after another, with Tab completion")
+    interactive.add_argument("project", nargs="?", help="the project to open; a new one if none")
+    interactive.set_defaults(run=shell)
     return parser
 
 

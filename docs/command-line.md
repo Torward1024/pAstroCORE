@@ -3,9 +3,10 @@
 `pastrocore` opens the window. `pastrocore-cli` does the same work without one.
 
 It is not a second implementation of anything. Every command is one request to the same
-orchestrator the window sends its requests to, which is why it is about two hundred lines and
-why it holds no knowledge about calculations at all — what can be run, what each needs, what
-order they go in and what a run did are all *asked*.
+orchestrator the window sends its requests to, which is why it holds no knowledge about
+calculations at all — what can be run, what each needs, what order they go in and what a run did
+are all *asked* — and why `ask` and `shell` reach every request the window can make without a
+table of them.
 
 Two tests hold that: one refuses any mention of `pastrocore.gui` or Qt in its source, and one
 runs a command in a fresh process and looks at `sys.modules` afterwards, because an import that
@@ -165,6 +166,84 @@ assert "uv_coverage" in report["calculations"]
 scans = core.inspect(obj=project, method="affected", type="Scan")
 assert "beam_pattern" not in scans["calculations"]
 ```
+
+## Asking anything
+
+The commands above are the questions people ask most. **Every other request the window can make
+is `ask`**: an operation, what it is about, and its attributes — the request itself, on one line.
+
+```bash
+pastrocore-cli ask survey.pastro inspect OBS_DEFAULT/telescopes get_items
+pastrocore-cli ask survey.pastro inspect OBS_DEFAULT/telescopes/ALMA get='["code","diameter"]' --json
+pastrocore-cli ask survey.pastro configure OBS_DEFAULT/sources deactivate_item=3C273
+pastrocore-cli ask survey.pastro compute project method=run calculations='["uv_coverage"]' targets='["@OBS_DEFAULT"]'
+pastrocore-cli ask survey.pastro inspect project method=stale
+```
+
+| | |
+| --- | --- |
+| **operation** | Any the orchestrator has: `inspect`, `configure`, `calculate`, `compute`, `visualize`, `analyze`, `export`, `save`, `load`, `vex`, `cfx`, `catalogue` |
+| **address** | What it is about, the way a person names it: `project`, `OBS001`, `OBS001/sources`, `OBS001/sources/3C273`, `OBS001/telescopes/ALMA` (a code or a name), `OBS001/scans/#3` (a position) |
+| **`key=value`** | A method to call, or a handler's attribute. The value is JSON when it reads as JSON — `600`, `true`, `["a","b"]` — and text otherwise; `key` alone passes nothing. `@address` passes the object there |
+| `method=NAME` | Which of the operation's handlers — `compute project method=run` |
+| `--json` | Print the answer whole, as JSON, for a script. Without it a table of results is shown by its size and first ten rows |
+| `--dry-run` | Send a change without saving |
+
+**A request that changes the project saves it**, as `run` and `replay` do: `configure`,
+`calculate` and `compute`. One that reads, or reads or writes a file, leaves the project alone.
+
+**Nothing is listed in the command line.** Which operations exist, which handlers each has,
+which methods an object answers to and what is inside an address are asked of the orchestrator —
+so a mistake is answered with what was meant:
+
+```text
+$ pastrocore-cli ask survey.pastro inspect OBS_DEFAULT/telescops get_items
+  Nothing called 'telescops' in OBS_DEFAULT -- did you mean 'telescopes'? There is: sources, telescopes, frequencies, scans
+
+$ pastrocore-cli ask survey.pastro inspect OBS_DEFAULT/sources deactivate_item=3C273
+  'deactivate_item' changes OBS_DEFAULT/sources, and inspect only reads: configure OBS_DEFAULT/sources deactivate_item=...
+```
+
+An address is a question like any other, so a script or a server resolves one the same way:
+
+```python
+observation = core.inspect(obj=project, method="locate", address="OBS1")
+assert observation is project.get_observations()[0]
+assert core.inspect(obj=project, method="address", object=observation) == "OBS1"
+
+parts = core.inspect(obj=project, method="contents", address="OBS1")
+assert {entry["segment"] for entry in parts} == {"sources", "telescopes", "frequencies", "scans"}
+
+offered = core.inspect(obj=project, method="offers", operation="configure", address="OBS1/sources")
+assert "deactivate_item" in offered["methods"]
+```
+
+## The shell
+
+```bash
+pastrocore-cli shell survey.pastro
+```
+
+```text
+pAstroCORE shell on 'Survey'. help lists what can be asked; Tab completes; exit leaves.
+Survey> inspect OBS_DEFAULT/telescopes/<Tab>
+ALMA   APEX
+Survey> configure OBS_DEFAULT/sources deactivate_item=3C273
+done
+Survey> save project
+path: survey.pastro
+Survey> export project method=journal path=monday.json
+```
+
+Each line is what `ask` takes after the project, so nothing is learnt twice. **Tab** completes the
+operation, the address a level at a time, the methods an object has — only the reading ones for
+`inspect` — a handler after `method=`, the keys that handler reads, and an address after `=@`.
+`help`, `help <operation>` and `help <operation> <address>` say what can be asked.
+
+**Nothing is saved until asked.** `save project` writes to where the project was opened from, and
+leaving with changes that are not saved asks first. Everything typed is recorded, so `export project
+method=journal` writes the session and `pastrocore-cli replay` runs it again: **a script is a session
+file**.
 
 ## Sessions
 

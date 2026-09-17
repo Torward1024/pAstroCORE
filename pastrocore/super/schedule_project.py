@@ -288,6 +288,13 @@ class ScheduleProject(Project):
             - A result already on disk and never loaded is left alone rather than rewritten.
         """
         check_non_empty_string(path, "Project directory")
+        if self.__dict__.get("_released"):
+            # A released project has let go of its observations, and a save drops the results of
+            # observations a project no longer has: it would write an empty project over its own
+            # directory and delete a day of calculation. Nothing in the window does this; a
+            # request is data, and a command line can ask for `release` and then for a save.
+            raise ValueError(f"Project '{self.name}' was released, so it holds nothing: saving it "
+                             f"would empty '{path}' and delete its results. Open it again to save it")
         root = Path(path)
         (root / self.RESULTS_DIRECTORY).mkdir(parents=True, exist_ok=True)
 
@@ -582,6 +589,8 @@ class ScheduleProject(Project):
             released += 1
 
         self.remove_all()
+        # Remembered, so a save of what is left is refused rather than emptying the directory.
+        self.__dict__["_released"] = True
         logger.info("Released project '%s' and the %s observation(s) it held", self.name, released)
         return released
 
