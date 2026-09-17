@@ -89,20 +89,20 @@ class TelescopeEditorDialog(QDialog):
 
         self.sefd_model.clear()
         if self.telescope.sefd_table:
-            for freq, sefd in self.telescope.sefd_table.items():
-                self.sefd_model.add_row(freq, sefd)
+            for low, high, sefd in self.telescope.sefd_table:
+                self.sefd_model.add_row(low, high, sefd)
         self.surface_efficiency_model.clear()
         if self.telescope.surface_efficiency_table:
-            for freq, eff in self.telescope.surface_efficiency_table.items():
-                self.surface_efficiency_model.add_row(freq, eff)
+            for low, high, eff in self.telescope.surface_efficiency_table:
+                self.surface_efficiency_model.add_row(low, high, eff)
         self.effective_area_model.clear()
         if self.telescope.effective_area_table:
-            for freq, area in self.telescope.effective_area_table.items():
-                self.effective_area_model.add_row(freq, area)
+            for low, high, area in self.telescope.effective_area_table:
+                self.effective_area_model.add_row(low, high, area)
         self.system_temperature_model.clear()
         if self.telescope.system_temperature_table:
-            for freq, temp in self.telescope.system_temperature_table.items():
-                self.system_temperature_model.add_row(freq, temp)
+            for low, high, temp in self.telescope.system_temperature_table:
+                self.system_temperature_model.add_row(low, high, temp)
 
         logger.info("Loaded telescope '%s' into editor dialog", self.telescope.get_code())
 

@@ -12,6 +12,8 @@ object as it was. The paths that were never checked before are marked.
 import json
 import pathlib
 
+import math
+
 import pytest
 from astropy.time import Time
 from msb_arch import InvariantError
@@ -431,7 +433,8 @@ def test_a_flux_that_is_positive_is_still_accepted():
     source = Source(name="W", flux_table={1000.0: 5.0, 2000.0: 7.5})
 
     assert source.get_flux(1000.0) == 5.0
-    assert source.get_flux(1500.0) == pytest.approx(6.25)
+    # On the power law through the two, as a spectrum is -- not on a straight line, 6.25.
+    assert source.get_flux(1500.0) == pytest.approx(5.0 * 1.5 ** (math.log(1.5) / math.log(2.0)))
 
 
 # --- a telescope's tables -------------------------------------------------------------------
@@ -454,10 +457,10 @@ def test_a_telescope_table_holds_no_impossible_value(table, bad, path):
     from pastrocore.base.telescope import Telescope
 
     attempts = {
-        "build": lambda: Telescope(code="T", name="T", **{table: {1000.0: bad}}),
-        "set": lambda: Telescope(code="T", name="T").set({table: {1000.0: bad}}),
+        "build": lambda: Telescope(code="T", name="T", **{table: [(900.0, 1100.0, bad)]}),
+        "set": lambda: Telescope(code="T", name="T").set({table: [(900.0, 1100.0, bad)]}),
         "from_dict": lambda: Telescope.from_dict(
-            {**Telescope(code="T", name="T").to_dict(), table: {1000.0: bad}}),
+            {**Telescope(code="T", name="T").to_dict(), table: [[900.0, 1100.0, bad]]}),
     }
 
     with pytest.raises((InvariantError, ValueError)):
@@ -468,8 +471,8 @@ def test_a_telescope_with_sensible_tables_is_accepted():
     """The rule refuses what is wrong and nothing else."""
     from pastrocore.base.telescope import Telescope
 
-    telescope = Telescope(code="G", name="G", sefd_table={1000.0: 500.0},
-                          surface_efficiency_table={1000.0: 0.6})
+    telescope = Telescope(code="G", name="G", sefd_table=[(900.0, 1100.0, 500.0)],
+                          surface_efficiency_table=[(900.0, 1100.0, 0.6)])
 
     assert telescope.get_sefd(1000.0) == 500.0
     assert telescope.get_surface_efficiency(1000.0) == 0.6

@@ -80,11 +80,25 @@ def test_a_float_keyed_instrument_table_round_trips():
     from pastrocore.base.telescope import Telescope
 
     telescope = Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=100.0,
-                          sefd_table={1420.0: 350.0, 8400.0: 500.0})
+                          sefd_table=[(1400.0, 1720.0, 350.0), (8150.0, 8650.0, 500.0)])
     restored = Telescope.from_dict(json.loads(json.dumps(telescope.to_dict())))
 
-    assert restored.sefd_table == {1420.0: 350.0, 8400.0: 500.0}
-    assert all(isinstance(key, float) for key in restored.sefd_table)
+    assert restored.sefd_table == [(1400.0, 1720.0, 350.0), (8150.0, 8650.0, 500.0)]
+    assert all(isinstance(row, tuple) for row in restored.sefd_table)
+
+
+def test_a_telescope_written_before_its_tables_had_ranges_still_opens():
+    """Before E1 a table was `{frequency: value}`. Each value was measured at one frequency, so
+    it comes back as a row covering that frequency and nothing else -- no range is made up."""
+    from pastrocore.base.telescope import Telescope
+
+    written = {"name": "Effelsberg", "type": "Telescope", "code": "EF", "diameter": 100.0,
+               "sefd_table": {"1420.0": 350.0}, "system_temperature_table": {"4840.0": 25.0}}
+    restored = Telescope.from_dict(written)
+
+    assert restored.sefd_table == [(1420.0, 1420.0, 350.0)]
+    assert restored.get_system_temperature(4840.0) == 25.0
+    assert restored.get_system_temperature(4841.0) is None
 
 
 def test_a_float_keyed_flux_table_round_trips():

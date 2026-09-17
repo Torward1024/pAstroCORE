@@ -105,7 +105,7 @@ def test_a_catalogue_keeps_whatever_a_telescope_has(tmp_path, core):
 
     catalogs = CatalogManager()
     catalogs.telescope_catalog.add(Telescope(code="AA", name="Alpha", x=1.0, y=2.0, z=3.0,
-                                             diameter=32.0, sefd_table={5000.0: 350.0},
+                                             diameter=32.0, sefd_table=[(4800.0, 5200.0, 350.0)],
                                              elevation_range=(7.0, 88.0)))
     catalogs.telescope_catalog.add(SpaceTelescope(code="RA", name="RadioAstron"))
     path = catalogs.save("telescopes", str(tmp_path / "mine.json"), core)
@@ -114,7 +114,7 @@ def test_a_catalogue_keeps_whatever_a_telescope_has(tmp_path, core):
 
     assert read.telescope_catalog.to_dict() == catalogs.telescope_catalog.to_dict()
     assert isinstance(read.telescope_catalog.get("RadioAstron"), SpaceTelescope)
-    assert read.telescope_catalog.get("Alpha").sefd_table == {5000.0: 350.0}
+    assert read.telescope_catalog.get("Alpha").sefd_table == [(4800.0, 5200.0, 350.0)]
 
 
 def test_a_file_of_the_other_kind_is_refused_by_name():

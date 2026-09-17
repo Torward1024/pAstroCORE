@@ -2,7 +2,7 @@ from copy import deepcopy
 from .telescope import Telescope
 from msb_arch import InvariantError, invariant
 from msb_arch.utils.logging_setup import logger
-from typing import Optional, Dict, Tuple, Any
+from typing import Optional, Dict, List, Tuple, Any
 from astropy.time import Time
 import os
 import uuid
@@ -23,26 +23,26 @@ class SpaceTelescope(Telescope):
 
     def __init__(self, *, code: str = "TS", name: str = "TEMPSPACETELESCOPE", type: str = "SpaceTelescope",
                  orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
-                 sefd_table: Optional[Dict[float, float]] = None,
+                 sefd_table: Optional[List[Tuple[float, float, float]]] = None,
                  pitch_range: Tuple[float, float] = (-90.0, 90.0),
                  yaw_range: Tuple[float, float] = (-180.0, 180.0),
                  isactive: bool = True, use_kep: bool = False,
                  kepler_elements: dict = None,
                  interpolation_method: str = "linear",
                  surface_accuracy: Optional[float] = None,
-                 surface_efficiency_table: Optional[Dict[float, float]] = None,
-                 effective_area_table: Optional[Dict[float, float]] = None,
-                 system_temperature_table: Optional[Dict[float, float]] = None):
+                 surface_efficiency_table: Optional[List[Tuple[float, float, float]]] = None,
+                 effective_area_table: Optional[List[Tuple[float, float, float]]] = None,
+                 system_temperature_table: Optional[List[Tuple[float, float, float]]] = None):
         """Initialize a SpaceTelescope with orbital parameters and optional SEFD properties."""
         if name is None:
             name = f"stlsc_{uuid.uuid4().hex[:32]}"
         super().__init__(code=code, name=name, type=type, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0,
-                        diameter=diameter, sefd_table=sefd_table or {}, mount_type="NONE",
+                        diameter=diameter, sefd_table=sefd_table or [], mount_type="NONE",
                         elevation_range=(0.0, 0.0), azimuth_range=(0.0, 0.0), isactive=isactive,
                         surface_accuracy=surface_accuracy,
-                        surface_efficiency_table=surface_efficiency_table or {},
-                        effective_area_table=effective_area_table or {},
-                        system_temperature_table=system_temperature_table or {})
+                        surface_efficiency_table=surface_efficiency_table or [],
+                        effective_area_table=effective_area_table or [],
+                        system_temperature_table=system_temperature_table or [])
         
         self.set({
             "orbit_file": orbit_file,
