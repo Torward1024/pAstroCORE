@@ -176,9 +176,11 @@ def test_a_hand_edited_session_is_refused_with_the_reason(saved, tmp_path, capsy
 
 
 def test_an_attribute_nothing_reads_is_reported_as_a_warning(saved, tmp_path, capsys):
+    """On a step that changes something. It was a `catalogue` step, and a question is not checked
+    any more, since a replay does not run it."""
     session = tmp_path / "warned.json"
     session.write_text(json.dumps({"steps": [
-        {"operation": "compute", "method": "catalogue", "attributes": {"noo": 1}}]}),
+        {"operation": "compute", "method": "clear", "attributes": {"noo": 1}}]}),
         encoding="utf-8")
 
     code, printed = run("check", saved, session, capsys=capsys)

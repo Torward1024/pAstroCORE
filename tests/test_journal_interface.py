@@ -30,8 +30,10 @@ def session():
 
 
 def ask(manipulator, method, **attributes):
-    response = manipulator.compute(obj=manipulator.get_managing_object(), method=method,
-                                   raise_on_error=False, **attributes)
+    """A question -- `history`, `check` -- is `inspect`; running a session again is `compute`."""
+    operation = manipulator.compute if method == "replay" else manipulator.inspect
+    response = operation(obj=manipulator.get_managing_object(), method=method,
+                         raise_on_error=False, **attributes)
     return response.value
 
 

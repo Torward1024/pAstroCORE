@@ -40,7 +40,7 @@ def test_both_results_can_be_drawn(tracked):
     """The catalogue is what the dialogs read, so this is what decides whether they appear."""
     manipulator, observation = tracked
     catalogue = {entry["key"]: entry for entry in
-                 manipulator.compute(obj=observation, method="catalogue")}
+                 manipulator.inspect(obj=observation, method="catalogue")}
 
     assert catalogue["telescope_az_el"]["can_plot"] is True
     assert catalogue["telescope_visibility"]["can_plot"] is True
@@ -131,11 +131,11 @@ def test_scan_times_narrows_by_whatever_the_result_holds(tracked):
     rather than assumed."""
     manipulator, observation = tracked
 
-    by_target = manipulator.export(observation, method="scan_times",
+    by_target = manipulator.inspect(observation, method="scan_times",
                                    key="telescope_az_el", target_code="RADIO")
     assert by_target and all("scan_name" in entry for entry in by_target)
 
-    nothing = manipulator.export(observation, method="scan_times",
+    nothing = manipulator.inspect(observation, method="scan_times",
                                  key="telescope_az_el", target_code="NOSUCH")
     assert nothing == []
 

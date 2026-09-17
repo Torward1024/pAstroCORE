@@ -20,12 +20,19 @@ manipulator, which dispatches it to whichever operation handles it. There are fi
 
 | Operation | What it is for |
 | --- | --- |
-| `inspect` | Reading the model |
-| `configure` | Changing it |
+| `inspect` | Reading: the model, and every question about it -- what can be calculated and in what order, what is stale, what a session asked |
+| `configure` | Changing the model |
 | `calculate` | One calculation, on one observation |
-| `compute` | Orchestrating many: what can be run, in what order, running it, and the session |
-| `visualize` | Drawing a result |
-| `export` / `save` / `load` | Getting data out, and files |
+| `compute` | Changing what a project holds, many at once: running calculations, clearing them, replaying a session |
+| `visualize` / `analyze` | Drawing a result, and summarising one |
+| `export` / `save` / `load` | Files: results, sessions and projects written out, and read back |
+
+**The name says whether a request changes anything.** `inspect`, `visualize` and `analyze` only
+read -- `inspect` is held to it by msb_arch, which since 3.0 calls nothing through it that is not
+named as a read (`get`, `get_*`, `has_*`, `is_*`). So does `catalogue`, which is msb_arch's own
+operation, registered on every orchestrator, describing what is registered; it is not
+`inspect(method="catalogue")`, this application's answer to what can be calculated. That is what
+lets a session be cut down to what changed something, and a replay leave the questions out.
 
 The window is one caller of that. **`pastrocore-cli` is a second one** -- the same requests,
 about two hundred lines, and it imports neither the interface nor Qt. A client-server version is

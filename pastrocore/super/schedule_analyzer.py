@@ -84,7 +84,7 @@ class ScheduleAnalyzer(Super):
         """
         if not self._labels:
             try:
-                catalogue = self._manipulator.compute(
+                catalogue = self._manipulator.inspect(
                     obj=self._manipulator.get_managing_object(), method="catalogue") or []
                 self._labels = {entry["key"]: entry["label"] for entry in catalogue
                                 if entry.get("key") and entry.get("label")}

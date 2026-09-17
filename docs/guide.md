@@ -131,7 +131,7 @@ Ask. The list is not written down anywhere — it is worked out from the calcula
 so a new one appears here the moment somebody writes it.
 
 ```python
-response = manipulator.compute(obj=project, method="catalogue")
+response = manipulator.inspect(obj=project, method="catalogue")
 catalogue = response
 
 offered = {entry["key"] for entry in catalogue if entry["offer"]}
@@ -273,21 +273,36 @@ assert calculations[0]["status"] is True
 ```
 
 It is plain data — no live objects — so a session can be written to a file and replayed later,
-against this project or another one:
+against this project reopened. A step names its object by **path**, so the replay reaches the
+object it ran on rather than the first thing with a matching name.
 
 ```python
 written = manipulator.export(obj=project, method="journal", path=str(TMP / "session.json"))
 assert written["steps"] == len(history)
 ```
 
-It is plain data — no live objects — so a session can be written to a file and replayed later,
-against this project reopened. A step names its object by **path**, so the replay reaches the
-object it ran on rather than the first thing with a matching name.
+Most of what a session holds is questions — the window asks `stale` after every edit and
+`catalogue` whenever a dialog opens. Each row says whether it only `reads`, so a session can be
+cut down to what changed something and saved as that, while the record keeps everything:
+
+```python
+rows = manipulator.inspect(obj=project, method="history")
+changes = [row for row in rows if not row["reads"]]
+
+cut = manipulator.export(obj=project, method="journal", path=str(TMP / "changes.json"),
+                         steps=changes)
+assert cut["steps"] == len(changes) < len(rows)
+assert all(row["operation"] not in ("inspect", "visualize", "analyze") for row in changes)
+```
+
+**Tools → Session** does the same with a table: *Only requests that change something* hides the
+reads, *Remove Selected* leaves rows out, and *Save session* writes what is shown. A replay does not
+ask the questions again either — a question changes nothing, so asking it twice reproduces nothing.
 
 And because a file gets edited, a session is checked whole before any of it runs:
 
 ```python
-report = manipulator.compute(obj=project, method="check",
+report = manipulator.inspect(obj=project, method="check",
                              steps=[{"operation": "calculate", "object": observation.name,
                                      "method": "no_such_calculation", "attributes": {}}])
 assert report["problems"], "a session that does not check out has to say so"

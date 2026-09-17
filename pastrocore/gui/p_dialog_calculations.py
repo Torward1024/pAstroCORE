@@ -128,7 +128,7 @@ class CalculationDialog(QDialog):
         # do the work, so a calculation added to the calculator appears here on its own -- and
         # the prerequisites come from the code that states them rather than from a table kept
         # by hand in a dialog.
-        response = self.manipulator.compute(obj=self.project, method="catalogue")
+        response = self.manipulator.inspect(obj=self.project, method="catalogue")
         catalogue = response or []
 
         self.ui.calcList.clear()
@@ -198,7 +198,7 @@ class CalculationDialog(QDialog):
         """
         # Asked, not walked. What can be pointed at is a question about the model, and a
         # command line running the same calculations asks it the same way.
-        response = self.manipulator.compute(obj=None, method="targets", targets=observations,
+        response = self.manipulator.inspect(obj=None, method="targets", targets=observations,
                                             raise_on_error=False)
         codes = response.value or []
 

@@ -269,7 +269,7 @@ def test_scan_times_answers_what_ten_tabs_used_to_ask_for_themselves(project):
     manipulator = ScheduleManipulator(project)
     observation = project.get_observations()[0]
 
-    response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
+    response = manipulator.inspect(obj=observation, method="scan_times", key="uv_coverage",
                                   source_name="1228+126", raise_on_error=False)
     result = response.value
 
@@ -284,7 +284,7 @@ def test_an_unobserved_source_is_an_answer_rather_than_an_error(project):
     manipulator = ScheduleManipulator(project)
     observation = project.get_observations()[0]
 
-    response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
+    response = manipulator.inspect(obj=observation, method="scan_times", key="uv_coverage",
                                   source_name="not_observed", raise_on_error=False)
     result = response.value
     assert result == []
@@ -302,10 +302,10 @@ def test_scan_times_needs_to_be_told_what_to_look_in(project):
     data = ScheduleData(ScheduleManipulator(project))
 
     with pytest.raises(ValueError):
-        data._export_scan_times(observation, {"source_name": "1228+126"})
+        data._inspect_scan_times(observation, {"source_name": "1228+126"})
 
-    every = data._export_scan_times(observation, {"key": "mollweide_tracks"})
-    narrowed = data._export_scan_times(observation, {"key": "mollweide_tracks",
+    every = data._inspect_scan_times(observation, {"key": "mollweide_tracks"})
+    narrowed = data._inspect_scan_times(observation, {"key": "mollweide_tracks",
                                                      "source_name": "1228+126"})
     assert every, "asking without a source must answer for every scan"
     assert len(every) >= len(narrowed)
@@ -317,7 +317,7 @@ def test_distinct_lists_what_fills_a_combo_box(project):
     manipulator = ScheduleManipulator(project)
     observation = project.get_observations()[0]
 
-    response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
+    response = manipulator.inspect(obj=observation, method="distinct", key="uv_coverage",
                                   columns=["source_name", "baseline"], raise_on_error=False)
     result = response.value
 
@@ -330,7 +330,7 @@ def test_a_column_that_is_not_there_comes_back_empty(project):
     manipulator = ScheduleManipulator(project)
     observation = project.get_observations()[0]
 
-    response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
+    response = manipulator.inspect(obj=observation, method="distinct", key="uv_coverage",
                                   columns=["source_name", "telescope_code"], raise_on_error=False)
     result = response.value
 
@@ -350,7 +350,7 @@ def test_available_answers_without_reading_the_results(project, tmp_path):
 
     assert observation.calculated_data._resident == {}
 
-    response = manipulator.export(obj=observation, method="available", raise_on_error=False)
+    response = manipulator.inspect(obj=observation, method="available", raise_on_error=False)
     result = response.value
 
     assert "uv_coverage" in result
@@ -371,7 +371,7 @@ def test_available_leaves_out_what_holds_nothing(project, tmp_path):
     observation.set_calculated_data_by_key("uv_coverage", empty, metadata)
     manipulator = ScheduleManipulator(project)
 
-    response = manipulator.export(obj=observation, method="available",
+    response = manipulator.inspect(obj=observation, method="available",
                                   keys=["uv_coverage", "az_el"], raise_on_error=False)
     result = response.value
 
@@ -539,7 +539,7 @@ def test_a_result_that_cannot_be_read_is_reported_rather_than_dropped(project, m
     msb_logger.setLevel(logging.WARNING)
     msb_logger.addHandler(listener)
     try:
-        response = manipulator.export(obj=observation, method="available",
+        response = manipulator.inspect(obj=observation, method="available",
                                       keys=["uv_coverage"], raise_on_error=False)
     finally:
         msb_logger.removeHandler(listener)

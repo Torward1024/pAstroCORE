@@ -7,6 +7,16 @@ from typing import Optional
 class ScheduleManipulator(Manipulator):
     """Scheduler implementation of Manipulator for managing astronomical scheduling operations.
 
+    Which operations only read is said by their names (S1):
+
+    | Reads | Changes the project | Writes a file |
+    | --- | --- | --- |
+    | `inspect`, `visualize`, `analyze`, `catalogue` | `configure`, `calculate`, `compute`, `load` | `save`, `export`, `vex`, `cfx` |
+
+    `inspect` is held to it by msb_arch, which since 3.0.0 calls nothing through it that is not
+    named as a read; the questions this application asks of itself -- what can be calculated,
+    what is stale, what a session held -- are `inspect` handlers for the same reason.
+
     Extends the base Manipulator class to provide a centralized interface for configuring, inspecting,
     calculating, and visualizing ScheduleProject and its components. Registers default operations
     (configure, inspect, calculate, visualize) with corresponding handler classes.
@@ -27,6 +37,17 @@ class ScheduleManipulator(Manipulator):
         >>> manipulator.get_methods_for_type(Source)
         {'get_name': <function ...>, 'set_name': <function ...>, ...}
     """
+    #: The operations that only read. A session leaves them out when it is cut down to what
+    #: changed something, and a replay does not run them. `catalogue` is msb_arch's own, registered
+    #: on every orchestrator to describe what is registered -- not `inspect(method="catalogue")`,
+    #: which is this application's answer to what can be calculated.
+    READING = frozenset({"inspect", "visualize", "analyze", "catalogue"})
+
+    @classmethod
+    def reads(cls, operation: Optional[str]) -> bool:
+        """Report whether an operation only reads, by its name."""
+        return operation in cls.READING
+
     def __init__(self, project: Optional['ScheduleProject'] = None,
                  journal_limit: Optional[int] = 500):
         """Initialize the ScheduleManipulator with default operations and supported classes.

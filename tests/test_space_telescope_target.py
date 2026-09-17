@@ -285,7 +285,7 @@ def test_the_calculations_are_offered_in_the_interface(observation_with_a_spacec
     """
     project, observation, manipulator = observation_with_a_spacecraft
 
-    response = manipulator.compute(obj=project, method="catalogue", raise_on_error=False)
+    response = manipulator.inspect(obj=project, method="catalogue", raise_on_error=False)
     catalogue = response.value
 
     offered = {entry["key"] for entry in catalogue if entry["offer"]}
@@ -301,7 +301,7 @@ def test_a_step_nobody_asks_for_is_not_offered(observation_with_a_spacecraft):
     be offering the user a choice that means nothing to them."""
     project, _, manipulator = observation_with_a_spacecraft
 
-    response = manipulator.compute(obj=project, method="catalogue", raise_on_error=False)
+    response = manipulator.inspect(obj=project, method="catalogue", raise_on_error=False)
     catalogue = response.value
 
     steps = {entry["key"] for entry in catalogue if not entry["offer"]}

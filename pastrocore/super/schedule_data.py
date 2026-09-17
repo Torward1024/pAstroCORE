@@ -37,11 +37,194 @@ from pastrocore.super.schedule_project import ScheduleProject
 
 #: Results that can be drawn. Anything else is exported as text only.
 
+#: What `inspect(method="history")` adds to a journal row for showing it, and a session file
+#: does not hold: where the object lives, as text, and whether the request only reads.
+SHOWN_ONLY = ("where", "reads")
+
 #: Filenames that do not follow from the calculation's name.
 FILE_PREFIXES = {"Beam Pattern": "Beam_Pattern", "Mollweide Tracks": "Mollweide"}
 
 
-class ScheduleData(Persistence, Loader):
+class DataQuestions:
+    """What a project's stored results hold, asked rather than written anywhere.
+
+    Handlers of `inspect`: `ScheduleInspector` inherits them and answers
+    `inspect(method="available")`, `"distinct"`, `"scan_times"` and `"unsaved"`. They were `export`
+    until 1.13.0, beside what writes files, so a session could not tell the two apart by name.
+    """
+
+    def _inspect_scan_times(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """List the scans a result covers for one source, with the time each starts.
+
+        Args:
+            obj (Observation): The observation to read.
+            attributes: `key`, the result to look in, and optionally any column the result has
+                -- `source_name`, `target_code` -- to narrow
+                it to one source. Without a source the answer covers every scan the result
+                holds, which is what a plot showing all of them wants.
+
+        Returns:
+            List[Dict[str, Any]]: `[{"scan_name": str, "start": str}]`, sorted by time, with
+                the start as an ISOT string. Empty when there is no such data, which is an
+                answer rather than an error -- a source may simply not be observed.
+
+        Notes:
+            - This existed ten times over, once in each visualization tab, and each copy needed
+              polars to filter and group and astropy to turn an MJD into something readable.
+              That is ten screens holding a query, and a command-line version would have had to
+              write an eleventh.
+            - A question, so `inspect` answers it. It was `export` until 1.13.0, as "getting data
+              out of a project", which put a read beside the requests that write files. The
+              interface uses it to fill a list; a script would use it to decide what to plot.
+        """
+        key = attributes.get("key")
+        if not key:
+            raise ValueError("A 'key' is needed to list scan times")
+
+        stored = obj.get_calculated_data_by_key(key) or {}
+        frame = stored.get("data")
+        if not isinstance(frame, pl.DataFrame) or frame.is_empty():
+            logger.debug("No '%s' data to list scans from", key)
+            return []
+
+        expected = CalculatedDataStructure.get_columns(key)
+        if expected:
+            missing = [column for column in expected if column not in frame.columns]
+            if missing:
+                logger.error("Result '%s' is missing columns %s", key, missing)
+                return []
+
+        # Most results record the moment in "time"; time_on_source records an interval and
+        # calls its beginning "start". The question is the same either way, so the column is
+        # found rather than assumed.
+        moment = next((column for column in ("time", "start") if column in frame.columns), None)
+        if moment is None:
+            logger.debug("Result '%s' records no time", key)
+            return []
+
+        # Narrow by whatever the caller named that this result actually has a column for --
+        # `source_name` for a result about a source, `target_code` for one about a spacecraft.
+        # Asking the frame means a new kind of result needs no case here.
+        narrowing = {column: value for column, value in attributes.items()
+                     if column in frame.columns and value is not None}
+        filtered = frame
+        for column, value in narrowing.items():
+            filtered = filtered.filter(pl.col(column) == value)
+        if filtered.is_empty():
+            logger.debug("No '%s' data for %s", key, narrowing or "any")
+            return []
+
+        starts = (filtered.group_by("scan_name")
+                  .agg(moment=pl.col(moment).first()).sort("moment"))
+        return [{"scan_name": row["scan_name"], "start": Time(row["moment"], format="mjd").isot}
+                for row in starts.iter_rows(named=True)]
+
+    def _inspect_distinct(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, List[Any]]:
+        """List the distinct values a result holds in the columns asked for.
+
+        Args:
+            obj (Observation): The observation to read.
+            attributes: `key`, the result to look in, and `columns`, the column names.
+
+        Returns:
+            Dict[str, List[Any]]: `{column: sorted values}`. A column the result does not have
+                comes back empty rather than missing, so a caller filling a list needs no
+                second check.
+
+        Notes:
+            - The other question every visualization tab asks for itself: which sources are in
+              this result, which baselines, which telescopes. Each copy read the frame, checked
+              it against the schema and called `unique()` -- which is why each needed polars to
+              fill a combo box.
+        """
+        key = attributes.get("key")
+        columns = attributes.get("columns") or []
+        if not key or not columns:
+            raise ValueError("Both 'key' and 'columns' are needed to list distinct values")
+
+        stored = obj.get_calculated_data_by_key(key) or {}
+        frame = stored.get("data")
+        if not isinstance(frame, pl.DataFrame) or frame.is_empty():
+            logger.debug("No '%s' data to list values from", key)
+            return {column: [] for column in columns}
+
+        expected = CalculatedDataStructure.get_columns(key)
+        if expected:
+            missing = [column for column in expected if column not in frame.columns]
+            if missing:
+                logger.error("Result '%s' is missing columns %s", key, missing)
+                return {column: [] for column in columns}
+
+        found = {}
+        for column in columns:
+            if column not in frame.columns:
+                logger.debug("Result '%s' has no column '%s'", key, column)
+                found[column] = []
+                continue
+            found[column] = sorted(frame[column].unique().to_list())
+        return found
+
+    def _inspect_available(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+        """List the results this observation actually holds data for.
+
+        Args:
+            obj (Observation): The observation to ask.
+            attributes: `keys`, to narrow the question; every result by default.
+
+        Returns:
+            List[str]: Sorted store keys whose result has at least one row.
+
+        Notes:
+            - The question the visualize dialog asks to decide what it can offer, and it used
+              to answer it by **reading every result** -- 142 ms and eleven frames held in
+              memory on a small project, to fill one combo box. On a project of any size that
+              is the memory problem all over again.
+            - Counted through a lazy scan, so a parquet file answers from its footer and the
+              rows are never read.
+        """
+        results = obj.calculated_data
+        keys = attributes.get("keys") or (list(results.keys()) if hasattr(results, "keys") else [])
+
+        available = []
+        unreadable = []
+        for key in keys:
+            try:
+                view = obj.scan_calculated_data(key)
+                if view is None:
+                    continue
+                if view.select(pl.len()).collect().item() > 0:
+                    available.append(key)
+            except Exception as e:                      # noqa: BLE001 - reported below
+                unreadable.append(f"{key}: {e}")
+
+        # Said out loud, at warning, and with the traceback of the first one. This answer is
+        # what the visualize dialog offers a user, so a key that cannot be read is a plot that
+        # silently disappears -- and a debug line nobody reads is how an empty combo box looks
+        # like "there is nothing to draw" rather than "something is wrong".
+        if unreadable:
+            logger.warning("Cannot tell whether %s of %s result(s) hold anything: %s",
+                           len(unreadable), len(keys), "; ".join(unreadable[:5]))
+        return sorted(available)
+
+    def _inspect_unsaved(self, obj: Any, attributes: Dict[str, Any]) -> int:
+        """Return how many results this session holds that the project directory does not.
+
+        Args:
+            obj (ScheduleProject): The project to ask about.
+            attributes: Ignored.
+
+        Returns:
+            int: The count. Zero for a project saved since its last calculation.
+
+        Notes:
+            - A request rather than a method call, because the window is not allowed to reach
+              the model: a command line ending a session and a server closing one ask this the
+              same way, and there is one answer for all three.
+        """
+        return obj.unsaved_results() if hasattr(obj, "unsaved_results") else 0
+
+
+class ScheduleData(DataQuestions, Persistence, Loader):
     """Reading results out of a project and writing them somewhere else.
 
     Notes:
@@ -331,159 +514,6 @@ class ScheduleData(Persistence, Loader):
         logger.info("Read a generation plan from '%s'", path)
         return GenerationPlan.of(held).as_mapping()
 
-    def _export_scan_times(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """List the scans a result covers for one source, with the time each starts.
-
-        Args:
-            obj (Observation): The observation to read.
-            attributes: `key`, the result to look in, and optionally any column the result has
-                -- `source_name`, `target_code` -- to narrow
-                it to one source. Without a source the answer covers every scan the result
-                holds, which is what a plot showing all of them wants.
-
-        Returns:
-            List[Dict[str, Any]]: `[{"scan_name": str, "start": str}]`, sorted by time, with
-                the start as an ISOT string. Empty when there is no such data, which is an
-                answer rather than an error -- a source may simply not be observed.
-
-        Notes:
-            - This existed ten times over, once in each visualization tab, and each copy needed
-              polars to filter and group and astropy to turn an MJD into something readable.
-              That is ten screens holding a query, and a command-line version would have had to
-              write an eleventh.
-            - Reached through the `export` operation because it is the same concern: getting
-              data out of a project in a form something else can use. The interface uses it to
-              fill a list; a script would use it to decide what to plot.
-        """
-        key = attributes.get("key")
-        if not key:
-            raise ValueError("A 'key' is needed to list scan times")
-
-        stored = obj.get_calculated_data_by_key(key) or {}
-        frame = stored.get("data")
-        if not isinstance(frame, pl.DataFrame) or frame.is_empty():
-            logger.debug("No '%s' data to list scans from", key)
-            return []
-
-        expected = CalculatedDataStructure.get_columns(key)
-        if expected:
-            missing = [column for column in expected if column not in frame.columns]
-            if missing:
-                logger.error("Result '%s' is missing columns %s", key, missing)
-                return []
-
-        # Most results record the moment in "time"; time_on_source records an interval and
-        # calls its beginning "start". The question is the same either way, so the column is
-        # found rather than assumed.
-        moment = next((column for column in ("time", "start") if column in frame.columns), None)
-        if moment is None:
-            logger.debug("Result '%s' records no time", key)
-            return []
-
-        # Narrow by whatever the caller named that this result actually has a column for --
-        # `source_name` for a result about a source, `target_code` for one about a spacecraft.
-        # Asking the frame means a new kind of result needs no case here.
-        narrowing = {column: value for column, value in attributes.items()
-                     if column in frame.columns and value is not None}
-        filtered = frame
-        for column, value in narrowing.items():
-            filtered = filtered.filter(pl.col(column) == value)
-        if filtered.is_empty():
-            logger.debug("No '%s' data for %s", key, narrowing or "any")
-            return []
-
-        starts = (filtered.group_by("scan_name")
-                  .agg(moment=pl.col(moment).first()).sort("moment"))
-        return [{"scan_name": row["scan_name"], "start": Time(row["moment"], format="mjd").isot}
-                for row in starts.iter_rows(named=True)]
-
-    def _export_distinct(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, List[Any]]:
-        """List the distinct values a result holds in the columns asked for.
-
-        Args:
-            obj (Observation): The observation to read.
-            attributes: `key`, the result to look in, and `columns`, the column names.
-
-        Returns:
-            Dict[str, List[Any]]: `{column: sorted values}`. A column the result does not have
-                comes back empty rather than missing, so a caller filling a list needs no
-                second check.
-
-        Notes:
-            - The other question every visualization tab asks for itself: which sources are in
-              this result, which baselines, which telescopes. Each copy read the frame, checked
-              it against the schema and called `unique()` -- which is why each needed polars to
-              fill a combo box.
-        """
-        key = attributes.get("key")
-        columns = attributes.get("columns") or []
-        if not key or not columns:
-            raise ValueError("Both 'key' and 'columns' are needed to list distinct values")
-
-        stored = obj.get_calculated_data_by_key(key) or {}
-        frame = stored.get("data")
-        if not isinstance(frame, pl.DataFrame) or frame.is_empty():
-            logger.debug("No '%s' data to list values from", key)
-            return {column: [] for column in columns}
-
-        expected = CalculatedDataStructure.get_columns(key)
-        if expected:
-            missing = [column for column in expected if column not in frame.columns]
-            if missing:
-                logger.error("Result '%s' is missing columns %s", key, missing)
-                return {column: [] for column in columns}
-
-        found = {}
-        for column in columns:
-            if column not in frame.columns:
-                logger.debug("Result '%s' has no column '%s'", key, column)
-                found[column] = []
-                continue
-            found[column] = sorted(frame[column].unique().to_list())
-        return found
-
-    def _export_available(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
-        """List the results this observation actually holds data for.
-
-        Args:
-            obj (Observation): The observation to ask.
-            attributes: `keys`, to narrow the question; every result by default.
-
-        Returns:
-            List[str]: Sorted store keys whose result has at least one row.
-
-        Notes:
-            - The question the visualize dialog asks to decide what it can offer, and it used
-              to answer it by **reading every result** -- 142 ms and eleven frames held in
-              memory on a small project, to fill one combo box. On a project of any size that
-              is the memory problem all over again.
-            - Counted through a lazy scan, so a parquet file answers from its footer and the
-              rows are never read.
-        """
-        results = obj.calculated_data
-        keys = attributes.get("keys") or (list(results.keys()) if hasattr(results, "keys") else [])
-
-        available = []
-        unreadable = []
-        for key in keys:
-            try:
-                view = obj.scan_calculated_data(key)
-                if view is None:
-                    continue
-                if view.select(pl.len()).collect().item() > 0:
-                    available.append(key)
-            except Exception as e:                      # noqa: BLE001 - reported below
-                unreadable.append(f"{key}: {e}")
-
-        # Said out loud, at warning, and with the traceback of the first one. This answer is
-        # what the visualize dialog offers a user, so a key that cannot be read is a plot that
-        # silently disappears -- and a debug line nobody reads is how an empty combo box looks
-        # like "there is nothing to draw" rather than "something is wrong".
-        if unreadable:
-            logger.warning("Cannot tell whether %s of %s result(s) hold anything: %s",
-                           len(unreadable), len(keys), "; ".join(unreadable[:5]))
-        return sorted(available)
-
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:
         """Return the observations an export covers.
@@ -595,7 +625,9 @@ class ScheduleData(Persistence, Loader):
 
         Args:
             obj: Ignored; the session belongs to the orchestrator.
-            attributes: `path`, the file to write; `about`, an object name to narrow it to.
+            attributes: `path`, the file to write; `about`, an object name to narrow it to; or
+                `steps`, the rows to write instead of the whole session -- a session cut down to
+                what is worth repeating (S1).
 
         Returns:
             Dict[str, Any]: `{"path": str, "steps": int}`.
@@ -609,35 +641,26 @@ class ScheduleData(Persistence, Loader):
               could not leave the process -- and, worse, kept alive everything it recorded.
             - What comes back is a session a later run can replay against whatever project is
               open then, which is how a reported problem becomes a reproduction.
+            - **Cutting a session down changes the file, never the journal.** What the window
+              asked stays recorded, since that is what a bug report needs; the rows given are
+              written as they were recorded, without what a table added to show them.
         """
         path = attributes.get("path")
         if not path:
             raise ValueError("No 'path' given; there is nowhere to write the session")
 
-        steps = self._manipulator.history(attributes.get("about"))
+        given = attributes.get("steps")
+        if given is not None and not isinstance(given, list):
+            raise ValueError("'steps' must be a list of the rows to write")
+        steps = (self._manipulator.history(attributes.get("about")) if given is None
+                 else [{key: value for key, value in step.items() if key not in SHOWN_ONLY}
+                       for step in given])
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         Path(path).write_text(
             json.dumps({"steps": json_safe(steps)}, indent=4, allow_nan=False),
             encoding="utf-8")
         logger.info("Wrote a session of %s request(s) to '%s'", len(steps), path)
         return {"path": str(path), "steps": len(steps)}
-
-    def _export_unsaved(self, obj: Any, attributes: Dict[str, Any]) -> int:
-        """Return how many results this session holds that the project directory does not.
-
-        Args:
-            obj (ScheduleProject): The project to ask about.
-            attributes: Ignored.
-
-        Returns:
-            int: The count. Zero for a project saved since its last calculation.
-
-        Notes:
-            - A request rather than a method call, because the window is not allowed to reach
-              the model: a command line ending a session and a server closing one ask this the
-              same way, and there is one answer for all three.
-        """
-        return obj.unsaved_results() if hasattr(obj, "unsaved_results") else 0
 
     def _export_tidy(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Remove this session's scratch directory when nothing in it would be lost.
@@ -653,7 +676,7 @@ class ScheduleData(Persistence, Loader):
             - A scratch holding results is left where it is, so the next start offers them
               back. Litter is worth clearing; a day of calculation is not.
         """
-        held = self._export_unsaved(obj, attributes)
+        held = self._inspect_unsaved(obj, attributes)
         if not hasattr(obj, "discard_scratch_if_empty"):
             return {"discarded": False, "held": held}
         return {"discarded": obj.discard_scratch_if_empty(), "held": held}

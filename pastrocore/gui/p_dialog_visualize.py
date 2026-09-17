@@ -117,14 +117,14 @@ class VisualizationDialog(QDialog):
         try:
             # Asked, not listed. A calculation that can be drawn appears here because the
             # visualizer has a handler for it, not because somebody added it to a table.
-            described = self.manipulator.compute(obj=observation, method="catalogue")
+            described = self.manipulator.inspect(obj=observation, method="catalogue")
             catalogue = described or []
             vis_types = {entry["key"]: entry["label"] for entry in catalogue if entry["can_plot"]}
 
             # One request, counted from the parquet footers rather than by reading the frames.
             # This loop used to read *every* result to decide what to offer -- 142 ms and
             # eleven frames held in memory on a small project, to fill one combo box.
-            response = self.manipulator.export(
+            response = self.manipulator.inspect(
                 obj=observation, method="available", keys=list(vis_types))
             available = response or []
             available_types = [vis_types[key] for key in available if key in vis_types]
@@ -244,7 +244,7 @@ class VisualizationDialog(QDialog):
             }
             # The user picked a label; the map is keyed by the result. The catalogue holds both
             # spellings, which is the whole reason neither is written down twice.
-            described = self.manipulator.compute(obj=observation, method="catalogue")
+            described = self.manipulator.inspect(obj=observation, method="catalogue")
             catalogue = described or []
             vis_key = next((entry["key"] for entry in catalogue
                             if entry["label"] == vis_type and entry["can_plot"]), None)
@@ -291,7 +291,7 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Observation '{current_obs_name}' not found")
                 return
 
-            described = self.manipulator.compute(obj=observation, method="catalogue")
+            described = self.manipulator.inspect(obj=observation, method="catalogue")
             catalogue = described or []
             # The label a user picked and the key a request needs are two spellings of one
             # thing, and the catalogue holds both.
@@ -304,7 +304,7 @@ class VisualizationDialog(QDialog):
 
             # Asked before reading: this is the one place the dialog genuinely needs the rows,
             # so it checks that there are any without pulling them in first.
-            response = self.manipulator.export(obj=observation, method="available",
+            response = self.manipulator.inspect(obj=observation, method="available",
                                                keys=[vis_key])
             available = response or []
             if vis_key not in available:
