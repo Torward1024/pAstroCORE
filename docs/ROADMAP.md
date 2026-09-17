@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.12.0 shipped.** What is left, what was decided against, and why.
+**1.13.0 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
@@ -10,14 +10,12 @@ its criterion holds, not when it feels tidy.
 Seventeen items from using it, ranked: what cost an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 They land in this order, a stage or an item per release, unless a later one turns out to need an
-earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0; O1 in 1.12.0.**
+earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0.**
 
 ### Stage 3 -- what it cannot do yet
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| C1 | **Editing the catalogues** | Add, edit and remove sources and stations in the catalogue managers, and save to the same file or a new one. **A catalogue is JSON** -- the same `Sources` and `Telescopes` a project serializes, so a space telescope and any field added later have somewhere to go; `.dat` files still open, and are saved as JSON. The shipped catalogues are converted once, and read back equal to what the `.dat` gave |
-| S1 | **Editing a session** | A session can be cut down to what is worth repeating: rows removed, the rest saved, and a filter showing only the requests that change the model. **Everything is still recorded** -- what the window asked is what a bug report needs. Whether an operation only reads is declared on the operation, in MSB, not listed here |
 | L4 | **Everything from the command line** | Every operation the window can ask for can be asked from the command line: `pastrocore-cli ask <operation> <object> key=value`, and an interactive `pastrocore-cli shell` that completes operations, methods and objects. **No new language**: both are built from the catalogue of requests MSB already describes, so nothing is a command table to keep in step with the window, and a script is a session file, which already replays |
 | E1 | **Sensitivity and detection** | Three results the calculator produces and the window draws. **A station's SEFD per band** -- from its SEFD table where it has one, otherwise `2 k T_sys / (eta A)` from its system temperature, surface efficiency and diameter or effective area -- with the source of each value recorded. **A baseline's noise per scan** by the radiometer equation, `sqrt(SEFD_1 SEFD_2) / (eta_rec sqrt(2 dnu tau))`, from the band's bandwidth and the scan's duration. **Detection**: the signal-to-noise each baseline reaches on each scan from the source's flux at that frequency, drawn per baseline and scan against a threshold, and the **shortest scan** that reaches it -- 5 sigma unless asked otherwise. A value that cannot be computed (no flux at that frequency, no system temperature) is named, not guessed. `test_physics` checks the numbers against the equations independently and against a published array calculator's case |
 
@@ -81,6 +79,7 @@ that happens when one is sent.
 | **1.10.0** | **G7, G8, G9.** Select All and Clear under every list a plot is chosen from; nothing on a form overlaps or is cut off, and no window is pinned to a size; saving shows how far it has got and the window keeps answering |
 | **1.11.0** | **G10--G13.** The icon set complete and in one style; a toolbar of the menu's own actions; the platform's keys and a few of our own; a status bar showing the last log line and what the process holds |
 | **1.12.0** | **O1.** A generation is a plan: saved whole, timed by the backend, its presets the model's. **R1, M1** answered -- opening a second project deleted the first one's results, and the memory that climbs through a session is caches filling, with a bound |
+| **1.13.0** | **C1, S1.** The catalogues are edited in their managers and kept as JSON -- the `Sources` and `Telescopes` a project holds, with a reader fixed on the way. A session is cut down to what changed something, by the operation's name: msb_arch 3.0.0 made `inspect` read and nothing else, and the questions moved to it from `compute` and `export` |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in
