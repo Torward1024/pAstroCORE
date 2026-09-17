@@ -249,9 +249,10 @@ class RunQuestions:
             attributes: `about`, an object name to narrow it to.
 
         Returns:
-            List[Dict[str, Any]]: One row per request -- `operation`, the `object` it named,
-                the `method`, its `attributes`, whether it worked, and how long it took -- with
-                `where` it lives and whether it `reads` only.
+            List[Dict[str, Any]]: One row per request as it was recorded -- `operation`, the
+                `object` it named, the `method`, its `attributes`, whether it worked, and how long
+                it took -- with three things added for showing it: `where` the object lives,
+                whether the request only `reads`, and what it `call`ed.
 
         Notes:
             - Plain data, all of it. MSB's journal records what was asked rather than the
@@ -270,10 +271,28 @@ class RunQuestions:
             path = row.get("path") or ([row["object"]] if row.get("object") else [])
             row["where"] = " / ".join(str(segment) for segment in path)
             row["reads"] = self._manipulator.reads(row.get("operation"))
-            # A facade call records the handler it named among the attributes, so the Method
-            # column was empty for every request the window made.
-            row["method"] = self._asked(row)
+            row["call"] = self._called(row)
         return rows
+
+    def _called(self, row: Dict[str, Any]) -> str:
+        """Return what a request called, as a person reads it.
+
+        Notes:
+            - **`method` in a request is the operation's handler**, not the model's method:
+              `compute(method="run")` is `_compute_run`. With none named, `configure` and `inspect`
+              run their defaults, which call the model's methods named in the attributes --
+              `configure(project, create_item={...})` is `create_item`. A column showing only the
+              handler was empty for nearly every request the window makes.
+            - The handler when there is one, the model's methods when there are, and nothing for
+              any other operation's default: its attributes are parameters, not calls.
+        """
+        handler = self._asked(row)
+        if handler:
+            return str(handler)
+        if row.get("operation") not in self._manipulator.CALLING:
+            return ""
+        # `name` addresses one member of a collection, and is not a method.
+        return ", ".join(key for key in (row.get("attributes") or {}) if key != "name")
 
     @staticmethod
     def _asked(step: Dict[str, Any]) -> Any:
@@ -283,7 +302,7 @@ class RunQuestions:
             - A request built by hand says `"method"` beside `"operation"`; a facade call --
               `compute(obj, method="run")`, which is every request the window makes -- is recorded
               with it among the attributes. Reading only the first, `check` never checked the
-              handler of a recorded session at all.
+              handler of a recorded session at all, and the session table showed no handler.
         """
         return step.get("method") or (step.get("attributes") or {}).get("method")
 

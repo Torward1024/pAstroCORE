@@ -43,6 +43,11 @@ class ScheduleManipulator(Manipulator):
     #: which is this application's answer to what can be calculated.
     READING = frozenset({"inspect", "visualize", "analyze", "catalogue"})
 
+    #: The operations whose attributes name the model's own methods when no handler is named --
+    #: `configure(project, create_item={...})` calls `create_item`. msb_arch's built-in pair; every
+    #: other operation takes its attributes as parameters.
+    CALLING = frozenset({"inspect", "configure"})
+
     @classmethod
     def reads(cls, operation: Optional[str]) -> bool:
         """Report whether an operation only reads, by its name."""
