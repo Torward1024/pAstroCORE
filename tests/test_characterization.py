@@ -208,7 +208,7 @@ def test_visibility_transforms_only_the_frame_the_mount_is_limited_in(project, m
     from pastrocore.super import schedule_calculator
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     mounts = {telescope.get("mount_type").value
               for telescope in observation.get_telescopes().get_items()}
     assert mounts == {"AZIM"}, f"this fixture is meant to be all azimuthal, it is {mounts}"
@@ -265,7 +265,7 @@ def test_the_three_steps_that_look_from_a_station_share_one_transform(monkeypatc
                         lambda *args, **kwargs: built.append(1) or original(*args, **kwargs))
 
     ScheduleManipulator(project).compute(
-        obj=None, method="run", targets=[project.observations()[0]],
+        obj=None, method="run", targets=[project.get_observations()[0]],
         calculations=["source_visibility", "az_el", "parallactic_angle"],
         time_step=120.0, force=True)
 
@@ -331,7 +331,7 @@ def test_ground_stations_are_rotated_to_gcrs_in_one_transform(monkeypatch):
     monkeypatch.setattr(schedule_calculator, "ITRS",
                         lambda *args, **kwargs: rotated.append(args) or original(*args, **kwargs))
 
-    ScheduleManipulator(project).compute(obj=None, method="run", targets=[project.observations()[0]],
+    ScheduleManipulator(project).compute(obj=None, method="run", targets=[project.get_observations()[0]],
                                          calculations=["telescope_positions"], time_step=120.0,
                                          force=True)
 

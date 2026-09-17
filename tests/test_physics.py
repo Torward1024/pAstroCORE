@@ -44,7 +44,7 @@ def recomputed():
     from pastrocore.super.schedule_project import ScheduleProject
 
     project = ScheduleProject.from_dict(copy.deepcopy(json.loads(conftest.FIXTURE.read_text(encoding="utf-8"))))
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     # What the fixture holds, recomputed: the same calculations, at the step they were saved at.
     held = ["time_arrays" if key == "times" else key for key in observation.calculated_data.keys()]
     observation.calculated_data.clear()
@@ -271,7 +271,7 @@ def test_a_moving_station_is_where_its_velocity_in_metres_per_year_puts_it():
         frequencies=observation.get_frequencies().get_items(), observation=observation)
     project = ScheduleProject(name="moving")
     project.add_item(observation)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     ScheduleManipulator(project).compute(obj=None, method="run", targets=[observation],
                                          calculations=["telescope_positions"], time_step=300.0,

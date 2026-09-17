@@ -52,7 +52,7 @@ def test_a_generation_that_made_nothing_is_not_reported_as_a_success(qt_applicat
 
     project, answer = run_thread(attributes)
 
-    assert project.observations() == []
+    assert project.get_observations() == []
     assert answer["status"] is False, "nothing was generated and the dialog was told it worked"
     assert "No observations generated" in answer["error"]
 
@@ -62,7 +62,7 @@ def test_a_generation_that_worked_names_what_it_made(qt_application):
 
     assert answer["status"] is True
     assert sorted(answer["result"]) == ["OBS_A", "OBS_B"]
-    assert len(project.observations()) == 2
+    assert len(project.get_observations()) == 2
 
 
 def test_a_cancel_names_what_was_already_added(qt_application):
@@ -86,5 +86,5 @@ def test_a_cancel_names_what_was_already_added(qt_application):
     answer = emitted[0]
     assert answer.get("cancelled") is True
     assert answer["result"] == ["OBS_A"], (
-        f"the project holds {[o.get_observation_code() for o in project.observations()]} "
+        f"the project holds {[o.get_observation_code() for o in project.get_observations()]} "
         f"and the answer said {answer['result']}")

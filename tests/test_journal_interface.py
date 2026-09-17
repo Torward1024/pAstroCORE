@@ -21,7 +21,7 @@ from pastrocore.super.schedule_project import ScheduleProject
 def session():
     """A manipulator that has done some work, so there is something to look at."""
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.clear_calculated_data()
     manipulator = ScheduleManipulator(project)
     manipulator.compute(obj=None, method="run", targets=[observation],
@@ -76,7 +76,7 @@ def test_it_replays_against_another_project(session, tmp_path):
     manipulator.export(obj=project, method="journal", path=str(path))
 
     fresh = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    elsewhere = fresh.observations()[0]
+    elsewhere = fresh.get_observations()[0]
     elsewhere.clear_calculated_data()
     assert "times" not in elsewhere.calculated_data
 
@@ -184,7 +184,7 @@ def test_the_panel_replays_a_saved_session(qt_application, session, tmp_path, mo
     manipulator.export(obj=project, method="journal", path=str(path))
 
     fresh = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    elsewhere = fresh.observations()[0]
+    elsewhere = fresh.get_observations()[0]
     elsewhere.clear_calculated_data()
     other = ScheduleManipulator(fresh)
 
@@ -220,7 +220,7 @@ def test_a_recorded_edit_replays_after_the_project_is_reopened(tmp_path):
     """
     project = ScheduleProject(name="Rec")
     project.create_item(item_code="OBS_A")
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.get_sources().create_source(
         name="1228+126", ra_h=12.0, ra_m=30.0, ra_s=49.4, de_d=12.0, de_m=23.0, de_s=28.0)
 
@@ -233,7 +233,7 @@ def test_a_recorded_edit_replays_after_the_project_is_reopened(tmp_path):
     manipulator.save(obj=project, path=str(tmp_path / "rec.pastro"))
 
     reopened = ScheduleProject.open(str(tmp_path / "rec.pastro"))
-    its_source = reopened.observations()[0].get_sources().get_items()[0]
+    its_source = reopened.get_observations()[0].get_sources().get_items()[0]
     its_source.set({"spectral_index": None})
     assert its_source.spectral_index is None
 
@@ -255,13 +255,13 @@ def test_the_session_says_which_object_not_just_its_name():
     project = ScheduleProject(name="Two")
     project.create_item(item_code="OBS_A")
     project.create_item(item_code="OBS_B")
-    for observation in project.observations():
+    for observation in project.get_observations():
         observation.get_sources().create_source(
             name="1228+126", ra_h=12.0, ra_m=30.0, ra_s=49.4,
             de_d=12.0, de_m=23.0, de_s=28.0)
 
     manipulator = ScheduleManipulator(project)
-    first, second = project.observations()
+    first, second = project.get_observations()
     manipulator.configure(second.get_sources().get_items()[0],
                           set={"params": {"spectral_index": -0.7}})
 
@@ -305,7 +305,7 @@ def test_a_replayed_step_drops_what_cannot_be_replayed(session, tmp_path):
     manipulator, project, _ = session
     path = tmp_path / "with_a_callback.json"
 
-    manipulator.compute(obj=None, method="run", targets=project.observations(),
+    manipulator.compute(obj=None, method="run", targets=project.get_observations(),
                         calculations=["time_arrays"], time_step=600.0, force=True,
                         progress=lambda percent, message: None,
                         cancelled=lambda: False)

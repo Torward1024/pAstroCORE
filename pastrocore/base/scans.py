@@ -76,7 +76,7 @@ class Scan(BaseEntity):
         source_str = "OFF SOURCE" if self.is_off_source else f"source={source.name if source else None}"
         logger.info("Initialized Scan with name=%s, start=%s, duration=%s, %s", name, self.start.isot, duration, source_str)
     
-    def check_activity_status(self, observation: 'Observation') -> bool:
+    def is_activatable(self, observation: 'Observation') -> bool:
         from pastrocore.base.observation import Observation
         """Public method to check activity status."""
         return self._check_activity_status(observation)

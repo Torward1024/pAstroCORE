@@ -56,7 +56,7 @@ def tab_class(module_name):
     return classes[0]
 @pytest.fixture
 def observation(project):
-    return project.observations()[0]
+    return project.get_observations()[0]
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_can_be_built(module_name, project, observation, qt_application):
     """The floor: it constructs against a real observation."""
@@ -184,7 +184,7 @@ def test_every_offered_visualization_has_a_widget(project, qt_application):
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     manipulator = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     response = manipulator.compute(obj=observation, method="catalogue", raise_on_error=False)
     catalogue = (response["result"] if isinstance(response, dict) else response) or []
@@ -285,7 +285,7 @@ def test_an_observation_with_stale_results_still_opens(qt_application, monkeypat
             json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
         from pastrocore.super.schedule_manipulator import ScheduleManipulator
         window.manipulator = ScheduleManipulator(window.project)
-        observation = window.project.observations()[0]
+        observation = window.project.get_observations()[0]
 
         model = QStandardItemModel()
         item = QStandardItem(f"{observation.code}  • 12 stale")
@@ -357,7 +357,7 @@ def test_importing_a_frequency_from_a_file_works(qt_application, project, tmp_pa
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     manipulator = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     path = tmp_path / "if.pastrod"
     # A band that does not overlap what the observation already has: importing a copy of an
     # existing one is refused, and rightly -- two IFs covering the same range is a mistake.
@@ -937,7 +937,7 @@ def test_a_tab_draws_into_the_figure_it_shows(qt_application, project, tab_class
     had the same shape. Checked where a user looks -- the tab's figure -- not on the answer."""
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     if (observation.get_calculated_data_by_key(tab_class.STORE_KEY) or {}).get("data") is None:
         # The spacecraft tabs: drawn against a tracked spacecraft in test_spacecraft_export.
         pytest.skip(f"the fixture holds no '{tab_class.STORE_KEY}'")
@@ -982,7 +982,7 @@ def test_clear_and_select_all_tick_a_whole_list_and_draw_once(qt_application, pr
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     if (observation.get_calculated_data_by_key(tab_class.STORE_KEY) or {}).get("data") is None:
         pytest.skip(f"the fixture holds no '{tab_class.STORE_KEY}'")
 
@@ -1036,7 +1036,7 @@ def test_closing_a_tab_clears_its_figure(qt_application, project, tab_class, cap
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     if (observation.get_calculated_data_by_key(tab_class.STORE_KEY) or {}).get("data") is None:
         pytest.skip(f"the fixture holds no '{tab_class.STORE_KEY}'")
 
@@ -1063,7 +1063,7 @@ def generator(qt_application, project):
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
     from pastrocore.utils.catalogmanager import CatalogManager
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     dialog = GenerateObservationsDialog(project, ScheduleManipulator(project), CatalogManager())
     for collection, order, held, refresh, widget in (
             ("sources", "_source_order", observation.get_sources(), dialog.update_source_list,

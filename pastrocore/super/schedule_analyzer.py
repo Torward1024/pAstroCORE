@@ -98,7 +98,7 @@ class ScheduleAnalyzer(Super):
         if isinstance(obj, Observation):
             return [obj]
         if isinstance(obj, ScheduleProject):
-            return obj.observations()
+            return obj.get_observations()
         if isinstance(obj, (list, tuple)):
             return [item for item in obj if isinstance(item, Observation)]
         return []

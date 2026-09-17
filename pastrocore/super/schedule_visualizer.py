@@ -453,9 +453,10 @@ class ScheduleVisualizer(Super):
         logger.debug("Using dpi=%s for visualization of plot_type=%s", dpi, plot_type)
 
         if isinstance(obj, ScheduleProject):
-            # `get_observations` never existed on a project, so plotting a whole project raised
-            # AttributeError on its first line for as long as this branch has been here.
-            observations = obj.observations()
+            # This branch once asked for `get_observations` while the method was `observations`,
+            # so plotting a whole project raised AttributeError on its first line. It is
+            # `get_observations` now: msb_arch 3.0 lets `inspect` call only what is named as a read.
+            observations = obj.get_observations()
             if not observations:
                 logger.warning("No observations in ScheduleProject '%s'", obj.get_name())
                 return {}

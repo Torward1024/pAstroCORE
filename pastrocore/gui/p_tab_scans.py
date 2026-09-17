@@ -241,7 +241,7 @@ class ScansTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to activate scan: No result returned")
                 return
 
-            can_activate = self.manipulator.inspect(scan_obj, check_activity_status=self.observation)
+            can_activate = self.manipulator.inspect(scan_obj, is_activatable=self.observation)
             if not can_activate:
                 logger.warning("Scan '%s' cannot be activated due to invalid configuration", scan_name)
                 QMessageBox.warning(self, "Cannot Activate", "The scan cannot be activated due to missing or inactive telescopes, frequencies, or source.")

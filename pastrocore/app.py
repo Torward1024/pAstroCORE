@@ -582,7 +582,7 @@ class PAstroCoreMainWindow(QMainWindow):
         project_item.appendRow(observations_item)
 
         try:
-            observations = self.manipulator.inspect(self.project, observations=None)
+            observations = self.manipulator.inspect(self.project, get_observations=None)
             if isinstance(observations, list):
                 if observations:
                     for obs in observations:
@@ -1030,7 +1030,7 @@ class PAstroCoreMainWindow(QMainWindow):
         if not self.project or not self.manipulator:
             return
 
-        observations = self.manipulator.inspect(self.project, observations=None) or []
+        observations = self.manipulator.inspect(self.project, get_observations=None) or []
         if not observations:
             QMessageBox.information(self, f"Export {label}",
                                     "The project has no observations.")

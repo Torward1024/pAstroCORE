@@ -94,7 +94,7 @@ class ProjectInfoTab(QWidget):
             project_name = project_name if isinstance(project_name, str) else "Untitled Project"
             self.ui.lineEdit.setText(project_name)
 
-            observations = self.manipulator.inspect(self.project, observations=None)
+            observations = self.manipulator.inspect(self.project, get_observations=None)
             if not isinstance(observations, list):
                 logger.error("Expected a list of observations, got %s: %s", type(observations), observations)
                 return
@@ -217,7 +217,7 @@ class ProjectInfoTab(QWidget):
         import_new_action.triggered.connect(self.import_new_observation)
         
         try:
-            observations = self.manipulator.inspect(self.project, observations=None)
+            observations = self.manipulator.inspect(self.project, get_observations=None)
             has_observations = bool(observations)
         except Exception as e:
             logger.error("Exception while inspecting observations: %s", str(e))

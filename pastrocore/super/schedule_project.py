@@ -189,7 +189,7 @@ class ScheduleProject(Project):
                          exc_info=True)
             return False
 
-    def observations(self) -> List[Observation]:
+    def get_observations(self) -> List[Observation]:
         """Return the observations this project holds, as a list.
 
         Returns:
@@ -205,7 +205,7 @@ class ScheduleProject(Project):
             - msb_arch 2.0.0 settled the shape -- a project answers with a list, exactly as a
               container does, and `get_all()` is the mapping. This stays because it says
               *observations* rather than items, which is what every caller here wants, and
-              because a request may name it: `inspect(project, observations=None)`.
+              because a request may name it: `inspect(project, get_observations=None)`.
         """
         return list(self.get_items())
 
@@ -573,7 +573,7 @@ class ScheduleProject(Project):
               next project then shares a graph with the one that was closed.
         """
         released = 0
-        for observation in self.observations():
+        for observation in self.get_observations():
             # There was a `cleanup()` call here, guarded by `hasattr`: nothing in the model or the
             # framework defines one, so the guard was true of nothing and the call reached nothing.
             for reference in ("_project", "_manipulator", "_parent"):
@@ -601,7 +601,7 @@ class ScheduleProject(Project):
               saved. Nothing changes the disk except a save, which removes the results of
               observations the project no longer has, and the deliberate Clear Data.
         """
-        for observation in self.observations():
+        for observation in self.get_observations():
             try:
                 observation.calculated_data.release()
             except Exception as e:                      # noqa: BLE001 - one bad result frees the rest

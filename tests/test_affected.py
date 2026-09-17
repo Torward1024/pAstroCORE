@@ -71,7 +71,7 @@ def test_what_each_type_reaches(core, project, named, parts):
 
 def test_an_object_may_be_given_instead_of_a_type_name(core, project):
     """A caller holding the thing it is about to edit should not have to name its class."""
-    telescope = project.observations()[0].get_telescopes().get_items()[0]
+    telescope = project.get_observations()[0].get_telescopes().get_items()[0]
 
     report = asked(core, project, subject=telescope).value
 
@@ -101,7 +101,7 @@ def test_a_calculation_that_reads_none_of_the_parts_is_left_out(core, project):
 def test_what_has_been_calculated_is_named_separately(core, project):
     """Which calculations *could* go stale is a property of the model; which ones *would* is a
     property of this project, and a user wants the second."""
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.clear_calculated_data()
 
     before = asked(core, project, type="Telescope").value

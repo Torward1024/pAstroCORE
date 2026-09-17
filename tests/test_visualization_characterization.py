@@ -334,7 +334,7 @@ def regenerate():
 
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
     manipulator = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     recorded = {}
     for plot_type in PLOT_TYPES:

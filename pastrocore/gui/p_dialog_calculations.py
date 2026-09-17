@@ -148,7 +148,7 @@ class CalculationDialog(QDialog):
     def populate_targets(self):
         """Populate the target list with project observations using observation code."""
         try:
-            observations = self.manipulator.inspect(obj=self.project, observations=None)
+            observations = self.manipulator.inspect(obj=self.project, get_observations=None)
             self.ui.targetList.clear()
             if not observations:
                 logger.debug("No observations found in the project.")

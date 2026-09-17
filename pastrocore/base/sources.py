@@ -178,7 +178,7 @@ class Source(BaseEntity):
         sign = math.copysign(1.0, self.de_d)
         return sign * (abs(self.de_d) + self.de_m / 60 + self.de_s / 3600)
 
-    def right_ascension_parts(self, decimals: int = 7) -> tuple:
+    def get_right_ascension_parts(self, decimals: int = 7) -> tuple:
         """Return `(hours, minutes, seconds)` as they are to be written, to `decimals` places.
 
         Notes:
@@ -188,7 +188,7 @@ class Source(BaseEntity):
         hours, minutes, seconds = _sexagesimal(self.ra_degrees / 15.0, decimals)
         return int(hours) % 24, int(minutes), seconds
 
-    def declination_parts(self, decimals: int = 6) -> tuple:
+    def get_declination_parts(self, decimals: int = 6) -> tuple:
         """Return `(sign, degrees, minutes, seconds)` as they are to be written.
 
         Notes:

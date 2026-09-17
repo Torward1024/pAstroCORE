@@ -265,7 +265,7 @@ def test_two_observations_may_not_share_a_code(path):
     project = ScheduleProject(name="P")
     project.create_item(item_code="OBS1")
     project.create_item(item_code="OBS2")
-    first = project.observations()[0]
+    first = project.get_observations()[0]
 
     attempts = {
         "add_item": lambda: project.add_item(Observation(name="x", code="OBS1")),
@@ -280,7 +280,7 @@ def test_two_observations_may_not_share_a_code(path):
     with pytest.raises(InvariantError):
         attempts[path]()
 
-    assert sorted(item.code for item in project.observations()) == ["OBS1", "OBS2"]
+    assert sorted(item.code for item in project.get_observations()) == ["OBS1", "OBS2"]
 
 
 def test_a_code_may_still_be_changed_to_a_free_one():
@@ -289,9 +289,9 @@ def test_a_code_may_still_be_changed_to_a_free_one():
     project.create_item(item_code="OBS1")
     project.create_item(item_code="OBS2")
 
-    project.observations()[0].code = "OBS9"
+    project.get_observations()[0].code = "OBS9"
 
-    assert sorted(item.code for item in project.observations()) == ["OBS2", "OBS9"]
+    assert sorted(item.code for item in project.get_observations()) == ["OBS2", "OBS9"]
 
 
 # --- what 2.0.0 promised about a project -------------------------------------------------
@@ -329,7 +329,7 @@ def test_importing_a_telescope_that_is_already_here_adds_a_second_one(tmp_path):
     data = json.loads(conftest.FIXTURE.read_text(encoding="utf-8"))
     project = ScheduleProject.from_dict(data)
     manipulator = ScheduleManipulator(project)
-    telescopes = project.observations()[0].get_telescopes()
+    telescopes = project.get_observations()[0].get_telescopes()
 
     written = tmp_path / "telescope.pastrod"
     manipulator.save(obj=telescopes.get_items()[0], path=str(written))
@@ -579,7 +579,7 @@ def generated_observation():
         "time_range": {"start": "2026-01-01 00:00:00", "end": "2026-01-02 00:00:00"},
         "scan_duration": 300.0, "num_scans": 2,
         "pattern": {"naming_mask": "OBS_{i}"}}, raise_on_error=False)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     return observation, observation.get_scans().get_items()[0]
 
 
@@ -594,11 +594,11 @@ def test_editing_a_source_does_not_switch_its_scans_off():
     calculated.
     """
     observation, scan = generated_observation()
-    assert scan.check_activity_status(observation), "the scan is not active to begin with"
+    assert scan.is_activatable(observation), "the scan is not active to begin with"
 
     observation.get_sources().get_items()[0].set({"de_m": 30.0})
 
-    assert scan.check_activity_status(observation), (
+    assert scan.is_activatable(observation), (
         "editing the source's declination switched its scan off")
 
 
@@ -608,7 +608,7 @@ def test_deactivating_a_source_does_switch_its_scans_off():
 
     observation.get_sources().get_items()[0].isactive = False
 
-    assert not scan.check_activity_status(observation), (
+    assert not scan.is_activatable(observation), (
         "the source was deactivated and its scan stayed active")
 
 
@@ -652,8 +652,8 @@ def test_seconds_hold_anything_below_sixty():
 def test_a_declination_just_south_of_the_equator_is_written_south():
     source = Source(name="X", ra_h=1.0, de_d=-0.0, de_m=30.0, de_s=15.2)
 
-    assert source.declination_parts(1) == ("-", 0, 30, 15.2)
-    assert Source(name="Z", ra_h=1.0, de_d=-0.0).declination_parts(1)[0] == "+", "zero has no side"
+    assert source.get_declination_parts(1) == ("-", 0, 30, 15.2)
+    assert Source(name="Z", ra_h=1.0, de_d=-0.0).get_declination_parts(1)[0] == "+", "zero has no side"
 
 
 @pytest.mark.parametrize("group, allowed", [(["X", "Y"], True), (["H", "V"], True),

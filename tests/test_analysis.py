@@ -24,7 +24,7 @@ import conftest
 def analysed(project):
     """A project with a couple of results in it, and the orchestrator to ask."""
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     core.compute(obj=observation, method="run", calculations=["uv_coverage", "az_el"],
                  time_step=300.0, recalculate=True, raise_on_error=False)
     return core, project, observation
@@ -248,7 +248,7 @@ def test_a_question_may_be_asked_of_the_whole_project(analysed):
     rows = asked(core, project, "summary", key="uv_coverage", columns=["u"]).value
 
     assert rows and all("observation" in row for row in rows)
-    assert {row["observation"] for row in rows} == {o.code for o in project.observations()}
+    assert {row["observation"] for row in rows} == {o.code for o in project.get_observations()}
 
 
 # --- the command line -----------------------------------------------------------------------

@@ -129,7 +129,7 @@ def vex_epoch(moment: Time) -> str:
 
 def _right_ascension(source: Source) -> str:
     """Return a source's right ascension as `22h32m36.4089050s`."""
-    hours, minutes, seconds = source.right_ascension_parts(7)
+    hours, minutes, seconds = source.get_right_ascension_parts(7)
     return f"{hours:02d}h{minutes:02d}m{seconds:010.7f}s"
 
 
@@ -143,7 +143,7 @@ def _declination(source: Source) -> str:
           and `+03d` wrote it as `+00`: every source between -1 and 0 degrees went to the
           correlator on the wrong side of the equator, up to two degrees from where it is.
     """
-    sign, degrees, minutes, seconds = source.declination_parts(6)
+    sign, degrees, minutes, seconds = source.get_declination_parts(6)
     return f"{sign}{degrees:02d}d{minutes:02d}'{seconds:09.6f}\""
 
 

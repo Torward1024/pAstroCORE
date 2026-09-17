@@ -199,7 +199,10 @@ class SourcesTab(QWidget):
     def deactivate_source(self, source_name: str):
         """Deactivate the specified source."""
         try:
-            self.manipulator.inspect(self.observation.get_sources(), deactivate_item=source_name)
+            # `configure`: it was `inspect` here since 24.09.2025, when two requests were folded
+            # into one line and kept the first one's operation. It worked, was journalled as a
+            # read, and failed silently where the other tabs raise. msb_arch 3.0 refuses it.
+            self.manipulator.configure(self.observation.get_sources(), deactivate_item=source_name)
             self.update()
             self.data_updated.emit(source_name, False, "deactivate")
             logger.info("Source '%s' deactivated in observation '%s'", source_name, self.observation.code)

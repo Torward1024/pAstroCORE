@@ -352,14 +352,14 @@ class ScheduleCalculator(Super):
         """
         if isinstance(obj, Observation):
             return len(obj.get_scans().get_active_items())
-        return sum(len(o.get_scans().get_active_items()) for o in obj.observations())
+        return sum(len(o.get_scans().get_active_items()) for o in obj.get_observations())
 
     @staticmethod
     def _active_telescope_count(obj: Observation | ScheduleProject) -> int:
         """Return how many active telescopes an observation or a whole project holds."""
         if isinstance(obj, Observation):
             return len(obj.get_telescopes().get_active_items())
-        return sum(len(o.get_telescopes().get_active_items()) for o in obj.observations())
+        return sum(len(o.get_telescopes().get_active_items()) for o in obj.get_observations())
 
     def _get_active_components(
         self,
@@ -475,7 +475,7 @@ class ScheduleCalculator(Super):
             # The project answers with its observations. `get_items()` hands back a mapping,
             # and iterating that yields the *names* -- which is how a whole-project calculation
             # called `get_observation_code()` on a string and came back empty.
-            observations = obj.observations()
+            observations = obj.get_observations()
             if not observations:
                 logger.warning("No observations in project '%s'", obj.name)
                 return pl.DataFrame()
@@ -679,7 +679,7 @@ class ScheduleCalculator(Super):
 
             # Nothing to interpolate, so nothing is looked up, computed or stored -- each of which
             # the caching layer reported as a warning when it found the answer empty.
-            observations = [obj] if isinstance(obj, Observation) else list(obj.observations())
+            observations = [obj] if isinstance(obj, Observation) else list(obj.get_observations())
             if not any(observation.has_orbit_file_telescopes() for observation in observations):
                 logger.debug("No spacecraft placed from an orbit file in '%s'; no orbits to interpolate",
                              obj.get_observation_code() if isinstance(obj, Observation) else obj.name)
