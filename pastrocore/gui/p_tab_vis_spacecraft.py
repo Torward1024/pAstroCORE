@@ -56,7 +56,7 @@ class SpacecraftVisualizationTab(VisualizationTab):
         self.ui.listScans.clear()
 
         try:
-            scan_times = self.manipulator.export(
+            scan_times = self.manipulator.inspect(
                 obj=self.observation, method="scan_times", **asked) or []
         except Exception as e:                          # noqa: BLE001 - an empty list, not a crash
             logger.error("Could not read the scans of '%s': %s", self.STORE_KEY, str(e),

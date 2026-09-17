@@ -156,13 +156,13 @@ through `Scan` as well as through `Telescopes` — which is the part nobody reme
 calculation declares in its schema which parts of the model it reads.
 
 ```python
-report = core.compute(obj=project, method="affected", type="Telescope")
+report = core.inspect(obj=project, method="affected", type="Telescope")
 
 assert report["parts"] == ["scans", "telescopes"]
 assert "uv_coverage" in report["calculations"]
 
 # A scan cannot spoil a beam pattern: that reads the telescopes and nothing else.
-scans = core.compute(obj=project, method="affected", type="Scan")
+scans = core.inspect(obj=project, method="affected", type="Scan")
 assert "beam_pattern" not in scans["calculations"]
 ```
 
@@ -179,6 +179,11 @@ pastrocore-cli replay survey.pastro monday.json
 A step names its object by **path**, so a replay reaches the same object it ran on rather than
 the first thing with a matching name. That works against the same project, reopened. It cannot
 work against a project built separately, because nothing there shares a name.
+
+A replay runs what changed something. The requests that only read -- `inspect`, `visualize`,
+`analyze` -- are counted and not asked again. A session written before 1.13.0, when the questions
+were `compute` and `export`, still replays: a step naming a handler that has moved to `inspect` is
+read as one.
 
 ### Checking one before running it
 

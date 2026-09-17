@@ -78,7 +78,7 @@ They are the only calculations that need to be told what to aim at, and the cata
 from the columns, since a result recording a `target_code` is about something being tracked:
 
 ```python
-response = manipulator.compute(obj=None, method="catalogue")
+response = manipulator.inspect(obj=None, method="catalogue")
 catalogue = response
 
 needing_a_target = {entry["key"] for entry in catalogue if entry["needs_target"]}
@@ -113,7 +113,7 @@ import re
 
 documented = set(re.findall(r"^\| `([a-z_]+)` \|", DOCUMENT, re.M))
 
-response = manipulator.compute(obj=None, method="catalogue")
+response = manipulator.inspect(obj=None, method="catalogue")
 catalogue = response
 existing = {entry["key"] for entry in catalogue}
 

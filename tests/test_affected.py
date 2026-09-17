@@ -27,7 +27,7 @@ def core(project):
 
 
 def asked(core, project, **attributes):
-    return core.compute(obj=project, method="affected", raise_on_error=False, **attributes)
+    return core.inspect(obj=project, method="affected", raise_on_error=False, **attributes)
 
 
 def test_the_parts_of_the_model_are_read_from_the_model(core):

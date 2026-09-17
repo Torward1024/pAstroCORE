@@ -1,10 +1,18 @@
 from msb_arch import Inspector
+from pastrocore.super.schedule_data import DataQuestions
 from pastrocore.super.schedule_project import ScheduleProject
+from pastrocore.super.schedule_runner import RunQuestions
 from msb_arch.utils.logging_setup import logger
 
 
-class ScheduleInspector(Inspector):
+class ScheduleInspector(RunQuestions, DataQuestions, Inspector):
     """Implementation of Inspector for inspecting scheduling entities using the Super framework.
+
+    Reads, and nothing else. Besides the model's own getters it answers the questions this
+    application asks of itself -- `inspect(method="catalogue")`, `"plan"`, `"history"`, `"check"`,
+    `"stale"`, `"affected"`, `"targets"`, `"order"` from `RunQuestions`, and `"available"`,
+    `"distinct"`, `"scan_times"`, `"unsaved"` from `DataQuestions` -- which were `compute` and
+    `export` until 1.13.0, so a session could not tell a question from a change by its operation.
 
     Provides methods to inspect astronomical scheduling entities (IF, Frequencies, Source, Sources,
     Telescope, SpaceTelescope, Telescopes, Scan, Scans, Observation, ScheduleProject) by invoking

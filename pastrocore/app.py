@@ -592,7 +592,7 @@ class PAstroCoreMainWindow(QMainWindow):
                             # A label, never a dialog. Staleness is a state the user can see
                             # and act on when they choose; announcing it after every edit
                             # would be worse than not detecting it.
-                            answer = self.manipulator.compute(obj=obs, method="stale",
+                            answer = self.manipulator.inspect(obj=obs, method="stale",
                                                               raise_on_error=False)
                             stale = answer.value or ()
                             label = f"{obs_code}  • {len(stale)} stale" if stale else obs_code
@@ -1100,7 +1100,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Ask before replacing a project that holds results nobody has saved."""
         if not self.project or not self.manipulator:
             return True
-        held = self.manipulator.export(obj=self.project, method="unsaved",
+        held = self.manipulator.inspect(obj=self.project, method="unsaved",
                                        raise_on_error=False).value or 0
         if not held:
             return True
@@ -1619,7 +1619,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """
         if self.project is None or self.manipulator is None:
             return 0
-        response = self.manipulator.export(obj=self.project, method="unsaved",
+        response = self.manipulator.inspect(obj=self.project, method="unsaved",
                                            raise_on_error=False)
         result = response.value
         return int(result or 0)

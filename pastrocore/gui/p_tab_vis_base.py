@@ -133,7 +133,7 @@ class VisualizationTab(QWidget):
               calling `unique()` per column.
         """
         try:
-            answer = self.manipulator.export(
+            answer = self.manipulator.inspect(
                 obj=self.observation, method="distinct",
                 key=self.STORE_KEY, columns=list(columns))
             return answer or {}
@@ -295,7 +295,7 @@ class VisualizationTab(QWidget):
             asked = {"obj": self.observation, "method": "scan_times", "key": self.STORE_KEY}
             if source_name:
                 asked["source_name"] = source_name
-            scan_times = self.manipulator.export(**asked) or []
+            scan_times = self.manipulator.inspect(**asked) or []
         except Exception as e:                          # noqa: BLE001 - an empty list, not a crash
             logger.error("Could not read the scans of '%s': %s", self.STORE_KEY, str(e),
                          exc_info=True)

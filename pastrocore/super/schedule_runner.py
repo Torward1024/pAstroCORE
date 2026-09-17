@@ -12,6 +12,12 @@ called "Run", offered in the dialog beside UV Coverage -- checked, not assumed. 
 third operation, `compute`, and the split is one sentence: **`calculate` does one, `compute`
 orchestrates many, `export` writes the results somewhere.**
 
+**The questions are not here.** What can be calculated, in what order, what a session asked and
+whether a file of one checks out, what is stale and what an edit would reach -- none of it changes
+anything, and it was all `compute` until 1.13.0, so a session could not tell a calculation from a
+question by the operation's name. They are `RunQuestions`, below, and `inspect` answers them:
+`ScheduleInspector` inherits them, and so does this class, which asks them of itself while it runs.
+
 Nothing here knows about signals, threads or windows. What a caller passes in is at most two
 callables -- one to report progress, one to ask whether to stop -- which is the whole seam a
 window, a command line and a server share.
@@ -32,18 +38,18 @@ from pastrocore.base.observation import Observation
 from pastrocore.super.schedule_project import ScheduleProject
 
 
-class ScheduleRunner(Super):
-    """Planning and running calculations, and saying what there is to run.
+class RunQuestions:
+    """What there is to run and what has happened, asked rather than done.
 
-    Args:
-        manipulator (Manipulator): The orchestrator every operation is reached through.
+    Handlers of `inspect`, which is the operation that only reads: `ScheduleInspector` inherits
+    them and answers `inspect(method="catalogue")`, `"plan"`, `"history"` and the rest. The runner
+    inherits them too, to ask its own questions without a request of its own for each.
+
+    Notes:
+        - They lived on `compute` beside the calculations. A session recorded a question as a
+          `compute`, so nothing could leave the questions out without keeping a list of which of
+          them were not calculations -- and the window asks `stale` after every edit.
     """
-
-    OPERATION = "compute"
-
-    def __init__(self, manipulator: 'Manipulator'):
-        super().__init__(manipulator)
-        logger.debug("Initialized ScheduleRunner")
 
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:
@@ -67,7 +73,7 @@ class ScheduleRunner(Super):
             - Asked of the export operation rather than worked out here. Which results exist on
               disk is a fact about stored data, and that is what `export` is for.
         """
-        response = self._manipulator.export(obj=observation, method="available",
+        response = self._manipulator.inspect(obj=observation, method="available",
                                             raise_on_error=False)
         result = response.value
         return result or []
@@ -82,7 +88,7 @@ class ScheduleRunner(Super):
     ACRONYMS = {"uv": "UV", "az": "Az", "el": "El", "if": "IF", "sefd": "SEFD"}
 
 
-    def _compute_plan(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _inspect_plan(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """Build the plan that runs a set of calculations over a set of observations.
 
         Args:
@@ -169,129 +175,7 @@ class ScheduleRunner(Super):
                 previous_by_key[key] = name
         return plan
 
-    def _compute_run(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Run the plan `_export_plan` builds, and report what each step did.
-
-        Args:
-            obj: As for `_export_plan`.
-            attributes: As for `_export_plan`, plus `concurrent` to let independent steps of a
-                stage run together, `progress`, called with a percentage and a message, and
-                `cancelled`, called to ask whether to stop.
-
-        Returns:
-            Dict[str, Any]: `{"ran": [...], "failed": [...], "cancelled": bool,
-                "timings": {step: seconds}, "report": [...], "summary": {...}}` -- step names,
-                in plan order. The summary's `seconds` is the clock and `work` is the sum of
-                the steps; with a concurrent stage the second is larger.
-
-        Notes:
-            - The whole point of doing it here rather than in a dialog: an interface, a command
-              line and a server all send one request, and the ordering, the prerequisites and
-              the skipping of a branch below a failure are the framework's job.
-            - Progress, cancellation and timing ride on an interceptor, which is what the hook
-              is for. It sees each step as it goes past, so nothing has to be counted twice, and
-              a cancellation is a refused request -- which skips the branch below it exactly as
-              a failure does.
-            - Timing belongs here rather than in the caller: with a stage running several steps
-              at once, the wall clock between two progress callbacks is not any one
-              calculation's duration.
-            - Progress is reported when a step **finishes**. A bar advanced on starting sits at
-              80% through the longest step of the run and then jumps, which is the shape of a
-              bar that looks stuck.
-        """
-        plan = self._compute_plan(obj, attributes)
-        report = attributes.get("progress") or (lambda percent, message: None)
-        cancelled = attributes.get("cancelled") or (lambda: False)
-
-        total = len(plan)
-        seen = {"done": 0, "stopped": False}
-        labels = {name: name.split("/", 1)[-1] for name in plan}
-        # A step is named by its handler and files its result under the schema's key, and for
-        # one calculation the two differ. The interceptor sees the request, which carries the
-        # store key, so this maps back to the step the plan named.
-        step_of = {f"{getattr(step.get('obj'), 'code', '')}/{step.get('store_key')}": name
-                   for name, step in plan.items()}
-        measured: Dict[str, float] = {}
-        # Steps of one stage run in threads when asked to, so the counter and the table are
-        # touched from several at once.
-        guard = threading.Lock()
-
-        def watch(request, call_next):
-            if request.get("operation") != "calculate":
-                return call_next(request)
-            if cancelled():
-                seen["stopped"] = True
-                return {"status": False, "object": None, "method": None, "result": None,
-                        "error": "Cancelled", "error_type": "RequestError"}
-
-            started = time.perf_counter()
-            response = call_next(request)
-            elapsed = time.perf_counter() - started
-
-            key = request.get("attributes", {}).get("store_key", "")
-            code = getattr(request.get("obj"), "code", "")
-            name = step_of.get(f"{code}/{key}", f"{code}/{key}")
-            with guard:
-                seen["done"] += 1
-                done = seen["done"]
-                measured[name] = elapsed
-            report(int(done / total * 100) if total else 100,
-                   f"Calculated {labels.get(name, key) or key} in {elapsed:.2f} s")
-            return response
-
-        self._manipulator.add_interceptor(watch)
-        began = time.perf_counter()
-        try:
-            outcome = self._manipulator.pipeline(
-                plan, raise_on_error=False, concurrent=bool(attributes.get("concurrent")))
-        finally:
-            elapsed = time.perf_counter() - began
-            self._manipulator.remove_interceptor(watch)
-
-        # In plan order rather than in the order they finished, which with a concurrent stage
-        # is neither stable nor meaningful.
-        timings = {name: measured[name] for name in plan if name in measured}
-        ran = [name for name in outcome if name not in outcome.failed]
-        slowest = max(timings, key=timings.get) if timings else None
-
-        # One row per step, in plan order, labelled the way a person reads it. Assembled here
-        # rather than by whatever displays it: a window renders this, a command line prints it
-        # and a server serialises it, and none of the three should be joining three lists to
-        # find out what happened.
-        spelled = {entry["key"]: entry["label"]
-                   for entry in self._compute_catalogue(obj, {})}
-        rows = []
-        for name in plan:
-            if name not in measured and name not in outcome.failed:
-                continue            # never reached: the run stopped above it
-            key = name.split("/", 1)[-1]
-            rows.append({"step": name,
-                         "observation": name.split("/", 1)[0],
-                         "label": spelled.get(key, labels.get(name, key)),
-                         "seconds": measured.get(name, 0.0),
-                         "outcome": "failed" if name in outcome.failed else "ok"})
-
-        return {"ran": ran,
-                "failed": list(outcome.failed),
-                "cancelled": seen["stopped"],
-                "timings": timings,
-                "report": rows,
-                # Summarised here rather than by whoever displays it. A window, a command line
-                # and a server all want the same three numbers, and the first of them worked
-                # them out for itself until this line existed.
-                # **`seconds` is the clock, not the sum.** Independent steps of a stage run
-                # together -- which is what `concurrent` is for, and both the window and the
-                # command line ask for it -- so adding their durations counts the same seconds
-                # several times: measured, 4.08 s reported against 2.51 s actually waited.
-                # `work` is that sum, which is a different and also useful fact: divided by
-                # `seconds` it says what the concurrency bought.
-                "summary": {"steps": len(ran), "failed": len(outcome.failed),
-                            "seconds": elapsed,
-                            "work": sum(timings.values()),
-                            "slowest": slowest.split("/", 1)[-1] if slowest else None,
-                            "slowest_seconds": timings[slowest] if slowest else 0.0}}
-
-    def _compute_catalogue(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _inspect_catalogue(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Report what this application can calculate and draw.
 
         Args:
@@ -340,7 +224,7 @@ class ScheduleRunner(Super):
             entries.append(entry)
         return entries
 
-    def _compute_order(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+    def _inspect_order(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
         """Return calculations in an order that satisfies their prerequisites.
 
         Args:
@@ -357,7 +241,7 @@ class ScheduleRunner(Super):
         """
         return self._manipulator.order_handlers("calculate", attributes.get("keys") or [])
 
-    def _compute_history(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _inspect_history(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Return what has been asked of this orchestrator in this session.
 
         Args:
@@ -366,13 +250,16 @@ class ScheduleRunner(Super):
 
         Returns:
             List[Dict[str, Any]]: One row per request -- `operation`, the `object` it named,
-                the `method`, its `attributes`, whether it worked, and how long it took.
+                the `method`, its `attributes`, whether it worked, and how long it took -- with
+                `where` it lives and whether it `reads` only.
 
         Notes:
             - Plain data, all of it. MSB's journal records what was asked rather than the
               request as it ran, so a session can be written to a file and read anywhere --
               and, more to the point, so recording a session does not keep alive everything it
               touched.
+            - **Everything is here, reads included.** What the window asked is what a bug report
+              needs; `reads` is what lets a person cut a session down to what changed something.
         """
         rows = self._manipulator.history(attributes.get("about"))
         # `where` beside `object`: a name is unique inside a container rather than across a
@@ -382,7 +269,23 @@ class ScheduleRunner(Super):
         for row in rows:
             path = row.get("path") or ([row["object"]] if row.get("object") else [])
             row["where"] = " / ".join(str(segment) for segment in path)
+            row["reads"] = self._manipulator.reads(row.get("operation"))
+            # A facade call records the handler it named among the attributes, so the Method
+            # column was empty for every request the window made.
+            row["method"] = self._asked(row)
         return rows
+
+    @staticmethod
+    def _asked(step: Dict[str, Any]) -> Any:
+        """Return the handler a step named: as the request's own key, or among its attributes.
+
+        Notes:
+            - A request built by hand says `"method"` beside `"operation"`; a facade call --
+              `compute(obj, method="run")`, which is every request the window makes -- is recorded
+              with it among the attributes. Reading only the first, `check` never checked the
+              handler of a recorded session at all.
+        """
+        return step.get("method") or (step.get("attributes") or {}).get("method")
 
     def _read_session(self, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Return the steps of a session, from a file or from memory.
@@ -401,7 +304,28 @@ class ScheduleRunner(Super):
             steps = document["steps"]
         if not isinstance(steps, list):
             raise ValueError("A session's 'steps' must be a list")
-        return steps
+        return self._as_asked_now(steps)
+
+    def _as_asked_now(self, steps: List[Any]) -> List[Any]:
+        """Return a session's steps with each question asked of the operation that answers it now.
+
+        Notes:
+            - Until 1.13.0 the questions -- `catalogue`, `history`, `stale` and the rest -- were
+              `compute` and `export`, and a session written then says so. A step naming a method
+              its operation no longer has, which `inspect` does have, moved: it is read as
+              `inspect`. Derived from what the operations offer, so there is no list of what
+              moved to fall out of step.
+        """
+        described = self._manipulator.describe_operations()
+        questions = described.get("inspect", {})
+        moved = []
+        for step in steps:
+            asked = self._asked(step) if isinstance(step, dict) else None
+            if (asked in questions and step.get("operation") in described
+                    and asked not in described[step["operation"]]):
+                step = {**step, "operation": "inspect"}
+            moved.append(step)
+        return moved
 
     def _resolve(self, step: Dict[str, Any]) -> Any:
         """Return the object a step names, by path first and by name second.
@@ -417,7 +341,7 @@ class ScheduleRunner(Super):
             found = self._manipulator.find(named)
         return found
 
-    def _compute_check(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _inspect_check(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Read a session and report what is wrong with it, without running anything.
 
         Args:
@@ -438,6 +362,9 @@ class ScheduleRunner(Super):
             - An attribute no handler reads is a *warning*. `accepts` is a lower bound by
               construction -- a key read under a name computed at run time is invisible to it --
               so refusing on it would refuse valid sessions.
+            - **A read is not checked**, because it is not run: replaying a question changes
+              nothing. A session keeps its reads -- what was asked is worth having -- and one
+              written before a read was renamed still replays.
         """
         steps = self._read_session(attributes)
         described = self._manipulator.describe_operations()
@@ -456,9 +383,11 @@ class ScheduleRunner(Super):
                     f"{where}: no operation called '{operation}' "
                     f"(there is {', '.join(sorted(described))})")
                 continue
+            if self._manipulator.reads(operation):
+                continue
 
             handlers = described[operation]
-            method = step.get("method")
+            method = self._asked(step)
             if method and method not in handlers:
                 problems.append(f"{where}: '{operation}' has no '{method}'")
                 continue
@@ -470,94 +399,15 @@ class ScheduleRunner(Super):
 
             if method:
                 accepts = set(handlers[method].get("accepts") or ())
-                unread = [name for name in (step.get("attributes") or {}) if name not in accepts]
+                unread = [name for name in (step.get("attributes") or {})
+                          if name not in accepts and name != "method"]
                 if unread and accepts:
                     warnings.append(
                         f"{where}: '{method}' does not read {', '.join(sorted(unread))}")
 
         return {"steps": len(steps), "problems": problems, "warnings": warnings}
 
-    def _compute_replay(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Run a recorded session against the project in hand.
-
-        Args:
-            obj: Ignored; the project is whatever this orchestrator manages.
-            attributes: `path`, a session written by `export(method="journal")`, or `steps`,
-                the same rows in memory. `skip_failures` leaves out what failed the first time.
-
-        Returns:
-            Dict[str, Any]: `{"ran": [...], "failed": [...], "unresolved": [...]}` -- the last
-                naming the steps whose object does not exist in this project.
-
-        Raises:
-            ValueError: If neither `path` nor `steps` was given.
-
-        Notes:
-            - A step names its object, so replaying resolves the name here. A session recorded
-              against one project therefore runs against another, which is what makes it a
-              reproduction rather than a souvenir.
-            - Unresolved steps are reported rather than skipped in silence: a session that half
-              ran is worse than one that refused.
-        """
-        steps = self._read_session(attributes)
-
-        # Checked whole before anything runs. A session is a file, and a file gets edited: one
-        # bad step among good ones must run none of them, because a session that half ran is
-        # worse than one that refused -- and worse than either, it looks like it worked.
-        report = self._compute_check(obj, {"steps": steps})
-        if report["problems"]:
-            logger.warning("Refusing a session with %s problem(s)", len(report["problems"]))
-            return {"ran": [], "failed": [], "unresolved": [],
-                    "problems": report["problems"], "warnings": report["warnings"]}
-
-        plan: Dict[str, Dict[str, Any]] = {}
-        unresolved: List[str] = []
-        previous = None
-        for position, step in enumerate(steps, start=1):
-            if attributes.get("skip_failures", True) and step.get("status") is False:
-                continue
-            named = step.get("object")
-            found = self._resolve(step)
-            name = f"{step.get('operation')}_{position}"
-            if named and found is None:
-                where = " / ".join(step["path"]) if step.get("path") else named
-                unresolved.append(f"{name}: nothing here at '{where}'")
-                continue
-            # A journal cannot record a callable, so it records what it was -- `<function>`.
-            # Handing that back would have the handler call a string: a run carries one
-            # callable to report progress and one to ask whether to stop, and both come back
-            # like this. Dropping them is right, since neither can be replayed and their
-            # absence means "report to nobody, stop for nobody".
-            #
-            # Named apart from this method's own `attributes`, which it used to overwrite:
-            # from the second step onwards `skip_failures` was then read out of the *step's*
-            # attributes rather than the request's, so asking to replay failures too was
-            # honoured for one step and silently dropped for the rest.
-            asked = {key: value
-                     for key, value in (step.get("attributes") or {}).items()
-                     if not (isinstance(value, str) and value.startswith("<")
-                             and value.endswith(">"))}
-            entry = {"operation": step.get("operation"), "obj": found,
-                     "attributes": asked}
-            if step.get("method"):
-                entry["method"] = step["method"]
-            if previous:
-                entry["after"] = [previous]
-            plan[name] = entry
-            previous = name
-
-        if not plan:
-            logger.warning("Nothing in this session could be replayed here")
-            return {"ran": [], "failed": [], "unresolved": unresolved,
-                    "problems": [], "warnings": report["warnings"]}
-
-        outcome = self._manipulator.pipeline(plan, raise_on_error=False)
-        return {"ran": [name for name in outcome if name not in outcome.failed],
-                "failed": list(outcome.failed),
-                "unresolved": unresolved,
-                "problems": [], "warnings": report["warnings"]}
-
-    def _compute_targets(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+    def _inspect_targets(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
         """Return what could be pointed at in a set of observations.
 
         Args:
@@ -580,27 +430,6 @@ class ScheduleRunner(Super):
                 if isinstance(telescope, SpaceTelescope) and telescope.get_code() not in codes:
                     codes.append(telescope.get_code())
         return sorted(codes)
-
-    def _compute_clear(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Discard the calculated results of a set of observations.
-
-        Args:
-            obj: An observation, a project, or a list of them; `targets` overrides it.
-            attributes: `targets`, the observations to clear.
-
-        Returns:
-            Dict[str, Any]: `{"cleared": [codes]}`.
-
-        Notes:
-            - A request, because a window is not the only thing that wants it: a command line
-              rebuilding a project from scratch asks for exactly this.
-        """
-        cleared = []
-        for observation in (attributes.get("targets") or self._targets(obj)):
-            observation.clear_calculated_data()
-            cleared.append(observation.code)
-        logger.info("Cleared the results of %s observation(s)", len(cleared))
-        return {"cleared": cleared}
 
     @staticmethod
     def _parts_by_type() -> Dict[str, str]:
@@ -625,7 +454,7 @@ class ScheduleRunner(Super):
                 parts[hint.__name__] = field
         return parts
 
-    def _compute_affected(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _inspect_affected(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Return the results that editing something of a given type would make wrong.
 
         Args:
@@ -688,6 +517,267 @@ class ScheduleRunner(Super):
         return {"type": name, "parts": parts, "calculations": affected,
                 "stored": sorted(stored)}
 
+    def _inspect_stale(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+        """Return the results of one observation whose inputs have changed since they were made.
+
+        Args:
+            obj (Observation): The observation to ask about.
+            attributes: Ignored.
+
+        Returns:
+            List[str]: Store keys, sorted. Empty when nothing is known to be stale, which
+                includes a result that predates the mechanism.
+
+        Notes:
+            - Reads no result: the answer comes from the metadata beside them and from the
+              model, so asking costs a directory listing rather than the project.
+        """
+        return sorted(obj.stale_results()) if hasattr(obj, "stale_results") else []
+
+
+class ScheduleRunner(RunQuestions, Super):
+    """Running calculations, and the other requests that change what a project holds.
+
+    Args:
+        manipulator (Manipulator): The orchestrator every operation is reached through.
+    """
+
+    OPERATION = "compute"
+
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
+        logger.debug("Initialized ScheduleRunner")
+
+    def _compute_run(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Run the plan `_export_plan` builds, and report what each step did.
+
+        Args:
+            obj: As for `_export_plan`.
+            attributes: As for `_export_plan`, plus `concurrent` to let independent steps of a
+                stage run together, `progress`, called with a percentage and a message, and
+                `cancelled`, called to ask whether to stop.
+
+        Returns:
+            Dict[str, Any]: `{"ran": [...], "failed": [...], "cancelled": bool,
+                "timings": {step: seconds}, "report": [...], "summary": {...}}` -- step names,
+                in plan order. The summary's `seconds` is the clock and `work` is the sum of
+                the steps; with a concurrent stage the second is larger.
+
+        Notes:
+            - The whole point of doing it here rather than in a dialog: an interface, a command
+              line and a server all send one request, and the ordering, the prerequisites and
+              the skipping of a branch below a failure are the framework's job.
+            - Progress, cancellation and timing ride on an interceptor, which is what the hook
+              is for. It sees each step as it goes past, so nothing has to be counted twice, and
+              a cancellation is a refused request -- which skips the branch below it exactly as
+              a failure does.
+            - Timing belongs here rather than in the caller: with a stage running several steps
+              at once, the wall clock between two progress callbacks is not any one
+              calculation's duration.
+            - Progress is reported when a step **finishes**. A bar advanced on starting sits at
+              80% through the longest step of the run and then jumps, which is the shape of a
+              bar that looks stuck.
+        """
+        plan = self._inspect_plan(obj, attributes)
+        report = attributes.get("progress") or (lambda percent, message: None)
+        cancelled = attributes.get("cancelled") or (lambda: False)
+
+        total = len(plan)
+        seen = {"done": 0, "stopped": False}
+        labels = {name: name.split("/", 1)[-1] for name in plan}
+        # A step is named by its handler and files its result under the schema's key, and for
+        # one calculation the two differ. The interceptor sees the request, which carries the
+        # store key, so this maps back to the step the plan named.
+        step_of = {f"{getattr(step.get('obj'), 'code', '')}/{step.get('store_key')}": name
+                   for name, step in plan.items()}
+        measured: Dict[str, float] = {}
+        # Steps of one stage run in threads when asked to, so the counter and the table are
+        # touched from several at once.
+        guard = threading.Lock()
+
+        def watch(request, call_next):
+            if request.get("operation") != "calculate":
+                return call_next(request)
+            if cancelled():
+                seen["stopped"] = True
+                return {"status": False, "object": None, "method": None, "result": None,
+                        "error": "Cancelled", "error_type": "RequestError"}
+
+            started = time.perf_counter()
+            response = call_next(request)
+            elapsed = time.perf_counter() - started
+
+            key = request.get("attributes", {}).get("store_key", "")
+            code = getattr(request.get("obj"), "code", "")
+            name = step_of.get(f"{code}/{key}", f"{code}/{key}")
+            with guard:
+                seen["done"] += 1
+                done = seen["done"]
+                measured[name] = elapsed
+            report(int(done / total * 100) if total else 100,
+                   f"Calculated {labels.get(name, key) or key} in {elapsed:.2f} s")
+            return response
+
+        self._manipulator.add_interceptor(watch)
+        began = time.perf_counter()
+        try:
+            outcome = self._manipulator.pipeline(
+                plan, raise_on_error=False, concurrent=bool(attributes.get("concurrent")))
+        finally:
+            elapsed = time.perf_counter() - began
+            self._manipulator.remove_interceptor(watch)
+
+        # In plan order rather than in the order they finished, which with a concurrent stage
+        # is neither stable nor meaningful.
+        timings = {name: measured[name] for name in plan if name in measured}
+        ran = [name for name in outcome if name not in outcome.failed]
+        slowest = max(timings, key=timings.get) if timings else None
+
+        # One row per step, in plan order, labelled the way a person reads it. Assembled here
+        # rather than by whatever displays it: a window renders this, a command line prints it
+        # and a server serialises it, and none of the three should be joining three lists to
+        # find out what happened.
+        spelled = {entry["key"]: entry["label"]
+                   for entry in self._inspect_catalogue(obj, {})}
+        rows = []
+        for name in plan:
+            if name not in measured and name not in outcome.failed:
+                continue            # never reached: the run stopped above it
+            key = name.split("/", 1)[-1]
+            rows.append({"step": name,
+                         "observation": name.split("/", 1)[0],
+                         "label": spelled.get(key, labels.get(name, key)),
+                         "seconds": measured.get(name, 0.0),
+                         "outcome": "failed" if name in outcome.failed else "ok"})
+
+        return {"ran": ran,
+                "failed": list(outcome.failed),
+                "cancelled": seen["stopped"],
+                "timings": timings,
+                "report": rows,
+                # Summarised here rather than by whoever displays it. A window, a command line
+                # and a server all want the same three numbers, and the first of them worked
+                # them out for itself until this line existed.
+                # **`seconds` is the clock, not the sum.** Independent steps of a stage run
+                # together -- which is what `concurrent` is for, and both the window and the
+                # command line ask for it -- so adding their durations counts the same seconds
+                # several times: measured, 4.08 s reported against 2.51 s actually waited.
+                # `work` is that sum, which is a different and also useful fact: divided by
+                # `seconds` it says what the concurrency bought.
+                "summary": {"steps": len(ran), "failed": len(outcome.failed),
+                            "seconds": elapsed,
+                            "work": sum(timings.values()),
+                            "slowest": slowest.split("/", 1)[-1] if slowest else None,
+                            "slowest_seconds": timings[slowest] if slowest else 0.0}}
+
+    def _compute_replay(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Run a recorded session against the project in hand.
+
+        Args:
+            obj: Ignored; the project is whatever this orchestrator manages.
+            attributes: `path`, a session written by `export(method="journal")`, or `steps`,
+                the same rows in memory. `skip_failures` leaves out what failed the first time.
+
+        Returns:
+            Dict[str, Any]: `{"ran": [...], "failed": [...], "unresolved": [...]}` -- the last
+                naming the steps whose object does not exist in this project.
+
+        Raises:
+            ValueError: If neither `path` nor `steps` was given.
+
+        Notes:
+            - A step names its object, so replaying resolves the name here. A session recorded
+              against one project therefore runs against another, which is what makes it a
+              reproduction rather than a souvenir.
+            - Unresolved steps are reported rather than skipped in silence: a session that half
+              ran is worse than one that refused.
+            - **Reads are not run**, and are counted in `reads`. A question changes nothing, so
+              asking it again reproduces nothing -- and the window asks a great many: `stale`
+              after every edit, `catalogue` whenever a dialog opens.
+        """
+        steps = self._read_session(attributes)
+
+        # Checked whole before anything runs. A session is a file, and a file gets edited: one
+        # bad step among good ones must run none of them, because a session that half ran is
+        # worse than one that refused -- and worse than either, it looks like it worked.
+        report = self._inspect_check(obj, {"steps": steps})
+        if report["problems"]:
+            logger.warning("Refusing a session with %s problem(s)", len(report["problems"]))
+            return {"ran": [], "failed": [], "unresolved": [], "reads": 0,
+                    "problems": report["problems"], "warnings": report["warnings"]}
+
+        plan: Dict[str, Dict[str, Any]] = {}
+        unresolved: List[str] = []
+        reads = 0
+        previous = None
+        for position, step in enumerate(steps, start=1):
+            if attributes.get("skip_failures", True) and step.get("status") is False:
+                continue
+            if self._manipulator.reads(step.get("operation")):
+                reads += 1
+                continue
+            named = step.get("object")
+            found = self._resolve(step)
+            name = f"{step.get('operation')}_{position}"
+            if named and found is None:
+                where = " / ".join(step["path"]) if step.get("path") else named
+                unresolved.append(f"{name}: nothing here at '{where}'")
+                continue
+            # A journal cannot record a callable, so it records what it was -- `<function>`.
+            # Handing that back would have the handler call a string: a run carries one
+            # callable to report progress and one to ask whether to stop, and both come back
+            # like this. Dropping them is right, since neither can be replayed and their
+            # absence means "report to nobody, stop for nobody".
+            #
+            # Named apart from this method's own `attributes`, which it used to overwrite:
+            # from the second step onwards `skip_failures` was then read out of the *step's*
+            # attributes rather than the request's, so asking to replay failures too was
+            # honoured for one step and silently dropped for the rest.
+            asked = {key: value
+                     for key, value in (step.get("attributes") or {}).items()
+                     if not (isinstance(value, str) and value.startswith("<")
+                             and value.endswith(">"))}
+            entry = {"operation": step.get("operation"), "obj": found,
+                     "attributes": asked}
+            if step.get("method"):
+                entry["method"] = step["method"]
+            if previous:
+                entry["after"] = [previous]
+            plan[name] = entry
+            previous = name
+
+        if not plan:
+            logger.warning("Nothing in this session could be replayed here")
+            return {"ran": [], "failed": [], "unresolved": unresolved, "reads": reads,
+                    "problems": [], "warnings": report["warnings"]}
+
+        outcome = self._manipulator.pipeline(plan, raise_on_error=False)
+        return {"ran": [name for name in outcome if name not in outcome.failed],
+                "failed": list(outcome.failed),
+                "unresolved": unresolved, "reads": reads,
+                "problems": [], "warnings": report["warnings"]}
+
+    def _compute_clear(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Discard the calculated results of a set of observations.
+
+        Args:
+            obj: An observation, a project, or a list of them; `targets` overrides it.
+            attributes: `targets`, the observations to clear.
+
+        Returns:
+            Dict[str, Any]: `{"cleared": [codes]}`.
+
+        Notes:
+            - A request, because a window is not the only thing that wants it: a command line
+              rebuilding a project from scratch asks for exactly this.
+        """
+        cleared = []
+        for observation in (attributes.get("targets") or self._targets(obj)):
+            observation.clear_calculated_data()
+            cleared.append(observation.code)
+        logger.info("Cleared the results of %s observation(s)", len(cleared))
+        return {"cleared": cleared}
+
     def _compute_release(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Let go of a project, so whatever holds it can replace it.
 
@@ -705,20 +795,3 @@ class ScheduleRunner(Super):
         """
         released = obj.release()
         return {"released": released}
-
-    def _compute_stale(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
-        """Return the results of one observation whose inputs have changed since they were made.
-
-        Args:
-            obj (Observation): The observation to ask about.
-            attributes: Ignored.
-
-        Returns:
-            List[str]: Store keys, sorted. Empty when nothing is known to be stale, which
-                includes a result that predates the mechanism.
-
-        Notes:
-            - Reads no result: the answer comes from the metadata beside them and from the
-              model, so asking costs a directory listing rather than the project.
-        """
-        return sorted(obj.stale_results()) if hasattr(obj, "stale_results") else []

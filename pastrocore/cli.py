@@ -73,7 +73,7 @@ def _open_to_save(path: str) -> ScheduleProject:
 
 def _catalogue(manipulator) -> List[dict]:
     """What this application can calculate, asked rather than listed."""
-    return manipulator.compute(obj=manipulator.get_managing_object(), method="catalogue",
+    return manipulator.inspect(obj=manipulator.get_managing_object(), method="catalogue",
                                raise_on_error=False).value or []
 
 
@@ -98,9 +98,9 @@ def info(arguments) -> int:
 
     print(f"{project.name}  ({arguments.project})")
     for observation in project.get_observations():
-        held = manipulator.export(obj=observation, method="available",
+        held = manipulator.inspect(obj=observation, method="available",
                                   raise_on_error=False).value or []
-        stale = set(manipulator.compute(obj=observation, method="stale",
+        stale = set(manipulator.inspect(obj=observation, method="stale",
                                         raise_on_error=False).value or [])
         print(f"\n  {observation.code}  [{observation.observation_type}]")
         print(f"    {len(observation.get_telescopes().get_items())} telescope(s), "
@@ -375,7 +375,7 @@ def affected(arguments) -> int:
     project = _open(arguments.project)
     manipulator = ScheduleManipulator(project, journal_limit=None)
 
-    answer = manipulator.compute(obj=project, method="affected", type=arguments.type,
+    answer = manipulator.inspect(obj=project, method="affected", type=arguments.type,
                                  raise_on_error=False)
     if not answer.ok:
         print(f"  {answer.error}")
@@ -404,7 +404,7 @@ def check(arguments) -> int:
     project = _open(arguments.project)
     manipulator = ScheduleManipulator(project, journal_limit=None)
 
-    report = manipulator.compute(obj=project, method="check", path=arguments.session,
+    report = manipulator.inspect(obj=project, method="check", path=arguments.session,
                                  raise_on_error=False).value or {}
     for problem in report.get("problems", []):
         print(f"  problem  {problem}")
@@ -440,7 +440,9 @@ def replay(arguments) -> int:
         return 1
     for note in outcome.get("warnings", []):
         print(f"  warning  {note}")
-    print(f"{len(outcome.get('ran', []))} request(s) replayed")
+    reads = outcome.get("reads") or 0
+    print(f"{len(outcome.get('ran', []))} request(s) replayed"
+          + (f"; {reads} that only read were not asked again" if reads else ""))
     for name in outcome.get("failed", []):
         print(f"  FAILED {name}")
     for note in outcome.get("unresolved", []):

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>720</width>
-    <height>460</height>
+    <width>760</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -21,7 +21,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="../gui/icons/icons.qrc">
-    <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
+    <normaloff>:/icons/session.svg</normaloff>:/icons/session.svg</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -35,9 +35,22 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="checkBoxChangesOnly">
+     <property name="toolTip">
+      <string>Hide the requests that only read -- inspecting, drawing, summarising. Everything is still recorded; this only changes what is shown and saved</string>
+     </property>
+     <property name="text">
+      <string>Only requests that change something</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QTableWidget" name="tableRequests">
      <property name="alternatingRowColors">
       <bool>true</bool>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
      </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
@@ -48,24 +61,73 @@
     </widget>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="editLayout">
+     <item>
+      <widget class="QPushButton" name="pushButtonRemove">
+       <property name="toolTip">
+        <string>Leave the selected requests out of the session you save. The journal keeps them</string>
+       </property>
+       <property name="text">
+        <string>Remove Selected</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButtonRestore">
+       <property name="toolTip">
+        <string>Bring back every request removed from this list</string>
+       </property>
+       <property name="text">
+        <string>Restore Removed</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="editSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QPushButton" name="pushButtonSave">
        <property name="toolTip">
-        <string>Write this session to a file, so it can be replayed later or attached to a bug report</string>
+        <string>Write the requests shown to a file, so they can be replayed later or attached to a bug report</string>
        </property>
        <property name="text">
         <string>Save session...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="pushButtonReplay">
        <property name="toolTip">
-        <string>Read a saved session and run it against the project that is open now. Each step names the object it ran on, and one this project does not have is reported rather than skipped.</string>
+        <string>Read a saved session and run it against the project that is open now. Each step names the object it ran on, and one this project does not have is reported rather than skipped. Requests that only read are not run again</string>
        </property>
        <property name="text">
         <string>Replay a session...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
        </property>
       </widget>
      </item>
@@ -86,6 +148,9 @@
       <widget class="QPushButton" name="pushButtonClose">
        <property name="text">
         <string>Close</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
        </property>
       </widget>
      </item>

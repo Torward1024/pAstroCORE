@@ -24,7 +24,7 @@ def bench():
 
 def test_asking_for_one_plans_everything_it_needs(bench):
     manipulator, observation = bench
-    plan = manipulator.compute(obj=None, method="plan", targets=[observation],
+    plan = manipulator.inspect(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
     # No orbits: the fixture's stations are on the ground, so there is nothing to interpolate
@@ -36,7 +36,7 @@ def test_asking_for_one_plans_everything_it_needs(bench):
 def test_the_order_comes_from_the_handlers(bench):
     """Nothing here lists it: MSB derives which handler calls which, and the plan uses that."""
     manipulator, observation = bench
-    plan = manipulator.compute(obj=None, method="plan", targets=[observation],
+    plan = manipulator.inspect(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
     positions = {name.split("/")[-1]: index for index, name in enumerate(plan)}
@@ -48,7 +48,7 @@ def test_the_order_comes_from_the_handlers(bench):
 
 def test_every_step_waits_for_what_it_needs(bench):
     manipulator, observation = bench
-    plan = manipulator.compute(obj=None, method="plan", targets=[observation],
+    plan = manipulator.inspect(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
     uv = plan[f"{observation.code}/uv_coverage"]
@@ -58,7 +58,7 @@ def test_every_step_waits_for_what_it_needs(bench):
 def test_two_observations_do_not_wait_for_each_other(bench):
     """Their steps are independent, which is what lets a stage run them together."""
     manipulator, observation = bench
-    plan = manipulator.compute(obj=None, method="plan", targets=[observation, observation],
+    plan = manipulator.inspect(obj=None, method="plan", targets=[observation, observation],
                               calculations=["time_arrays"], time_step=300.0)
 
     assert len(plan) == 1, "the same observation twice is one set of steps"
@@ -110,7 +110,7 @@ def test_cancelling_stops_and_says_so(bench):
 def test_asking_for_nothing_is_refused(bench):
     manipulator, observation = bench
     with pytest.raises(Exception):
-        manipulator.compute(obj=None, method="plan", targets=[observation], calculations=[])
+        manipulator.inspect(obj=None, method="plan", targets=[observation], calculations=[])
 
 
 class _FakeProgress:
@@ -510,7 +510,7 @@ def test_orbits_are_not_planned_for_ground_stations_only(project):
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     observation = project.get_observations()[0]
-    plan = ScheduleManipulator(project).compute(obj=None, method="plan", targets=[observation],
+    plan = ScheduleManipulator(project).inspect(obj=None, method="plan", targets=[observation],
                                                 calculations=["uv_coverage"], time_step=300.0)
 
     planned = [name.split("/", 1)[1] for name in plan]
@@ -525,7 +525,7 @@ def test_orbits_are_planned_when_a_spacecraft_follows_an_orbit_file(project):
     observation = project.get_observations()[0]
     observation.get_telescopes().add(SpaceTelescope(code="RADIO", name="RadioAstron", use_kep=False))
 
-    plan = ScheduleManipulator(project).compute(obj=None, method="plan", targets=[observation],
+    plan = ScheduleManipulator(project).inspect(obj=None, method="plan", targets=[observation],
                                                 calculations=["uv_coverage"], time_step=300.0)
 
     planned = [name.split("/", 1)[1] for name in plan]
@@ -541,7 +541,7 @@ def test_a_run_of_ground_stations_says_nothing_about_orbits(project, caplog):
     observation = project.get_observations()[0]
     observation.calculated_data.clear()
     core = ScheduleManipulator(project)
-    every = [entry["key"] for entry in core.compute(obj=None, method="catalogue")
+    every = [entry["key"] for entry in core.inspect(obj=None, method="catalogue")
              if not entry.get("needs_target")]
 
     logging.getLogger("msb_arch").setLevel(logging.WARNING)
