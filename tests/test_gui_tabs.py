@@ -582,8 +582,8 @@ def test_a_catalog_browser_opens_and_fills(module_name, class_name, rows, allow_
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    catalogs = CatalogManager(existing_or_shipped("", "sources.dat"),
-                              existing_or_shipped("", "telescopes.dat"))
+    catalogs = CatalogManager(existing_or_shipped("", "sources.json"),
+                              existing_or_shipped("", "telescopes.json"))
     dialog_class = getattr(importlib.import_module(f"pastrocore.gui.{module_name}"), class_name)
 
     dialog = dialog_class(catalogs, ScheduleManipulator(project),

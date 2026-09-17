@@ -36,7 +36,8 @@ import os
 from pathlib import Path
 import json
 # GUI resource file
-from pastrocore.paths import SETTINGS, existing_or_shipped, settings_file, shipped_catalog
+from pastrocore.paths import (CATALOGUES, SETTINGS, existing_or_shipped, is_leftover,
+                              settings_file, shipped_catalog)
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
@@ -186,10 +187,9 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or what was shipped."""
-        sources_path = existing_or_shipped(
-            self.settings.get("sources_catalog_path", ""), "sources.dat")
-        telescopes_path = existing_or_shipped(
-            self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
+        sources_path, telescopes_path = (
+            existing_or_shipped(self.settings.get(setting, ""), shipped)
+            for setting, shipped in (CATALOGUES["sources"], CATALOGUES["telescopes"]))
 
         try:
             if not os.path.isfile(sources_path):
@@ -651,8 +651,7 @@ class PAstroCoreMainWindow(QMainWindow):
               somewhere else would look like the settings had been forgotten.
         """
         default_settings = {
-            "sources_catalog_path": str(shipped_catalog("sources.dat")),
-            "telescopes_catalog_path": str(shipped_catalog("telescopes.dat")),
+            **{setting: str(shipped_catalog(shipped)) for setting, shipped in CATALOGUES.values()},
             "log_level": "INFO",
             "time_step": 600,
             "clear_log_on_start": False,
@@ -693,14 +692,13 @@ class PAstroCoreMainWindow(QMainWindow):
         # A stored path is absolute and an install that moves invalidates it. Empty catalogues
         # and a line in the log look like data loss rather than like a stale setting.
         leftovers = False
-        for setting, shipped in (("sources_catalog_path", "sources.dat"),
-                                 ("telescopes_catalog_path", "telescopes.dat")):
+        for setting, shipped in CATALOGUES.values():
             was = default_settings[setting]
             default_settings[setting] = existing_or_shipped(was, shipped)
-            # A relative path is from before the catalogues moved into the package and can
-            # never resolve from a per-user settings file. Corrected once, rather than warned
-            # about on every start about something the user cannot act on.
-            leftovers = leftovers or (bool(was) and not Path(was).is_absolute())
+            # A relative path is from before the catalogues moved into the package, and a shipped
+            # `.dat` is from before they became JSON; neither can resolve again. Corrected once,
+            # rather than warned about on every start about something the user cannot act on.
+            leftovers = leftovers or is_leftover(was)
 
         if leftovers and source is not None:
             PAstroCoreMainWindow._write_settings(default_settings)
@@ -1273,31 +1271,17 @@ class PAstroCoreMainWindow(QMainWindow):
             update_logging_clear("output.log", clear_log)
             logger.info("Log file clearing setting updated to %s. This will take effect now and on the next application start.", clear_log)
 
-        if "sources_catalog_path" in changed_keys:
-            sources_path = existing_or_shipped(
-            self.settings.get("sources_catalog_path", ""), "sources.dat")
+        for kind, (setting, shipped) in CATALOGUES.items():
+            if setting not in changed_keys:
+                continue
+            path = existing_or_shipped(self.settings.get(setting, ""), shipped)
             try:
-                self.catalog_manager.clear_source_catalog()
-                if sources_path:
-                    self.catalog_manager.load_source_catalog(sources_path)
-                sources_count = len(self.manipulator.inspect(self.catalog_manager.source_catalog, get_items=None))
-                logger.info("Sources catalog reloaded with %s sources from %s", sources_count, sources_path)
+                self.catalog_manager.load(kind, path)
+                count = len(self.manipulator.inspect(self.catalog_manager.catalog(kind), get_items=None))
+                logger.info("The %s catalogue reloaded with %s entries from %s", kind, count, path)
             except Exception as e:
-                logger.error("Failed to reload sources catalog from '%s': %s", sources_path, str(e))
-                QMessageBox.warning(self, "Warning", f"Failed to reload sources catalog: {str(e)}")
-
-        if "telescopes_catalog_path" in changed_keys:
-            telescopes_path = existing_or_shipped(
-            self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
-            try:
-                self.catalog_manager.clear_telescope_catalog()
-                if telescopes_path:
-                    self.catalog_manager.load_telescope_catalog(telescopes_path)
-                telescopes_count = len(self.manipulator.inspect(self.catalog_manager.telescope_catalog, get_items=None))
-                logger.info("Telescopes catalog reloaded with %s telescopes from %s", telescopes_count, telescopes_path)
-            except Exception as e:
-                logger.error("Failed to reload telescopes catalog from '%s': %s", telescopes_path, str(e))
-                QMessageBox.warning(self, "Warning", f"Failed to reload telescopes catalog: {str(e)}")
+                logger.error("Failed to reload the %s catalogue from '%s': %s", kind, path, str(e))
+                QMessageBox.warning(self, "Warning", f"Failed to reload the {kind} catalogue: {str(e)}")
 
         if changed_keys:
             logger.debug("Settings updated: %s", ', '.join(changed_keys))
@@ -1306,45 +1290,43 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def open_telescope_catalog_manager(self):
-        """Open the telescopes catalog browser dialog."""
-        telescopes_path = existing_or_shipped(
-            self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
-        if not os.path.isfile(telescopes_path):
-            logger.error("Telescopes catalog file not found: %s", telescopes_path)
-            QMessageBox.warning(self, "Warning", "Please set a valid telescopes catalog path in Preferences.")
-            return
-
-        telescopes = self.manipulator.inspect(self.catalog_manager.telescope_catalog, get_items=None)
-        if not telescopes:
-            logger.warning("Telescopes catalog is empty")
-            QMessageBox.warning(self, "Warning", "Telescopes catalog is empty. Check the catalog file or reload in Preferences.")
-            return
-
+        """Open the telescopes catalogue, to browse and edit."""
         from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
-        dialog = TelescopesCatalogDialog(self.catalog_manager, self.manipulator, self)
-        dialog.exec()
-        logger.debug("Telescopes catalog browser dialog opened")
+        self._open_catalog_manager(TelescopesCatalogDialog)
 
     @Slot()
     def open_source_catalog_manager(self):
-        """Open the sources catalog browser dialog."""
-        sources_path = existing_or_shipped(
-            self.settings.get("sources_catalog_path", ""), "sources.dat")
-        if not os.path.isfile(sources_path):
-            logger.error("Sources catalog file not found: %s", sources_path)
-            QMessageBox.warning(self, "Warning", "Please set a valid sources catalog path in Preferences.")
-            return
-
-        sources = self.manipulator.inspect(self.catalog_manager.source_catalog, get_items=None)
-        if not sources:
-            logger.warning("Sources catalog is empty")
-            QMessageBox.warning(self, "Warning", "Sources catalog is empty. Check the catalog file or reload in Preferences.")
-            return
-
+        """Open the sources catalogue, to browse and edit."""
         from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
-        dialog = SourcesCatalogDialog(self.catalog_manager, self.manipulator, self)
+        self._open_catalog_manager(SourcesCatalogDialog)
+
+    def _open_catalog_manager(self, dialog_class):
+        """Open a catalogue manager, and follow it to a file it is saved under.
+
+        Notes:
+            - It opens on an empty catalogue too. It refused to, when all it could do was browse;
+              now an empty catalogue is where a new one is started.
+        """
+        dialog = dialog_class(self.catalog_manager, self.manipulator, self)
+        dialog.catalog_saved.connect(self.catalog_saved)
         dialog.exec()
-        logger.debug("Sources catalog browser dialog opened")
+        dialog.catalog_saved.disconnect(self.catalog_saved)
+
+    @Slot(str, str)
+    def catalog_saved(self, kind: str, path: str):
+        """Point the settings at the file a catalogue was just saved to.
+
+        Notes:
+            - Otherwise a catalogue saved under a new name -- which is every catalogue that came
+              with the application, or was a `.dat` -- would be read from the old file at the next
+              start, and the edits would look lost.
+        """
+        setting = CATALOGUES[kind][0]
+        if self.settings.get(setting) == path:
+            return
+        self.settings[setting] = path
+        self.save_settings(self.settings)
+        logger.info("The %s catalogue is now read from '%s'", kind, path)
 
     @Slot()
     def show_about(self):

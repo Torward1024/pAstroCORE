@@ -30,7 +30,7 @@ def elsewhere(tmp_path, monkeypatch):
 def test_the_catalogs_are_found_from_any_directory(elsewhere):
     from pastrocore.paths import shipped_catalog
 
-    for name in ("sources.dat", "telescopes.dat"):
+    for name in ("sources.json", "telescopes.json"):
         assert shipped_catalog(name).is_file(), f"{name} is not where an install would find it"
 
 
@@ -40,7 +40,7 @@ def test_the_catalogs_are_inside_the_package():
 
     import pastrocore
     package = Path(pastrocore.__file__).resolve().parent
-    assert package in shipped_catalog("sources.dat").resolve().parents
+    assert package in shipped_catalog("sources.json").resolve().parents
 
 
 def test_the_defaults_point_at_files_that_exist(elsewhere):
@@ -147,7 +147,7 @@ def test_the_wheel_builds_and_carries_the_catalogs(tmp_path):
 
     wheel = next(tmp_path.glob("*.whl"))
     names = zipfile.ZipFile(wheel).namelist()
-    assert "pastrocore/catalogs/sources.dat" in names
+    assert "pastrocore/catalogs/sources.json" in names
     assert "pastrocore/gui/ui_main_window.py" in names
     assert any(name.endswith("entry_points.txt") for name in names)
 
@@ -195,7 +195,7 @@ def test_a_catalogue_that_was_deleted_does_not_silently_empty_the_application(tm
 
     mine.unlink()
     fallen_back = PAstroCoreMainWindow.load_settings()["sources_catalog_path"]
-    assert Path(fallen_back) == shipped_catalog("sources.dat")
+    assert Path(fallen_back) == shipped_catalog("sources.json")
 
 
 def test_the_about_dialog_shows_the_version_the_package_states(qt_application):
@@ -272,10 +272,10 @@ def test_a_legacy_relative_path_is_repaired_rather_than_warned_about_forever(tmp
         "telescopes_catalog_path": "catalogs/telescopes.dat"})
 
     first = PAstroCoreMainWindow.load_settings()
-    assert Path(first["sources_catalog_path"]) == shipped_catalog("sources.dat")
+    assert Path(first["sources_catalog_path"]) == shipped_catalog("sources.json")
 
     stored = json.loads(settings_file().read_text(encoding="utf-8"))
-    assert Path(stored["sources_catalog_path"]) == shipped_catalog("sources.dat"), (
+    assert Path(stored["sources_catalog_path"]) == shipped_catalog("sources.json"), (
         "the leftover is still in the file, so the next start warns about it again")
 
 

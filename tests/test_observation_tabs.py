@@ -38,8 +38,8 @@ def catalogs():
     from pastrocore.paths import existing_or_shipped
     from pastrocore.utils.catalogmanager import CatalogManager
 
-    return CatalogManager(existing_or_shipped("", "sources.dat"),
-                          existing_or_shipped("", "telescopes.dat"))
+    return CatalogManager(existing_or_shipped("", "sources.json"),
+                          existing_or_shipped("", "telescopes.json"))
 
 
 @pytest.fixture

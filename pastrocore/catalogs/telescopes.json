@@ -1,0 +1,6649 @@
+{
+    "name": "telescopes",
+    "isactive": true,
+    "type": "Telescopes",
+    "items": {
+        "DSS13": {
+            "name": "DSS13",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "13",
+            "x": -2350350.20357,
+            "y": -4653932.4076,
+            "z": 3659735.92847,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "DSS14": {
+            "name": "DSS14",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "14",
+            "x": -2352881.36322,
+            "y": -4639888.07816,
+            "z": 3675906.40697,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "DSS42": {
+            "name": "DSS42",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "42",
+            "x": -4450283.98176,
+            "y": 2675980.57177,
+            "z": -3690480.32261,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "DSS43": {
+            "name": "DSS43",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "43",
+            "x": -4459709.11443,
+            "y": 2681645.89588,
+            "z": -3673781.41753,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "DSS45": {
+            "name": "DSS45",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "45",
+            "x": -4450237.03929,
+            "y": 2676331.90142,
+            "z": -3690271.97154,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "DSS65": {
+            "name": "DSS65",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "65",
+            "x": 4849336.8681,
+            "y": -360488.8764,
+            "z": 4114748.7217,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 34.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "ALMA": {
+            "name": "ALMA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "AA",
+            "x": 2222421.2437,
+            "y": -5433180.9779,
+            "z": -2494060.05,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_ALMA": {
+            "name": "EHT_ALMA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "ALMA",
+            "x": 2225061.164,
+            "y": -5440057.37,
+            "z": -2481681.15,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 70.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Alice": {
+            "name": "Alice",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "AL",
+            "x": -4041694.8673,
+            "y": 4202531.08327,
+            "z": -2566643.90292,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Anch": {
+            "name": "Anch",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "AN",
+            "x": -2674533.92398,
+            "y": -1544142.88097,
+            "z": 5571414.99645,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Algopark": {
+            "name": "Algopark",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "AP",
+            "x": 918036.7274,
+            "y": -4346133.0783,
+            "z": 4561971.5475,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 47.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_APEX": {
+            "name": "EHT_APEX",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "APEX",
+            "x": 2225039.53,
+            "y": -5441197.63,
+            "z": -2479303.36,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 12.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Algonquin": {
+            "name": "Algonquin",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "AQ",
+            "x": 915340.31395,
+            "y": -4332356.35547,
+            "z": 4577325.25378,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 46.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Arecibo": {
+            "name": "Arecibo",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "AR",
+            "x": 2390453.85,
+            "y": -5564816.46,
+            "z": 1994663.4,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 300.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Bang": {
+            "name": "Bang",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BA",
+            "x": 1667729.92549,
+            "y": -4255545.19515,
+            "z": 4437024.45313,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Btrg": {
+            "name": "Btrg",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BB",
+            "x": -115434.34319,
+            "y": -5510777.98919,
+            "z": 3193045.23437,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Badary": {
+            "name": "Badary",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BD",
+            "x": -838200.724,
+            "y": 3865751.588,
+            "z": 4987670.977,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Bver": {
+            "name": "Bver",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BE",
+            "x": -1928006.43583,
+            "y": -4631737.97667,
+            "z": 3926758.90511,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Banglre": {
+            "name": "Banglre",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BGL",
+            "x": 1336735.6,
+            "y": 6070802.7,
+            "z": 1426962.1,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Bologna": {
+            "name": "Bologna",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BG",
+            "x": 4455399.83921,
+            "y": 890276.73811,
+            "z": 4464862.10452,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 38.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BGA": {
+            "name": "EHTn_BGA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BGA",
+            "x": 4338300.0,
+            "y": 1931530.0,
+            "z": 4247280.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BAJA": {
+            "name": "EHTn_BAJA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BJ",
+            "x": -2313470.0,
+            "y": -4961250.0,
+            "z": 3267180.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BGKa": {
+            "name": "EHTn_BGKa",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BK",
+            "x": 2394880.0,
+            "y": -1016570.0,
+            "z": 5804400.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BLDR": {
+            "name": "EHTn_BLDR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BLD",
+            "x": -1266820.0,
+            "y": -4727840.0,
+            "z": 4079590.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Bear_Lakes": {
+            "name": "Bear_Lakes",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BL",
+            "x": 2828547.499,
+            "y": 2206064.086,
+            "z": 5256395.99,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BMAC": {
+            "name": "EHTn_BMAC",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BM",
+            "x": 4833370.0,
+            "y": 2569950.0,
+            "z": -3267180.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BANa": {
+            "name": "EHTn_BANa",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BAN",
+            "x": -1806470.0,
+            "y": -3397480.0,
+            "z": 5072140.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Bernal": {
+            "name": "Bernal",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BN",
+            "x": -1585175.35245,
+            "y": -4967010.80705,
+            "z": 3659808.2948,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BOL": {
+            "name": "EHTn_BOL",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BO",
+            "x": 2299120.0,
+            "y": -5690520.0,
+            "z": -1748110.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_BR": {
+            "name": "VLBA_BR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BR",
+            "x": -2112065.0742,
+            "y": -3705356.5031,
+            "z": 4726813.7285,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Bldr": {
+            "name": "Bldr",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BLDR",
+            "x": -1284740.14107,
+            "y": -4708583.15152,
+            "z": 4095923.05971,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BAR": {
+            "name": "EHTn_BAR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BAR",
+            "x": -2363880.0,
+            "y": -4445810.0,
+            "z": 3907600.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Boise": {
+            "name": "Boise",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BS",
+            "x": -2071399.15145,
+            "y": -4246997.63766,
+            "z": 4272059.2963,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LFREQ_PUSH_BSA": {
+            "name": "LFREQ_PUSH_BSA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BSA",
+            "x": 2915709.0,
+            "y": 2250808.0,
+            "z": 5189814.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Brst": {
+            "name": "Brst",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BT",
+            "x": -2393437.10152,
+            "y": -4697384.7997,
+            "z": 3576124.73036,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Brvl": {
+            "name": "Brvl",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BV",
+            "x": -737401.54509,
+            "y": -5677677.39578,
+            "z": 2792446.1236,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_BRZ": {
+            "name": "EHTn_BRZ",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "BZ",
+            "x": 4457520.0,
+            "y": -4013570.0,
+            "z": -2168550.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_CARMA": {
+            "name": "EHT_CARMA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "C2",
+            "x": -2410421.362,
+            "y": -4477800.332,
+            "z": 3838690.281,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 30.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_CAS": {
+            "name": "EHTn_CAS",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CAS",
+            "x": 1373640.0,
+            "y": -3399870.0,
+            "z": -5201790.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Carn": {
+            "name": "Carn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CA",
+            "x": -2348164.09851,
+            "y": 5274062.91641,
+            "z": -2692078.32729,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Cambridge": {
+            "name": "Cambridge",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CB",
+            "x": 3920361.6,
+            "y": 2541.5,
+            "z": 5014284.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Culgoora": {
+            "name": "Culgoora",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CG",
+            "x": -4739287.96442,
+            "y": 2789543.64321,
+            "z": -3215196.6982,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 30.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Chyn": {
+            "name": "Chyn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CHYN",
+            "x": -1227508.70479,
+            "y": -4645933.97479,
+            "z": 4184603.19284,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Chita": {
+            "name": "Chita",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CH",
+            "x": -1618704.741,
+            "y": 3098955.698,
+            "z": 5320284.285,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 21.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-CH": {
+            "name": "LOFAR-CH",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LCL",
+            "x": 4008398.0,
+            "y": -100377.0,
+            "z": 4943641.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Clro": {
+            "name": "Clro",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CL",
+            "x": -2356321.34598,
+            "y": -4771846.7248,
+            "z": 3500899.08144,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Crimea": {
+            "name": "Crimea",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CM",
+            "x": 3785227.3252,
+            "y": 2551207.3713,
+            "z": 4439806.8056,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_CNI": {
+            "name": "EHTn_CNI",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CN",
+            "x": 5311260.0,
+            "y": -1725730.0,
+            "z": 3074870.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Cpcr": {
+            "name": "Cpcr",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CP",
+            "x": -730141.34743,
+            "y": -5621776.97026,
+            "z": 2905133.30337,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Crane": {
+            "name": "Crane",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CR",
+            "x": -2290974.90242,
+            "y": -4133028.13009,
+            "z": 4272327.55327,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Csht": {
+            "name": "Csht",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CS",
+            "x": -310968.59967,
+            "y": -5393176.48716,
+            "z": 3375628.10671,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_CAT": {
+            "name": "EHTn_CAT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "CT",
+            "x": 1569920.0,
+            "y": -4559390.0,
+            "z": -4163740.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_Dome_1": {
+            "name": "EHTn_Dome_1",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "D0",
+            "x": 250114.0,
+            "y": 1083360.0,
+            "z": -6263480.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_Dome_2": {
+            "name": "EHTn_Dome_2",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "D1",
+            "x": -902325.0,
+            "y": 1389460.0,
+            "z": -6141660.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_Dome_3": {
+            "name": "EHTn_Dome_3",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "D2",
+            "x": 1034450.0,
+            "y": 837678.0,
+            "z": -6220360.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Defford": {
+            "name": "Defford",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "DF",
+            "x": 3910218.6702,
+            "y": -146415.50153,
+            "z": 5026579.95427,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Dagestan": {
+            "name": "Dagestan",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "DGT",
+            "x": 3244903.451,
+            "y": 3519685.082,
+            "z": 4206556.164,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 21.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Dwingelo": {
+            "name": "Dwingelo",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "DG",
+            "x": 3839231.3013,
+            "y": 430414.88489,
+            "z": 5058011.93191,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Darnhall": {
+            "name": "Darnhall",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "DH",
+            "x": 3815946.95387,
+            "y": -168983.41646,
+            "z": 5097844.11079,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Dlrio": {
+            "name": "Dlrio",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "DS",
+            "x": -1110831.24807,
+            "y": -5459910.0193,
+            "z": 3088479.68578,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Evpator0": {
+            "name": "Evpator0",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "E0",
+            "x": 3768313.3518,
+            "y": 2464733.3851,
+            "z": 4502224.5017,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Effelsberg": {
+            "name": "Effelsberg",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "EF",
+            "x": 4033949.4754,
+            "y": 486989.3991,
+            "z": 4900430.8244,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 100.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Eglp": {
+            "name": "Eglp",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "EG",
+            "x": -1023897.5403,
+            "y": -5524456.76343,
+            "z": 3002121.48088,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_ERB": {
+            "name": "EHTn_ERB",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "ER",
+            "x": 3669780.0,
+            "y": 3543860.0,
+            "z": 3818600.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Evpatorya": {
+            "name": "Evpatorya",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "EV",
+            "x": 3768265.9993,
+            "y": 2464658.8072,
+            "z": 4502183.0988,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_FAIRa": {
+            "name": "EHTn_FAIRa",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "FA",
+            "x": -2214480.0,
+            "y": -1550600.0,
+            "z": 5758620.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Fbnk": {
+            "name": "Fbnk",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "FB",
+            "x": -2300159.59601,
+            "y": -1437299.54616,
+            "z": 5763929.55261,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_FD": {
+            "name": "VLBA_FD",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "FD",
+            "x": -1324009.2123,
+            "y": -5332181.9611,
+            "z": 3231962.429,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Fleurs": {
+            "name": "Fleurs",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "FL",
+            "x": -4615777.88435,
+            "y": 2584959.81877,
+            "z": -3548246.12446,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Frkn": {
+            "name": "Frkn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "FR",
+            "x": -754827.54266,
+            "y": -4820227.88233,
+            "z": 4096362.15479,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_FUJI": {
+            "name": "EHTn_FUJI",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "FU",
+            "x": -3949620.0,
+            "y": 3433350.0,
+            "z": 3639870.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_GAM": {
+            "name": "EHTn_GAM",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GA",
+            "x": 5648330.0,
+            "y": 1619630.0,
+            "z": -2477500.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_GB": {
+            "name": "VLBA_GB",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GB",
+            "x": 882589.5448,
+            "y": -4924872.3356,
+            "z": 3943729.3839,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Gilcreek": {
+            "name": "Gilcreek",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GC",
+            "x": -2281545.2013,
+            "y": -1453645.84,
+            "z": 5756993.7057,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_GLT-Sa": {
+            "name": "EHTn_GLT-Sa",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GLT",
+            "x": 1474680.0,
+            "y": -1152150.0,
+            "z": 6080110.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_GLT": {
+            "name": "EHT_GLT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GL",
+            "x": 1500692.0,
+            "y": -1191735.0,
+            "z": 6066409.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 12.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Goldmars": {
+            "name": "Goldmars",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GM",
+            "x": -2353619.3273,
+            "y": -4641341.7611,
+            "z": 3677052.1655,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "GMRT": {
+            "name": "GMRT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GMRT",
+            "x": 1656807.35,
+            "y": 5797062.19,
+            "z": 2073812.32,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 45.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Gnsvle": {
+            "name": "Gnsvle",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GN",
+            "x": 755389.17783,
+            "y": -5514475.48154,
+            "z": 3097980.69007,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_GARS": {
+            "name": "EHTn_GARS",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GR",
+            "x": 1538540.0,
+            "y": -2462170.0,
+            "z": -5659980.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Goldstone": {
+            "name": "Goldstone",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GS",
+            "x": -2290063.95677,
+            "y": -4664295.02703,
+            "z": 3688168.2596,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Guam": {
+            "name": "Guam",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GU",
+            "x": -5053013.06336,
+            "y": 3604279.19009,
+            "z": 1432941.59044,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Goldvenu": {
+            "name": "Goldvenu",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "GV",
+            "x": -2351127.27,
+            "y": -4655477.96,
+            "z": 3660957.49,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 26.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_HAN": {
+            "name": "EHTn_HAN",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HA",
+            "x": 1022320.0,
+            "y": 5259390.0,
+            "z": 3456140.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Hat_Crick": {
+            "name": "Hat_Crick",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HC",
+            "x": -2523968.0,
+            "y": -4123507.0,
+            "z": 4147753.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 26.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Helsinki": {
+            "name": "Helsinki",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HE",
+            "x": 2869165.23046,
+            "y": 1337913.71948,
+            "z": 5527752.86799,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 14.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_HN": {
+            "name": "VLBA_HN",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HN",
+            "x": 1446375.0093,
+            "y": -4447939.6598,
+            "z": 4322306.1427,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_HOP": {
+            "name": "EHTn_HOP",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HOP",
+            "x": -1940830.0,
+            "y": -5056040.0,
+            "z": 3361490.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Hobart": {
+            "name": "Hobart",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HO",
+            "x": -3950236.405,
+            "y": 2522347.622,
+            "z": -4311562.759,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 26.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "HartRAO": {
+            "name": "HartRAO",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HR",
+            "x": 5085448.4,
+            "y": 2668271.8,
+            "z": -2768700.9,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 26.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Haystack": {
+            "name": "Haystack",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HS",
+            "x": 1492414.12471,
+            "y": -4457303.31273,
+            "z": 4296939.72441,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 34.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Hstn": {
+            "name": "Hstn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HT",
+            "x": -533387.61382,
+            "y": -5539442.16718,
+            "z": 3099594.76892,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Hnlu": {
+            "name": "Hnlu",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HU",
+            "x": -5504263.21582,
+            "y": -2246248.21054,
+            "z": 2288010.58349,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Hawaii": {
+            "name": "Hawaii",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HW",
+            "x": -5478826.93245,
+            "y": -2496845.28264,
+            "z": 2088862.86742,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_HAY": {
+            "name": "EHTn_HAY",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "HY",
+            "x": 1521040.0,
+            "y": -4417420.0,
+            "z": 4327500.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Iola": {
+            "name": "Iola",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "IA",
+            "x": -481132.72925,
+            "y": -4996754.44146,
+            "z": 3921948.29627,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Illn": {
+            "name": "Illn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "IL",
+            "x": 207143.22007,
+            "y": -4871164.6955,
+            "z": 4099795.08226,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Itapetga": {
+            "name": "Itapetga",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "IT",
+            "x": 4034100.6,
+            "y": -4259757.8,
+            "z": -2495751.6,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 15.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Iova": {
+            "name": "Iova",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "IV",
+            "x": -130908.6369,
+            "y": -4762299.42478,
+            "z": 4226865.79435,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Jodrell1": {
+            "name": "Jodrell1",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "J1",
+            "x": 3822632.855,
+            "y": -154108.588,
+            "z": 5086486.388,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 76.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Jodrell2": {
+            "name": "Jodrell2",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "J2",
+            "x": 3822842.66,
+            "y": -153800.13,
+            "z": 5086287.22,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_JCMT": {
+            "name": "EHT_JCMT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "JC",
+            "x": -5464584.68,
+            "y": -2493001.17,
+            "z": 2150653.98,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 15.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_JELM": {
+            "name": "EHTn_JELM",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "JE",
+            "x": -1329260.0,
+            "y": -4635660.0,
+            "z": 4164060.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Joha": {
+            "name": "Joha",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "JO",
+            "x": 5061504.77788,
+            "y": 2691249.19927,
+            "z": -2795931.17422,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Jpla": {
+            "name": "Jpla",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "JP",
+            "x": -2493305.9954,
+            "y": -4655204.26006,
+            "z": 3565523.55051,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Junu": {
+            "name": "Junu",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "JU",
+            "x": -2359592.79937,
+            "y": -2409536.83377,
+            "z": 5404071.71218,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Jckvle": {
+            "name": "Jckvle",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "JV",
+            "x": 958019.57223,
+            "y": -5433198.9828,
+            "z": 3185250.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Kashima": {
+            "name": "Kashima",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KA",
+            "x": -3997890.5341,
+            "y": 3276580.35,
+            "z": 3724118.7444,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 26.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ktchkn": {
+            "name": "Ktchkn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KC",
+            "x": -2416009.44161,
+            "y": -2730801.90925,
+            "z": 5223389.06463,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_KEN": {
+            "name": "EHTn_KEN",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KE",
+            "x": 5097000.0,
+            "y": 3840870.0,
+            "z": 0.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Kiruna": {
+            "name": "Kiruna",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KI",
+            "x": 2292973.17728,
+            "y": 857307.54145,
+            "z": 5880941.40403,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_KILI": {
+            "name": "EHTn_KILI",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KIL",
+            "x": 5090460.0,
+            "y": 3835940.0,
+            "z": -331810.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Kitt_Peak": {
+            "name": "Kitt_Peak",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KK",
+            "x": -1995954.4,
+            "y": -5037389.4,
+            "z": 3357044.3,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 12.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Kalyazin": {
+            "name": "Kalyazin",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KL",
+            "x": 2731190.445,
+            "y": 2126198.279,
+            "z": 5339535.645,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Knockin": {
+            "name": "Knockin",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KN",
+            "x": 3846916.71145,
+            "y": -201413.11771,
+            "z": 5073357.19648,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Krny": {
+            "name": "Krny",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KRNY",
+            "x": -770516.75335,
+            "y": -4810496.82634,
+            "z": 4104871.32278,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Kour": {
+            "name": "Kour",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KO",
+            "x": 3818973.83784,
+            "y": -5067949.4554,
+            "z": 555182.0813,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_KP": {
+            "name": "VLBA_KP",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KP",
+            "x": -1995678.7193,
+            "y": -5037317.7049,
+            "z": 3357328.0718,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_KP": {
+            "name": "EHT_KP",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KPT",
+            "x": -1995678.84,
+            "y": -5037317.697,
+            "z": 3357328.025,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 12.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Korek": {
+            "name": "Korek",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KR",
+            "x": 3622864.59096,
+            "y": 3572629.74782,
+            "z": 3834163.5125,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_KVNYS": {
+            "name": "EHTn_KVNYS",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KS",
+            "x": -3028590.0,
+            "y": 4019080.0,
+            "z": 3905440.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "KVN_KT": {
+            "name": "KVN_KT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KT",
+            "x": -3171731.7246,
+            "y": 4292678.4575,
+            "z": 3481038.733,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 21.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Kauai": {
+            "name": "Kauai",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KAU",
+            "x": -5543844.164,
+            "y": -2054565.3085,
+            "z": 2387814.2432,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 15.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "KVN_KU": {
+            "name": "KVN_KU",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KU",
+            "x": -3287268.72,
+            "y": 4023450.079,
+            "z": 3687379.939,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 21.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "KVN_KY": {
+            "name": "KVN_KY",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "KY",
+            "x": -3042280.9137,
+            "y": 4045902.7164,
+            "z": 3867374.3544,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 21.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_LA": {
+            "name": "VLBA_LA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LA",
+            "x": -1449752.456,
+            "y": -4975298.5786,
+            "z": 3709123.8799,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Losbn": {
+            "name": "Losbn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LB",
+            "x": -2612010.84652,
+            "y": -4364352.09789,
+            "z": 3835101.57797,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-BO": {
+            "name": "LOFAR-BO",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LBO",
+            "x": 3738475.0,
+            "y": 1148249.0,
+            "z": 5021735.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-BL": {
+            "name": "LOFAR-BL",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LBL",
+            "x": 3551464.0,
+            "y": 1334196.0,
+            "z": 5110135.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-BI": {
+            "name": "LOFAR-BI",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LBI",
+            "x": 3801679.0,
+            "y": -528983.0,
+            "z": 8076937.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-BR": {
+            "name": "LOFAR-BR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LBR",
+            "x": 3796532.0,
+            "y": 877615.0,
+            "z": 5032931.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-EF": {
+            "name": "LOFAR-EF",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LEF",
+            "x": 4034066.0,
+            "y": 487011.0,
+            "z": 4900256.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR": {
+            "name": "LOFAR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LF",
+            "x": 3827119.0,
+            "y": 461024.0,
+            "z": 5064454.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 70.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-GR": {
+            "name": "LOFAR-GR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LGR",
+            "x": 4152449.0,
+            "y": 828814.0,
+            "z": 4754273.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-JU": {
+            "name": "LOFAR-JU",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LLJ",
+            "x": 4005839.0,
+            "y": 451026.0,
+            "z": 4926597.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_LLA": {
+            "name": "EHTn_LLA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LLA",
+            "x": 2372930.0,
+            "y": -5329680.0,
+            "z": -2580110.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-LZ": {
+            "name": "LOFAR-LZ",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LLZ",
+            "x": 3850886.0,
+            "y": 1438960.0,
+            "z": 4860381.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-NA": {
+            "name": "LOFAR-NA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LNA",
+            "x": 4323578.0,
+            "y": 165720.0,
+            "z": 4670606.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-ON": {
+            "name": "LOFAR-ON",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LON",
+            "x": 3370258.0,
+            "y": 712123.0,
+            "z": 5349975.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_LOS": {
+            "name": "EHTn_LOS",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LOS",
+            "x": -1424390.0,
+            "y": -4967430.0,
+            "z": 3729370.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_LAS": {
+            "name": "EHTn_LAS",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LAS",
+            "x": 1818160.0,
+            "y": -5280330.0,
+            "z": -3074870.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-TA": {
+            "name": "LOFAR-TA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LTA",
+            "x": 3940199.0,
+            "y": 816777.0,
+            "z": 4932417.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_LMT": {
+            "name": "EHT_LMT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LMT",
+            "x": -768713.9637,
+            "y": -5988541.7982,
+            "z": 2063275.9472,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LOFAR-VE": {
+            "name": "LOFAR-VE",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "LV",
+            "x": 3183293.0,
+            "y": 1276824.0,
+            "z": 5359451.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Maui": {
+            "name": "Maui",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MA",
+            "x": -5452808.90841,
+            "y": -2404975.28385,
+            "z": 2257896.78516,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Medicina": {
+            "name": "Medicina",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MC",
+            "x": 4461369.957,
+            "y": 919596.88,
+            "z": 4449559.215,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Madrid": {
+            "name": "Madrid",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MD",
+            "x": 4849092.675,
+            "y": -360180.858,
+            "z": 4115108.644,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mets": {
+            "name": "Mets",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "ME",
+            "x": 2896416.92724,
+            "y": 1313263.49543,
+            "z": 5519445.80417,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mali": {
+            "name": "Mali",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MAL",
+            "x": 4873015.63916,
+            "y": 4088945.62554,
+            "z": -333380.04127,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mich": {
+            "name": "Mich",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MIC",
+            "x": 497048.23908,
+            "y": -4678040.80456,
+            "z": 4295366.42185,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mojave12": {
+            "name": "Mojave12",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MJ",
+            "x": -2356169.15,
+            "y": -4646756.83,
+            "z": 3668471.22,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 12.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_MK": {
+            "name": "VLBA_MK",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MK",
+            "x": -5464075.0619,
+            "y": -2495248.6557,
+            "z": 2148297.0702,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Maryland": {
+            "name": "Maryland",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MLRD",
+            "x": 1106385.01294,
+            "y": -4882919.17612,
+            "z": 3939879.88682,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 26.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Molonglo": {
+            "name": "Molonglo",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "ML",
+            "x": -4472447.43222,
+            "y": 2642503.65957,
+            "z": -3687901.10918,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Miami": {
+            "name": "Miami",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MM",
+            "x": 895644.10035,
+            "y": -5654874.29522,
+            "z": 2792446.1236,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mopra": {
+            "name": "Mopra",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MP",
+            "x": -4672575.6545,
+            "y": 2796518.83749,
+            "z": -3306734.18341,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Marpoint": {
+            "name": "Marpoint",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MT",
+            "x": 1106631.2225,
+            "y": -4882907.9673,
+            "z": 3938087.334,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LFQ_CHINA_MU": {
+            "name": "LFQ_CHINA_MU",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MU",
+            "x": -1337083.0,
+            "y": 6228076.0,
+            "z": 324220.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mwt": {
+            "name": "Mwt",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MW",
+            "x": 37020.38956,
+            "y": -4820614.50231,
+            "z": 4164102.94672,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Mexdf": {
+            "name": "Mexdf",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "MX",
+            "x": -942064.6549,
+            "y": -5947962.14181,
+            "z": 2083378.94672,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Nobeyama": {
+            "name": "Nobeyama",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NB",
+            "x": -3871023.49,
+            "y": 3428106.8,
+            "z": 3724039.5,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 45.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LFQ_CHINA_NAOC-CAS": {
+            "name": "LFQ_CHINA_NAOC-CAS",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NC",
+            "x": -1999532.0,
+            "y": 4281512.0,
+            "z": 4269759.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Naga": {
+            "name": "Naga",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NG",
+            "x": -3780606.7637,
+            "y": 3404073.61993,
+            "z": 3833561.69748,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_NL": {
+            "name": "VLBA_NL",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NL",
+            "x": -130872.3599,
+            "y": -4762317.1023,
+            "z": 4226851.0139,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Nancay": {
+            "name": "Nancay",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NN",
+            "x": 4292207.81762,
+            "y": 164889.99197,
+            "z": 4704034.15708,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "NRO": {
+            "name": "NRO",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NRO",
+            "x": -3869817.24615,
+            "y": 3426922.89735,
+            "z": 3722581.6226,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "NRAO_140": {
+            "name": "NRAO_140",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NO",
+            "x": 882880.049,
+            "y": -4924482.33,
+            "z": 3944130.644,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 43.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_NOB": {
+            "name": "EHTn_NOB",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NOB",
+            "x": -3839690.0,
+            "y": 3457270.0,
+            "z": 3728780.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_NOR": {
+            "name": "EHTn_NOR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NOR",
+            "x": -3840590.0,
+            "y": 3458080.0,
+            "z": 3729660.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "NRL": {
+            "name": "NRL",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NR",
+            "x": 1103572.1646,
+            "y": -4870491.80482,
+            "z": 3954455.74734,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Noto": {
+            "name": "Noto",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NT",
+            "x": 4934563.067,
+            "y": 1321201.306,
+            "z": 3806484.537,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_NZ": {
+            "name": "EHTn_NZ",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "NZ",
+            "x": -4540320.0,
+            "y": 719116.0,
+            "z": -4409480.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ovro130": {
+            "name": "Ovro130",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "O3",
+            "x": -2409598.8669,
+            "y": -4478350.4481,
+            "z": 3838603.7849,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 40.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Onsala60": {
+            "name": "Onsala60",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "O6",
+            "x": 3370608.0893,
+            "y": 711916.4485,
+            "z": 5349830.8416,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 20.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Onsala85": {
+            "name": "Onsala85",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "O8",
+            "x": 3370968.181,
+            "y": 711464.9172,
+            "z": 5349664.1131,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ovro90": {
+            "name": "Ovro90",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "O9",
+            "x": -2410591.985,
+            "y": -4477806.472,
+            "z": 3838598.355,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 34.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ovro_mm": {
+            "name": "Ovro_mm",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "OM",
+            "x": -2409585.79,
+            "y": -4478197.55,
+            "z": 3838767.46,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 40.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_ORG": {
+            "name": "EHTn_ORG",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "OR",
+            "x": -2229280.0,
+            "y": -4192660.0,
+            "z": 4246940.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ooty": {
+            "name": "Ooty",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "OT",
+            "x": 1442166.89,
+            "y": 6084980.58,
+            "z": 1250301.23,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 60.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_OVRO": {
+            "name": "EHTn_OVRO",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "OVR",
+            "x": -2394680.0,
+            "y": -4503730.0,
+            "z": 3818000.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_OV": {
+            "name": "VLBA_OV",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "OV",
+            "x": -2409150.2408,
+            "y": -4478573.1758,
+            "z": 3838617.3617,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "O_Valley": {
+            "name": "O_Valley",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "OY",
+            "x": -2403432.79702,
+            "y": -4468122.07541,
+            "z": 3855440.04756,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 40.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_1": {
+            "name": "Puschino_1",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P1",
+            "x": 878377.19358,
+            "y": -2162111.51045,
+            "z": 5921046.27763,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_10": {
+            "name": "Puschino_10",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P10",
+            "x": 877639.06971,
+            "y": -2162438.92631,
+            "z": 5920489.58042,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_11": {
+            "name": "Puschino_11",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P11",
+            "x": 877610.0388,
+            "y": -2162256.49023,
+            "z": 5920552.30617,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_12": {
+            "name": "Puschino_12",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P12",
+            "x": 877648.63515,
+            "y": -2162089.8832,
+            "z": 5920646.18189,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_13": {
+            "name": "Puschino_13",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P13",
+            "x": 877748.98282,
+            "y": -2161964.46961,
+            "z": 5920756.91585,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_14": {
+            "name": "Puschino_14",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P14",
+            "x": 877895.80479,
+            "y": -2161899.34254,
+            "z": 5920867.64981,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_15": {
+            "name": "Puschino_15",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P15",
+            "x": 878066.74874,
+            "y": -2161904.41701,
+            "z": 5920961.52552,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_16": {
+            "name": "Puschino_16",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P16",
+            "x": 878235.79,
+            "y": -2161978.92047,
+            "z": 5921024.25127,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_2": {
+            "name": "Puschino_2",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P2",
+            "x": 878469.43206,
+            "y": -2162282.00132,
+            "z": 5921024.25127,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_3": {
+            "name": "Puschino_3",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P3",
+            "x": 878498.46297,
+            "y": -2162464.43739,
+            "z": 5920961.52552,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_4": {
+            "name": "Puschino_4",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P4",
+            "x": 878459.86661,
+            "y": -2162631.04443,
+            "z": 5920867.64981,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_5": {
+            "name": "Puschino_5",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P5",
+            "x": 878359.51894,
+            "y": -2162756.45802,
+            "z": 5920756.91585,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_6": {
+            "name": "Puschino_6",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P6",
+            "x": 878212.69697,
+            "y": -2162821.58508,
+            "z": 5920646.18189,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_7": {
+            "name": "Puschino_7",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P7",
+            "x": 878041.75303,
+            "y": -2162816.51061,
+            "z": 5920552.30617,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_8": {
+            "name": "Puschino_8",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P8",
+            "x": 877872.71176,
+            "y": -2162742.00715,
+            "z": 5920489.58042,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino_9": {
+            "name": "Puschino_9",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "P9",
+            "x": 877731.30819,
+            "y": -2162609.41718,
+            "z": 5920467.55407,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_PDB": {
+            "name": "EHT_PDB",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PD",
+            "x": 4523998.4,
+            "y": 468045.24,
+            "z": 4460309.76,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 47.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_PIKE": {
+            "name": "EHTn_PIKE",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PI",
+            "x": -1285410.0,
+            "y": -4797210.0,
+            "z": 3994830.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Parkes": {
+            "name": "Parkes",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PK",
+            "x": -4543142.78107,
+            "y": 2811382.66744,
+            "z": -3469564.15155,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Penticton": {
+            "name": "Penticton",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PN",
+            "x": -2058853.4,
+            "y": -3621457.1,
+            "z": 4814344.7,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Perth": {
+            "name": "Perth",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PR",
+            "x": -2363449.1747,
+            "y": 4870567.19404,
+            "z": -3356974.38631,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_PAR": {
+            "name": "EHTn_PAR",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PAR",
+            "x": 1979020.0,
+            "y": -5437320.0,
+            "z": -2680130.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_PT": {
+            "name": "VLBA_PT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PT",
+            "x": -1640953.8163,
+            "y": -5014816.0239,
+            "z": 3575411.8198,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Puschino": {
+            "name": "Puschino",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PU",
+            "x": 2916950.09,
+            "y": 2248648.27,
+            "z": 5190099.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 22.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_PV": {
+            "name": "EHT_PV",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "PV",
+            "x": 5088967.9,
+            "y": -301681.6,
+            "z": 3825015.8,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 30.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LFQ_CHINA_QTT": {
+            "name": "LFQ_CHINA_QTT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "QT",
+            "x": 42772.0,
+            "y": 4594853.0,
+            "z": 4410258.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Quab": {
+            "name": "Quab",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "QU",
+            "x": 1430960.0,
+            "y": -4495734.0,
+            "z": 4278052.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 18.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_SMA": {
+            "name": "EHT_SMA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SMA",
+            "x": -5464523.4,
+            "y": -2493147.08,
+            "z": 2150611.75,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 16.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_SAN": {
+            "name": "EHTn_SAN",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SAN",
+            "x": -2404030.0,
+            "y": -4718170.0,
+            "z": 3547840.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLBA_SC": {
+            "name": "VLBA_SC",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SC",
+            "x": 2607848.5822,
+            "y": -5488069.6119,
+            "z": 1932739.617,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_SOC": {
+            "name": "EHTn_SOC",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SOC",
+            "x": -1636220.0,
+            "y": -5035770.0,
+            "z": 3547570.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LFQ_CHINA_SDU": {
+            "name": "LFQ_CHINA_SDU",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SD",
+            "x": -2734331.0,
+            "y": 4316939.0,
+            "z": 3804122.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_SGO": {
+            "name": "EHTn_SGO",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SG",
+            "x": 1832340.0,
+            "y": -5034320.0,
+            "z": -3455870.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Shanghai": {
+            "name": "Shanghai",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SH",
+            "x": -2831686.946,
+            "y": 4675733.694,
+            "z": 3275327.661,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Socorro": {
+            "name": "Socorro",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SO",
+            "x": -1597676.29565,
+            "y": -5031030.23845,
+            "z": 3571073.90068,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "St_Pustyn": {
+            "name": "St_Pustyn",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SP",
+            "x": 2610488.4,
+            "y": 2488795.7,
+            "z": 5243031.5,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 15.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_SPT": {
+            "name": "EHT_SPT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SPT",
+            "x": 0.01,
+            "y": 0.01,
+            "z": -6359609.7,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 6.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHT_SMT": {
+            "name": "EHT_SMT",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SMT",
+            "x": -1828796.2,
+            "y": -5054406.8,
+            "z": 3427865.2,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 10.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_SUF": {
+            "name": "EHTn_SUF",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SUF",
+            "x": 1833410.0,
+            "y": 4537860.0,
+            "z": 4079270.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Suffa": {
+            "name": "Suffa",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SU",
+            "x": 1802906.87358,
+            "y": 4565258.5846,
+            "z": 4065365.8716,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 70.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Svetloe": {
+            "name": "Svetloe",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SV",
+            "x": 2730173.91,
+            "y": 1562442.625,
+            "z": 5529969.044,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_SPX": {
+            "name": "EHTn_SPX",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "SX",
+            "x": 4317640.0,
+            "y": 606805.0,
+            "z": 4644320.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Tabley": {
+            "name": "Tabley",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "TB",
+            "x": 3804422.33734,
+            "y": -162465.82995,
+            "z": 5106648.26664,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Tidbinbilla": {
+            "name": "Tidbinbilla",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "TI",
+            "x": -4460894.353,
+            "y": 2682361.64,
+            "z": -3674748.5639,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Torino": {
+            "name": "Torino",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "TO",
+            "x": 3624959.33242,
+            "y": 1219933.59632,
+            "z": 5094063.06075,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ussur0": {
+            "name": "Ussur0",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "U0",
+            "x": -3059722.368,
+            "y": 3427253.973,
+            "z": 4409481.686,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Usuda": {
+            "name": "Usuda",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "UD",
+            "x": -3855354.0,
+            "y": 3427426.0,
+            "z": 3740965.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 70.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Urumqi": {
+            "name": "Urumqi",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "UR",
+            "x": 228310.683,
+            "y": 4631923.12,
+            "z": 4367064.044,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ussuriysk": {
+            "name": "Ussuriysk",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "US",
+            "x": -3056210.5389,
+            "y": 3442292.7753,
+            "z": 4400140.7435,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 64.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLA2": {
+            "name": "VLA2",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "V2",
+            "x": -1630927.50554,
+            "y": -5019478.73412,
+            "z": 3570513.56522,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLAE3": {
+            "name": "VLAE3",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "V3",
+            "x": -1623859.46306,
+            "y": -5088224.14482,
+            "z": 3475156.67364,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "VLA": {
+            "name": "VLA",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "VA",
+            "x": -1601183.25,
+            "y": -5041977.85,
+            "z": 3554876.18,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Velisa": {
+            "name": "Velisa",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "VL",
+            "x": 2785733.97067,
+            "y": -4475468.7822,
+            "z": -3575878.29271,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Ventspils": {
+            "name": "Ventspils",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "VP",
+            "x": 3172018.18384,
+            "y": 1272250.15115,
+            "z": 5375553.94302,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Vro": {
+            "name": "Vro",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "VR",
+            "x": 207789.73252,
+            "y": -4870785.56741,
+            "z": 4100225.21667,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Wardle": {
+            "name": "Wardle",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "WA",
+            "x": 3819621.28136,
+            "y": -173274.30147,
+            "z": 5094952.53873,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Westerbork": {
+            "name": "Westerbork",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "WB",
+            "x": 3828440.64,
+            "y": 445226.03,
+            "z": 5064923.08,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 93.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Weil": {
+            "name": "Weil",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "WL",
+            "x": 4146552.5061,
+            "y": 693894.29508,
+            "z": 4785552.53042,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Wettzell": {
+            "name": "Wettzell",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "WZ",
+            "x": 4075541.906,
+            "y": 931734.189,
+            "z": 4801629.393,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 20.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_YAN": {
+            "name": "EHTn_YAN",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "YA",
+            "x": 1603190.0,
+            "y": -5983190.0,
+            "z": -1534070.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Yebes": {
+            "name": "Yebes",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "YB",
+            "x": 4848778.0,
+            "y": -261707.0,
+            "z": 4122947.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "EHTn_YBG": {
+            "name": "EHTn_YBG",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "YG",
+            "x": -96542.0,
+            "y": 5530880.0,
+            "z": 3172370.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "LFQ_CHINA_YNAO": {
+            "name": "LFQ_CHINA_YNAO",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "YN",
+            "x": -986029.0,
+            "y": 5498450.0,
+            "z": 3075743.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 25.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        },
+        "Zelenchuk": {
+            "name": "Zelenchuk",
+            "isactive": true,
+            "type": "Telescope",
+            "code": "ZC",
+            "x": 3451207.781,
+            "y": 3060375.208,
+            "z": 4391914.919,
+            "vx": 0.0,
+            "vy": 0.0,
+            "vz": 0.0,
+            "diameter": 32.0,
+            "sefd_table": {},
+            "elevation_range": [
+                15.0,
+                90.0
+            ],
+            "azimuth_range": [
+                0.0,
+                360.0
+            ],
+            "mount_type": "AZIM",
+            "surface_accuracy": null,
+            "surface_efficiency_table": {},
+            "effective_area_table": {},
+            "system_temperature_table": {}
+        }
+    }
+}

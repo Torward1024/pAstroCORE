@@ -19,8 +19,8 @@ from pastrocore.utils.catalogmanager import CatalogManager
 @pytest.fixture(scope="module")
 def catalogs():
     """The catalogues as the application loads them at start-up."""
-    return CatalogManager(source_file=str(shipped_catalog("sources.dat")),
-                          telescope_file=str(shipped_catalog("telescopes.dat")))
+    return CatalogManager(source_file=str(shipped_catalog("sources.json")),
+                          telescope_file=str(shipped_catalog("telescopes.json")))
 
 
 def test_the_shipped_catalogues_are_not_empty(catalogs):
