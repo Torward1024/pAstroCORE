@@ -8,6 +8,54 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.14.0] - 2026-09-17
+
+L4: everything the window can ask, from a terminal.
+
+### Added
+
+- **`pastrocore-cli ask <project> <operation> <address> key=value`** sends any request the window
+  can make -- the request itself, on one line:
+
+  ```bash
+  pastrocore-cli ask survey.pastro inspect OBS001/telescopes get_items
+  pastrocore-cli ask survey.pastro configure OBS001/sources deactivate_item=3C273
+  pastrocore-cli ask survey.pastro compute project method=run calculations='["uv_coverage"]' targets='["@OBS001"]'
+  ```
+
+  A value is JSON when it reads as JSON and text otherwise; `@address` passes the object there. A
+  request that changes the project -- `configure`, `calculate`, `compute` -- saves it, as `run` and
+  `replay` do, and `--dry-run` does not. `--json` prints the answer whole; the readable form shows a
+  table of results by its size and first rows.
+- **`pastrocore-cli shell`** takes the same lines one after another. Tab completes the operation,
+  the address a level at a time, the methods an object has -- only the reading ones for `inspect` --
+  a handler after `method=`, the keys it reads, and an address after `=@`. Nothing is saved until
+  `save project`, and leaving with changes asks first. What was typed is recorded, so `export project
+  method=journal` writes a session that `replay` runs again: a script is a session file.
+- **Addresses as a person names things**: `project`, `OBS001`, `OBS001/sources`,
+  `OBS001/sources/3C273`, `OBS001/telescopes/ALMA` by code or name, `OBS001/scans/#3` by position.
+  Four `inspect` questions answer them -- `locate`, `address`, `contents` and `offers` -- read from
+  MSB's model graph, so a part added to the model is addressable without a change here, and a server
+  would ask the same.
+- **No command table.** The operations, their handlers and the methods an object has are asked of
+  the orchestrator, so a mistake is answered with what was meant -- "Nothing called 'telescops' in
+  OBS001 -- did you mean 'telescopes'?" -- and a change asked of `inspect` names the `configure` line
+  that would do it.
+
+### Fixed
+
+- **A released project could be saved over its own directory.** `compute release` lets go of what a
+  project holds, and a save drops the results of observations it no longer has -- so saving after it
+  wrote an empty project and deleted its results. Nothing in the window did that; a command line
+  that saves after a change would have. A released project refuses to be saved, for every caller.
+
+### Upgrading from 1.13.0
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| `pip` installs `prompt_toolkit` | The shell completes with it, the same on every platform | Nothing |
+| `ValueError: Project ... was released` | A project was saved after `release` | Open the project again, then save |
+
 ## [1.13.0] - 2026-09-17
 
 Two roadmap items, C1 and S1, and msb_arch 3.0.0 -- released for this, since the second needed the
