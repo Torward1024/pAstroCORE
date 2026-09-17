@@ -23,6 +23,11 @@ from pastrocore.base.scratch import data_home
 #: The catalogues that come with the application, inside the package so they reach the wheel.
 CATALOGS = Path(__file__).resolve().parent / "catalogs"
 
+#: Each catalogue the application keeps: the setting that names its file, and the file that came
+#: with the application for it. Said once, because the window read both in six places.
+CATALOGUES = {"sources": ("sources_catalog_path", "sources.json"),
+              "telescopes": ("telescopes_catalog_path", "telescopes.json")}
+
 #: What the settings are called, in the user's directory and in a working directory left over
 #: from before they moved there.
 SETTINGS = "settings.pastro"
@@ -32,12 +37,51 @@ def shipped_catalog(name: str) -> Path:
     """Return the path to a catalogue that came with the application.
 
     Args:
-        name (str): The file, such as `sources.dat`.
+        name (str): The file, such as `sources.json`.
 
     Returns:
         Path: Absolute, so it resolves from any working directory.
     """
     return CATALOGS / name
+
+
+def is_shipped(path: str) -> bool:
+    """Report whether a path is in the folder the application's own catalogues are in.
+
+    Notes:
+        - That folder is part of the install: an upgrade replaces it and an install may not be
+          writable at all, so a catalogue there is read and never written.
+    """
+    return bool(path) and Path(portable(path)).resolve().parent == CATALOGS.resolve()
+
+
+def user_catalogs() -> Path:
+    """Return the folder a catalogue the user edited is saved to, creating it.
+
+    Notes:
+        - Beside the settings, so an upgrade that replaces the shipped catalogues leaves the
+          user's own alone.
+    """
+    folder = data_home() / "catalogs"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def is_leftover(path: str) -> bool:
+    """Report whether a stored catalogue path is from an earlier layout rather than a choice.
+
+    Returns:
+        bool: True for a relative path -- from before the catalogues moved into the package, it
+            can never resolve from a per-user settings file -- and for a file that is not in the
+            shipped folder any more, which is what the `.dat` catalogues became when they were
+            converted to JSON. Neither is something a user can act on.
+    """
+    if not path:
+        return False
+    resolved = portable(path)
+    if not Path(resolved).is_absolute():
+        return True
+    return is_shipped(resolved) and not Path(resolved).is_file()
 
 
 def settings_file() -> Path:
@@ -83,14 +127,13 @@ def existing_or_shipped(path: str, name: str) -> str:
         return resolved
 
     fallback = shipped_catalog(name)
-    if resolved and Path(resolved).is_absolute():
+    if is_leftover(resolved):
+        # A relative path, or a shipped `.dat` that became JSON: a leftover of an earlier layout.
+        # `load_settings` corrects it, so this is said once rather than on every start.
+        logger.debug("Replacing the leftover catalogue path '%s'", resolved)
+    elif resolved:
         # Somebody chose this and it is not there now -- a drive not mounted, a file moved.
         # Worth saying every time, because it is a real problem and it may come back.
         logger.warning("Catalogue '%s' is not there; using the one shipped at '%s'",
                        resolved, fallback)
-    elif resolved:
-        # Relative: a leftover from before the catalogues moved inside the package, which can
-        # never resolve from a per-user settings file. `load_settings` corrects it, so this is
-        # said once rather than on every start.
-        logger.debug("Replacing the leftover relative catalogue path '%s'", resolved)
     return str(fallback)

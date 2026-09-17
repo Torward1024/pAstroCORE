@@ -34,8 +34,8 @@ which is how a wheel carries it and how it is found from any working directory:
 ```python
 from pastrocore.paths import shipped_catalog
 
-assert shipped_catalog("sources.dat").is_file()
-assert shipped_catalog("telescopes.dat").is_file()
+assert shipped_catalog("sources.json").is_file()
+assert shipped_catalog("telescopes.json").is_file()
 ```
 
 **What is yours** — the settings — lives in one per-user file, the same one every time:
@@ -53,6 +53,21 @@ new place, so nobody's settings are lost.
 A catalogue you choose in **Preferences** is recorded and honoured. One that has been deleted
 falls back to the shipped one, and says so in the log rather than leaving you with an empty
 catalogue.
+
+**A catalogue you edit** is yours as well. The shipped ones are never written to -- an upgrade
+replaces them, and an install may not be writable -- so saving one asks for a name, starting in a
+`catalogs` folder beside the settings, and the application reads that file from then on:
+
+```python
+from pastrocore.base.scratch import data_home
+from pastrocore.paths import user_catalogs
+
+assert user_catalogs() == data_home() / "catalogs"
+```
+
+A catalogue is JSON: the same `Sources` and `Telescopes` a project holds, so a space telescope or
+an SEFD table is kept with the rest. A `.dat` catalogue from an older version still opens, and is
+saved as JSON.
 
 ## Where results are
 

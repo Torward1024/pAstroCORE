@@ -56,7 +56,7 @@ class PreferencesDialog(QDialog):
     def select_sources_catalog(self):
         """Open a file dialog to select the sources catalog file."""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Sources Catalog", "", "Catalog Files (*.dat);;All Files (*)"
+            self, "Select Sources Catalog", "", "Catalog Files (*.json *.dat);;All Files (*)"
         )
         if file_path:
             self.ui.sourcesCatalogPath.setText(file_path)
@@ -66,7 +66,7 @@ class PreferencesDialog(QDialog):
     def select_telescopes_catalog(self):
         """Open a file dialog to select the telescopes catalog file."""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Telescopes Catalog", "", "Catalog Files (*.dat);;All Files (*)"
+            self, "Select Telescopes Catalog", "", "Catalog Files (*.json *.dat);;All Files (*)"
         )
         if file_path:
             self.ui.telescopesCatalogPath.setText(file_path)
