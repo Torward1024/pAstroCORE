@@ -97,7 +97,7 @@ def info(arguments) -> int:
     manipulator = ScheduleManipulator(project, journal_limit=None)
 
     print(f"{project.name}  ({arguments.project})")
-    for observation in project.observations():
+    for observation in project.get_observations():
         held = manipulator.export(obj=observation, method="available",
                                   raise_on_error=False).value or []
         stale = set(manipulator.compute(obj=observation, method="stale",
@@ -143,7 +143,7 @@ def run(arguments) -> int:
     wanted = _wanted(manipulator, arguments.only)
 
     outcome = manipulator.compute(
-        obj=None, method="run", targets=project.observations(), calculations=wanted,
+        obj=None, method="run", targets=project.get_observations(), calculations=wanted,
         time_step=arguments.time_step, force=arguments.force, concurrent=True,
         progress=lambda percent, message: print(f"  [{percent:3}%] {message}"))
 

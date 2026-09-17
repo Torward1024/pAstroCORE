@@ -17,7 +17,7 @@ import conftest
 @pytest.fixture
 def bench():
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.clear_calculated_data()
     return ScheduleManipulator(project), observation
 
@@ -509,7 +509,7 @@ def test_orbits_are_not_planned_for_ground_stations_only(project):
     spacecraft is placed from a file; the plan now asks the observation."""
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     plan = ScheduleManipulator(project).compute(obj=None, method="plan", targets=[observation],
                                                 calculations=["uv_coverage"], time_step=300.0)
 
@@ -522,7 +522,7 @@ def test_orbits_are_planned_when_a_spacecraft_follows_an_orbit_file(project):
     from pastrocore.base.spacetelescope import SpaceTelescope
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.get_telescopes().add(SpaceTelescope(code="RADIO", name="RadioAstron", use_kep=False))
 
     plan = ScheduleManipulator(project).compute(obj=None, method="plan", targets=[observation],
@@ -538,7 +538,7 @@ def test_a_run_of_ground_stations_says_nothing_about_orbits(project, caplog):
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.calculated_data.clear()
     core = ScheduleManipulator(project)
     every = [entry["key"] for entry in core.compute(obj=None, method="catalogue")

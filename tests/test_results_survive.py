@@ -25,7 +25,7 @@ from pastrocore.super.schedule_project import ScheduleProject
 def claimed(project):
     """What the project says it holds: observation name -> result keys."""
     return {observation.name: sorted(observation.calculated_data.keys())
-            for observation in project.observations()}
+            for observation in project.get_observations()}
 
 
 def on_disk(root):
@@ -52,7 +52,7 @@ def calculated(project, tmp_path):
     """A project saved to a directory, with results in it, and the orchestrator that saved it."""
     core = ScheduleManipulator(project)
     project.hold_results_in_scratch()
-    core.compute(obj=None, method="run", targets=project.observations(),
+    core.compute(obj=None, method="run", targets=project.get_observations(),
                  calculations=["uv_coverage", "az_el"], time_step=600.0, recalculate=True)
     directory = tmp_path / "saved"
     core.save(obj=project, path=str(directory))
@@ -71,7 +71,7 @@ def test_releasing_a_project_leaves_its_directory_alone(calculated):
     core.compute(obj=project, method="release")
 
     assert on_disk(directory) == before, "letting go of the project deleted its results"
-    assert not project.observations(), "the project was not let go of at all"
+    assert not project.get_observations(), "the project was not let go of at all"
 
 
 def test_removing_every_observation_does_not_reach_the_disk_either(calculated):
@@ -96,7 +96,7 @@ def test_the_window_keeps_the_results_of_the_project_it_replaces(qt_application,
     window.project = project
     window.manipulator = ScheduleManipulator(project)
     project.hold_results_in_scratch()
-    window.manipulator.compute(obj=None, method="run", targets=project.observations(),
+    window.manipulator.compute(obj=None, method="run", targets=project.get_observations(),
                                calculations=["uv_coverage"], time_step=600.0, recalculate=True)
 
     directory = tmp_path / "saved"
@@ -139,7 +139,7 @@ def test_a_save_drops_the_results_of_an_observation_the_project_no_longer_has(ca
     """Otherwise renaming an observation away and back would find stale results and treat them as
     fresh. The save is where the disk catches up with the model."""
     core, project, directory = calculated
-    removed = project.observations()[0]
+    removed = project.get_observations()[0]
 
     core.configure(obj=project, remove_item=removed.name)
     core.save(obj=project, path=str(directory))
@@ -153,20 +153,20 @@ def test_a_session_of_ordinary_work_loses_nothing(project, tmp_path):
     """Save, calculate, save, change a code, save elsewhere, reopen, remove one, save, let go."""
     core = ScheduleManipulator(project)
     project.hold_results_in_scratch()
-    core.compute(obj=None, method="run", targets=project.observations(),
+    core.compute(obj=None, method="run", targets=project.get_observations(),
                  calculations=["uv_coverage", "az_el"], time_step=600.0, recalculate=True)
 
     first, second = tmp_path / "first", tmp_path / "second"
     core.save(obj=project, path=str(first))
     nothing_missing(project, first, "1. saved")
 
-    core.compute(obj=None, method="run", targets=project.observations(),
+    core.compute(obj=None, method="run", targets=project.get_observations(),
                  calculations=["sun_angles"], time_step=600.0, recalculate=False)
     core.save(obj=project, path=str(first))
     nothing_missing(project, first, "2. calculated again and saved")
 
     # the code a user edits is not the name the results are filed under
-    core.configure(obj=project.observations()[0], set={"params": {"code": "RENAMED"}})
+    core.configure(obj=project.get_observations()[0], set={"params": {"code": "RENAMED"}})
     core.save(obj=project, path=str(first))
     nothing_missing(project, first, "3. code changed and saved")
 
@@ -196,7 +196,7 @@ def test_a_save_takes_the_scratch_copies_with_it(project, tmp_path):
     project._scratch = ScratchSpace(root=tmp_path / "scratch")
     project.hold_results_in_scratch()
     core = ScheduleManipulator(project)
-    core.compute(obj=None, method="run", targets=project.observations(),
+    core.compute(obj=None, method="run", targets=project.get_observations(),
                  calculations=["uv_coverage"], time_step=600.0, recalculate=True)
     held = project.scratch.path
     assert project.unsaved_results() > 0, "nothing was calculated into the scratch"
@@ -217,7 +217,7 @@ def test_a_project_that_was_never_saved_keeps_what_it_calculated(project, tmp_pa
     project._scratch = ScratchSpace(root=tmp_path / "scratch")
     project.hold_results_in_scratch()
     core = ScheduleManipulator(project)
-    core.compute(obj=None, method="run", targets=project.observations(),
+    core.compute(obj=None, method="run", targets=project.get_observations(),
                  calculations=["uv_coverage"], time_step=600.0, recalculate=True)
 
     tidied = core.export(obj=project, method="tidy")
@@ -241,7 +241,7 @@ def test_the_window_closes_after_a_save_without_asking_about_saved_results(qt_ap
     window.manipulator = ScheduleManipulator(project)
     project._scratch = ScratchSpace(root=tmp_path / "scratch")
     project.hold_results_in_scratch()
-    window.manipulator.compute(obj=None, method="run", targets=project.observations(),
+    window.manipulator.compute(obj=None, method="run", targets=project.get_observations(),
                                calculations=["uv_coverage"], time_step=600.0, recalculate=True)
 
     directory = tmp_path / "saved"

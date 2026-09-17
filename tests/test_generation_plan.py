@@ -22,7 +22,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 @pytest.fixture
 def collections(project):
     """The fixture's sources, stations and bands, which a plan needs to be about something."""
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     return (observation.get_sources(), observation.get_telescopes(), observation.get_frequencies())
 
 
@@ -78,12 +78,12 @@ def test_the_last_scan_ends_where_the_plan_says_the_observation_does(project, co
 
     plan = a_plan(collections, parallel=True, add_off_source=True, num_scans=3)
     core = ScheduleManipulator(project)
-    before = {observation.get_observation_code() for observation in project.observations()}
+    before = {observation.get_observation_code() for observation in project.get_observations()}
 
     answer = core.configure(obj=project, generate_observations=dict(plan.attributes(), cancelled=False))
     assert answer["status"], answer.get("error")
 
-    made = [observation for observation in project.observations()
+    made = [observation for observation in project.get_observations()
             if observation.get_observation_code() not in before]
     assert made, "nothing was generated to check"
     for observation in made:
@@ -152,13 +152,13 @@ def test_the_generator_takes_a_plan_as_a_request(project, collections):
     rather than assembling the generator's attributes itself."""
     core = ScheduleManipulator(project)
     plan = a_plan(collections, num_scans=2)
-    before = len(project.observations())
+    before = len(project.get_observations())
 
     answer = core.configure(obj=project,
                             generate_observations={"plan": plan.as_mapping(), "cancelled": False})
 
     assert answer["status"], answer.get("error")
-    assert len(project.observations()) == before + len(plan.sources.get_all())
+    assert len(project.get_observations()) == before + len(plan.sources.get_all())
 
 
 def test_a_cancel_still_reaches_a_generation_asked_for_as_a_plan(project, collections):

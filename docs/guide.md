@@ -33,7 +33,7 @@ project.create_item(item_code="OBS1", observation_type="VLBI")
 observation = project.get_observation_by_code("OBS1")
 
 assert observation.code == "OBS1"
-assert project.observations() == [observation]
+assert project.get_observations() == [observation]
 ```
 
 ### What it observes with

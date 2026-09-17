@@ -494,7 +494,7 @@ class ScheduleData(Persistence, Loader):
               knowledge.
         """
         if isinstance(obj, ScheduleProject):
-            return obj.observations()
+            return obj.get_observations()
         if isinstance(obj, (list, tuple)):
             return list(obj)
         return [obj]

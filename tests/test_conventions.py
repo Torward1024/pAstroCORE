@@ -1182,3 +1182,38 @@ def test_no_control_is_disabled_in_a_form_and_never_enabled_anywhere():
 
     assert not asleep, ("disabled in the form and never enabled in the code:\n  "
                         + "\n  ".join(f"{form}: {', '.join(names)}" for form, names in asleep.items()))
+
+
+def test_every_inspect_names_only_reads():
+    """`inspect` only reads since msb_arch 3.0, and knows a read by its name -- `get`, `get_*`,
+    `has_*`, `is_*`. A request naming anything else is refused when it is made, which for a
+    window means when somebody clicks.
+
+    What this was written for: the sources tab deactivated a source through `inspect` from
+    24.09.2025, when two requests were folded into one line and the operation of the first one
+    stayed. It worked, the journal recorded a read, and a failure came back without an error box
+    where the three other tabs showed one. Read here from the calls themselves, against the rule
+    MSB applies, so the two cannot drift.
+    """
+    import ast
+
+    from msb_arch.super.builtins import Inspector
+
+    # The keywords a facade takes for itself rather than as a method to call.
+    OWN = {"obj", "method", "raise_on_error", "name", "attributes", "operation"}
+    assert not Inspector.reads("deactivate_item"), "the rule this checks against is not MSB's"
+
+    offenders = []
+    for path in sorted((ROOT / "pastrocore").rglob("*.py")):
+        if path.name.startswith(("ui_", "rc_")):
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in ("inspect", "ainspect")):
+                continue
+            for keyword in node.keywords:
+                if keyword.arg and keyword.arg not in OWN and not Inspector.reads(keyword.arg):
+                    offenders.append(f"{path.relative_to(ROOT)}:{node.lineno} {keyword.arg}")
+
+    assert not offenders, ("inspect asked for something that is not a read -- a change is asked "
+                           "of configure:\n  " + "\n  ".join(offenders))

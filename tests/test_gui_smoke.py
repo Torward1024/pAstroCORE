@@ -292,7 +292,7 @@ def test_the_window_keeps_its_results_where_a_crash_cannot_reach_them(window, tm
     space = ScratchSpace(root=tmp_path / "scratch", session="test-session")
     window.project.attach_results_store(space.store)
 
-    observation = window.project.observations()[0]
+    observation = window.project.get_observations()[0]
     observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [1.0]}), {})
 
     assert list((space.path / "results").rglob("*.parquet")), "not waiting for a save"
@@ -391,7 +391,7 @@ def test_the_explorer_labels_a_stale_observation(project, qt_application):
     from pastrocore.app import PAstroCoreMainWindow
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.calculated_data.clear()
     ScheduleManipulator(project).calculate(observation, method="uv_coverage",
                                           time_step=300.0, raise_on_error=False)
@@ -452,7 +452,7 @@ def test_editing_a_telescope_makes_the_label_appear_by_itself(project, qt_applic
     from pastrocore.app import PAstroCoreMainWindow
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.calculated_data.clear()
     ScheduleManipulator(project).calculate(observation, method="uv_coverage",
                                            time_step=300.0, raise_on_error=False)
@@ -519,7 +519,7 @@ def _project_with_unsaved_results(tmp_path):
     from pastrocore.super.schedule_project import ScheduleProject
 
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     observation.clear_calculated_data()
     project._scratch = ScratchSpace(root=tmp_path / "scratch")
     project.hold_results_in_scratch()
@@ -646,7 +646,7 @@ def test_a_successful_export_is_reported_as_success(qt_application, project, tmp
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     manipulator = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     manipulator.compute(obj=observation, method="run", calculations=["uv_coverage"],
                         time_step=600.0, raise_on_error=False)
 

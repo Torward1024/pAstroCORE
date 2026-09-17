@@ -109,7 +109,7 @@ def example(name):
 def written(project):
     """A VEX file for the fixture project's observation, and its report."""
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     return vex.write_vex(observation)
 
 
@@ -122,7 +122,7 @@ def dual(project):
           setting, four channels.
     """
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     band = observation.get_frequencies().get_items()[0]
     core.configure(observation.get_frequencies(),
                    set_if={"name": band.name, "sidebands": ["U", "L"],
@@ -235,7 +235,7 @@ def test_a_space_telescope_is_excluded_by_name_rather_than_dropped(project):
     """VEX 1.5 describes a station as a place on the Earth. A spacecraft cannot be written, and
     silently leaving it out would produce a file that looks like the whole array."""
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     telescopes = observation.get_telescopes()
     core.configure(telescopes, create_space_telescope={"code": "RA", "use_kep": False})
     spacecraft = core.inspect(telescopes, get="RA")
@@ -254,7 +254,7 @@ def test_a_space_telescope_is_excluded_by_name_rather_than_dropped(project):
 def test_the_same_observation_writes_the_same_bytes(project):
     """Everything else here rests on it, and so does the reference file below. A dictionary
     iterated in whatever order it happens to have would pass every other test in this file."""
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     first, _ = vex.write_vex(observation)
     second, _ = vex.write_vex(observation)
@@ -312,7 +312,7 @@ def test_a_real_file_this_lab_did_not_schedule_loads(example_file):
     """V5's exit criterion. The file was written by somebody else, for an experiment nobody
     here scheduled, and what comes back is an observation like any other."""
     project, report = imported(example_file)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     assert report["scans"] > 0
     assert len(report["stations"]) > 1, "an interferometer needs more than one station"
@@ -328,7 +328,7 @@ def test_what_was_read_can_be_analysed(example_file):
 
     project, _ = imported(example_file)
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     core.compute(obj=observation, method="run", calculations=["az_el"], time_step=600.0,
                  recalculate=True, raise_on_error=False)

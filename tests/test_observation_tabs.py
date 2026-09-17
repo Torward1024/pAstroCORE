@@ -26,7 +26,7 @@ def build(module_name, class_name, project, catalogs=None):
     import importlib
 
     widget_class = getattr(importlib.import_module(f"pastrocore.gui.{module_name}"), class_name)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     core = ScheduleManipulator(project)
     if catalogs is not None:
         return widget_class(observation, core, catalogs), observation

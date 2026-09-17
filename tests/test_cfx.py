@@ -94,7 +94,7 @@ def orbiting(project):
           polarizations.
     """
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     telescopes = observation.get_telescopes()
     core.configure(telescopes, create_space_telescope={"code": "RA", "use_kep": False,
@@ -298,7 +298,7 @@ def test_a_real_file_this_lab_did_not_schedule_loads(example_file):
     """V5's exit criterion. The file was written by somebody else, for an experiment nobody
     here scheduled, and what comes back is an observation like any other."""
     project, report = imported(example_file)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     assert report["scans"] > 0
     assert len(report["stations"]) > 1, "an interferometer needs more than one station"
@@ -314,7 +314,7 @@ def test_what_was_read_can_be_analysed(example_file):
 
     project, _ = imported(example_file)
     core = ScheduleManipulator(project)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     core.compute(obj=observation, method="run", calculations=["az_el"], time_step=600.0,
                  recalculate=True, raise_on_error=False)

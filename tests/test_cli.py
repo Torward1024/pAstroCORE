@@ -73,7 +73,7 @@ def test_a_run_writes_its_results_into_the_project(saved, capsys):
     run("run", saved, "--only", "uv_coverage", "--force", capsys=capsys)
 
     reopened = ScheduleProject.open(str(saved))
-    observation = reopened.observations()[0]
+    observation = reopened.get_observations()[0]
     assert observation.get_calculated_data_by_key("uv_coverage")["data"].height > 0
 
 

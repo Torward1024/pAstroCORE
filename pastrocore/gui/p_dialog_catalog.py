@@ -239,7 +239,9 @@ class CatalogDialog(QDialog):
         name = names[0]
         try:
             held = self.manipulator.inspect(self.catalogue(), get=name)
-            edited = self.run_editor(self.manipulator.inspect(held, clone=None))
+            # A working copy for the editor, taken here rather than asked for: it belongs to
+            # nobody and changes nothing, and `inspect` calls only what is named as a read.
+            edited = self.run_editor(held.clone())
             if edited is None:
                 return
             self.manipulator.configure(self.catalogue(), set_item={"name": name, "item": edited})

@@ -55,7 +55,7 @@ class ScheduleRunner(Super):
               project's keys.
         """
         if isinstance(obj, ScheduleProject):
-            return obj.observations()
+            return obj.get_observations()
         if isinstance(obj, (list, tuple)):
             return list(obj)
         return [obj]

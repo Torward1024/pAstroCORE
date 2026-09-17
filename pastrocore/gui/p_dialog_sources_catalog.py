@@ -27,8 +27,8 @@ class SourcesCatalogDialog(CatalogDialog):
               every source between -1 and 0 degrees was listed north of the equator; and seconds
               rounded on their own showed 59.96 as `60.0`.
         """
-        hours, minutes, seconds = self.manipulator.inspect(source, right_ascension_parts=1)
-        sign, degrees, arcminutes, arcseconds = self.manipulator.inspect(source, declination_parts=1)
+        hours, minutes, seconds = self.manipulator.inspect(source, get_right_ascension_parts=1)
+        sign, degrees, arcminutes, arcseconds = self.manipulator.inspect(source, get_declination_parts=1)
         return (f"{hours:02d}:{minutes:02d}:{seconds:04.1f}",
                 f"{sign}{degrees:02d}:{arcminutes:02d}:{arcseconds:04.1f}")
 

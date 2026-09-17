@@ -43,7 +43,7 @@ def test_a_packed_project_reopens_as_the_project_it_was(core, project, tmp_path)
 
 def test_the_results_travel_with_it(core, project, tmp_path):
     """A colleague opening it should not have to recalculate a day of work."""
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     core.compute(obj=observation, method="run", calculations=["uv_coverage"], time_step=600.0,
                  raise_on_error=False)
     here = set(observation.calculated_data.keys())
@@ -53,13 +53,13 @@ def test_the_results_travel_with_it(core, project, tmp_path):
     reopened = ScheduleManipulator(opening).load(
         obj=opening, method="package", path=answer.value["path"])
 
-    assert set(reopened.observations()[0].calculated_data.keys()) == here
+    assert set(reopened.get_observations()[0].calculated_data.keys()) == here
 
 
 def test_a_bug_report_can_leave_the_results_behind(core, project, tmp_path):
     """The model alone: a few kilobytes that reproduce the configuration, without a gigabyte of
     frames nobody reading the report needs."""
-    core.compute(obj=project.observations()[0], method="run", calculations=["uv_coverage"],
+    core.compute(obj=project.get_observations()[0], method="run", calculations=["uv_coverage"],
                  time_step=600.0, raise_on_error=False)
 
     full = packed(core, project, tmp_path / "everything").value
@@ -79,7 +79,7 @@ def test_a_model_only_package_still_opens(core, project, tmp_path):
     reopened = ScheduleManipulator(opening).load(
         obj=opening, method="package", path=answer.value["path"])
 
-    assert [o.code for o in reopened.observations()] == [o.code for o in project.observations()]
+    assert [o.code for o in reopened.get_observations()] == [o.code for o in project.get_observations()]
 
 
 def test_the_suffix_is_added_when_it_is_missing(core, project, tmp_path):
@@ -203,4 +203,4 @@ def test_every_command_works_on_a_package_without_unpacking_it(project, tmp_path
     capsys.readouterr()
 
     assert cli.main(["info", str(tmp_path / "sent.pastroz")]) == 0
-    assert project.observations()[0].code in capsys.readouterr().out
+    assert project.get_observations()[0].code in capsys.readouterr().out

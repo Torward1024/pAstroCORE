@@ -44,9 +44,9 @@ def drawn(project):
     """A project with something to plot, and the orchestrator to ask."""
     core = ScheduleManipulator(project)
     project.hold_results_in_scratch()
-    core.compute(obj=None, method="run", targets=project.observations(),
+    core.compute(obj=None, method="run", targets=project.get_observations(),
                  calculations=["uv_coverage", "az_el"], time_step=600.0, recalculate=True)
-    return core, project.observations()[0]
+    return core, project.get_observations()[0]
 
 
 def test_opening_and_closing_a_plot_leaves_no_tab_and_no_figure_behind(qt_application, drawn):
@@ -116,7 +116,7 @@ def test_the_journal_stops_at_the_size_it_was_given(project):
     grow all day if the limit were not held to. Entries are plain data: what a request named is
     recorded by name, so asking about an object does not keep it alive."""
     core = ScheduleManipulator(project, journal_limit=20)
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
 
     for _ in range(60):
         core.inspect(obj=observation, get_observation_code=None)

@@ -218,7 +218,7 @@ def _write_vex_reference():
 
     project = ScheduleProject.from_dict(copy.deepcopy(json.loads(
         FIXTURE.read_text(encoding="utf-8"))))
-    text, _ = write_vex(project.observations()[0])
+    text, _ = write_vex(project.get_observations()[0])
     REFERENCE.parent.mkdir(parents=True, exist_ok=True)
     REFERENCE.write_text(text, encoding="utf-8", newline="\n")
     print(f"\nwrote {REFERENCE}: {len(text.splitlines())} line(s)")

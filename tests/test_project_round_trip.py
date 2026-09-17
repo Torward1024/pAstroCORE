@@ -247,7 +247,7 @@ def test_a_save_interrupted_part_way_leaves_the_last_save_openable(project, tmp_
     monkeypatch.undo()
 
     assert (root / ScheduleProject.MODEL_FILE).read_text(encoding="utf-8") == before
-    assert ScheduleProject.open(str(root)).observations(), "the last save no longer opens"
+    assert ScheduleProject.open(str(root)).get_observations(), "the last save no longer opens"
     assert not list(root.glob("*.partial")), "a half-written model was left behind"
 
 
@@ -261,7 +261,7 @@ def test_a_save_reports_each_result_file_and_then_the_model(project, tmp_path):
 
     core = ScheduleManipulator(project)
     project.hold_results_in_scratch()
-    observation = project.observations()[0]
+    observation = project.get_observations()[0]
     core.compute(obj=observation, method="run", calculations=["uv_coverage"], time_step=600.0,
                  recalculate=True)
 
