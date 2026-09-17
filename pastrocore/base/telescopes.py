@@ -2,7 +2,7 @@
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.utils.validation import check_type
 from msb_arch.utils.logging_setup import logger
-from typing import Optional, Dict, Tuple, Union
+from typing import Optional, Dict, Tuple, Union, List
 from .telescope import Telescope
 from .spacetelescope import SpaceTelescope
 import re
@@ -149,7 +149,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
     def create_telescope(self, code: str = "TEMP", name: Optional[str] = None,
                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
                         vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
-                        diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
+                        diameter: float = 1.0, sefd_table: Optional[List[Tuple[float, float, float]]] = None,
                         elevation_range: Tuple[float, float] = (15.0, 90.0),
                         azimuth_range: Tuple[float, float] = (0.0, 360.0),
                         mount_type: str = "AZIM", isactive: bool = True) -> None:
@@ -165,7 +165,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             vy (float): Y-velocity in ITRF (meters/year). Defaults to 0.0.
             vz (float): Z-velocity in ITRF (meters/year). Defaults to 0.0.
             diameter (float): Antenna diameter in meters. Defaults to 1.0.
-            sefd_table (Optional[Dict[float, float]]): SEFD table (MHz: Jy). Defaults to None.
+            sefd_table (Optional[List[Tuple[float, float, float]]]): SEFD table (rows of f_min MHz, f_max MHz, Jy). Defaults to None.
             elevation_range (Tuple[float, float]): Min and max elevation in degrees. Defaults to (15.0, 90.0).
             azimuth_range (Tuple[float, float]): Min and max azimuth in degrees. Defaults to (0.0, 360.0).
             mount_type (str): Mount type ('EQUA', 'AZIM', or 'NONE'). Defaults to "AZIM".
@@ -192,16 +192,16 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
     def create_space_telescope(self, code: str = "TS", name: Optional[str] = None,
                           orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
-                          sefd_table: Optional[Dict[float, float]] = None,
+                          sefd_table: Optional[List[Tuple[float, float, float]]] = None,
                           pitch_range: Tuple[float, float] = (-90.0, 90.0),
                           yaw_range: Tuple[float, float] = (-180.0, 180.0),
                           isactive: bool = True, use_kep: bool = True,
                           kepler_elements: Optional[dict] = None,
                           interpolation_method: str = "chebyshev",
                           surface_accuracy: Optional[float] = None,
-                          surface_efficiency_table: Optional[Dict[float, float]] = None,
-                          effective_area_table: Optional[Dict[float, float]] = None,
-                          system_temperature_table: Optional[Dict[float, float]] = None) -> None:
+                          surface_efficiency_table: Optional[List[Tuple[float, float, float]]] = None,
+                          effective_area_table: Optional[List[Tuple[float, float, float]]] = None,
+                          system_temperature_table: Optional[List[Tuple[float, float, float]]] = None) -> None:
         """Create and add a new SpaceTelescope object to the collection.
 
         Args:
@@ -209,7 +209,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             name (Optional[str]): Full name. Defaults to the code.
             orbit_file (str): Path to the orbit file. Defaults to "dummy_orbit.oem".
             diameter (float): Antenna diameter in meters. Defaults to 1.0.
-            sefd_table (Optional[Dict[float, float]]): SEFD table (MHz: Jy). Defaults to None.
+            sefd_table (Optional[List[Tuple[float, float, float]]]): SEFD table (rows of f_min MHz, f_max MHz, Jy). Defaults to None.
             pitch_range (Tuple[float, float]): Min and max pitch in degrees. Defaults to (-90.0, 90.0).
             yaw_range (Tuple[float, float]): Min and max yaw in degrees. Defaults to (-180.0, 180.0).
             isactive (bool): Whether the telescope is active. Defaults to True.
@@ -217,9 +217,9 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             kepler_elements (Optional[dict]): Keplerian elements for orbit calculation. Defaults to None.
             interpolation_method (str): Interpolation method for orbit data ('linear', 'chebyshev', 'cubic_spline'). Defaults to "chebyshev".
             surface_accuracy (Optional[float]): Surface accuracy in meters. Defaults to None.
-            surface_efficiency_table (Optional[Dict[float, float]]): Surface efficiency table (MHz: efficiency). Defaults to None.
-            effective_area_table (Optional[Dict[float, float]]): Effective area table (MHz: area). Defaults to None.
-            system_temperature_table (Optional[Dict[float, float]]): System temperature table (MHz: Kelvin). Defaults to None.
+            surface_efficiency_table (Optional[List[Tuple[float, float, float]]]): Surface efficiency table (rows of f_min MHz, f_max MHz, efficiency). Defaults to None.
+            effective_area_table (Optional[List[Tuple[float, float, float]]]): Effective area table (rows of f_min MHz, f_max MHz, area). Defaults to None.
+            system_temperature_table (Optional[List[Tuple[float, float, float]]]): System temperature table (rows of f_min MHz, f_max MHz, Kelvin). Defaults to None.
 
         Raises:
             TypeError: If inputs are of incorrect type.
@@ -248,7 +248,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         vy: Optional[float] = None,
         vz: Optional[float] = None,
         diameter: Optional[float] = None,
-        sefd_table: Optional[Dict[float, float]] = None,
+        sefd_table: Optional[List[Tuple[float, float, float]]] = None,
         elevation_range: Optional[Tuple[float, float]] = None,
         azimuth_range: Optional[Tuple[float, float]] = None,
         mount_type: Optional[str] = None,
@@ -259,9 +259,9 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         kepler_elements: Optional[dict] = None,
         interpolation_method: Optional[str] = None,
         surface_accuracy: Optional[float] = None,
-        surface_efficiency_table: Optional[Dict[float, float]] = None,
-        effective_area_table: Optional[Dict[float, float]] = None,
-        system_temperature_table: Optional[Dict[float, float]] = None,
+        surface_efficiency_table: Optional[List[Tuple[float, float, float]]] = None,
+        effective_area_table: Optional[List[Tuple[float, float, float]]] = None,
+        system_temperature_table: Optional[List[Tuple[float, float, float]]] = None,
         isactive: Optional[bool] = None
     ) -> None:
         """Update an existing Telescope or SpaceTelescope object in the collection.
@@ -276,7 +276,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             vy (float, optional): New Y-velocity in ITRF (meters/year).
             vz (float, optional): New Z-velocity in ITRF (meters/year).
             diameter (float, optional): New antenna diameter in meters.
-            sefd_table (Dict[float, float], optional): New SEFD table (MHz: Jy).
+            sefd_table (List[Tuple[float, float, float]], optional): New SEFD table (rows of f_min MHz, f_max MHz, Jy).
             elevation_range (Tuple[float, float], optional): New min and max elevation in degrees.
             azimuth_range (Tuple[float, float], optional): New min and max azimuth in degrees.
             mount_type (str, optional): New mount type ('EQUA', 'AZIM', or 'NONE').
@@ -287,9 +287,9 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             kepler_elements (dict, optional): New Keplerian elements for orbit calculation (for SpaceTelescope).
             interpolation_method (str, optional): New interpolation method for orbit data (for SpaceTelescope).
             surface_accuracy (float, optional): New surface accuracy in meters (for SpaceTelescope).
-            surface_efficiency_table (Dict[float, float], optional): New surface efficiency table (for SpaceTelescope).
-            effective_area_table (Dict[float, float], optional): New effective area table (for SpaceTelescope).
-            system_temperature_table (Dict[float, float], optional): New system temperature table (for SpaceTelescope).
+            surface_efficiency_table (List[Tuple[float, float, float]], optional): New surface efficiency table (for SpaceTelescope).
+            effective_area_table (List[Tuple[float, float, float]], optional): New effective area table (for SpaceTelescope).
+            system_temperature_table (List[Tuple[float, float, float]], optional): New system temperature table (for SpaceTelescope).
             isactive (bool, optional): New active status.
 
         Raises:

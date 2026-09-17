@@ -6,8 +6,11 @@ class of its own, in *both* telescope editors: 126 lines byte for byte identical
 `p_dialog_edit_telescope.py` and `p_dialog_edit_space_telescope.py`, and four near-copies
 inside each. Eight classes for one table with two columns.
 
-What actually varies is two things, and each is now a declaration: what the second column is
+What actually varies is two things, and each is now a declaration: what the value column is
 called, and what values it will take.
+
+**A row is a range and a value** (E1): the lowest and highest frequency the measurement holds for,
+and what was measured. A value applies to a band whose frequency is in its range and nowhere else.
 
 **The bounds are the model's, not this form's.** `Telescope` refuses a table holding anything
 but a positive number, and a surface efficiency outside nought to one -- so a cell that took a
@@ -46,12 +49,14 @@ TABLES = {
 
 
 class FrequencyTableModel(QAbstractTableModel):
-    """A grid of frequency against one number.
+    """A grid of frequency ranges against one number.
 
     Args:
-        column (Column): What the second column holds.
-        data (list): Rows of `[frequency, value]`. Held by reference, as a Qt model does.
+        column (Column): What the value column holds.
+        data (list): Rows of `[from MHz, to MHz, value]`. Held by reference, as a Qt model does.
     """
+
+    HEADINGS = ("From (MHz)", "To (MHz)")
 
     def __init__(self, column: Column, data=None):
         super().__init__()
@@ -62,7 +67,7 @@ class FrequencyTableModel(QAbstractTableModel):
         return len(self._data)
 
     def columnCount(self, parent=QModelIndex()):
-        return 2
+        return 3
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
@@ -88,9 +93,15 @@ class FrequencyTableModel(QAbstractTableModel):
         except (TypeError, ValueError):
             return False
 
-        if index.column() == 0 and typed <= 0:
+        row = self._data[index.row()]
+        if index.column() in (0, 1) and typed <= 0:
             return False
-        if index.column() == 1:
+        # A range runs low to high, as `Telescope` insists.
+        if index.column() == 0 and typed > row[1]:
+            return False
+        if index.column() == 1 and typed < row[0]:
+            return False
+        if index.column() == 2:
             if typed <= self.column.lowest:
                 return False
             if self.column.highest is not None and typed > self.column.highest:
@@ -105,13 +116,18 @@ class FrequencyTableModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return ["Frequency (MHz)", self.column.heading][section]
+            return [*self.HEADINGS, self.column.heading][section]
         return None
 
-    def add_row(self, frequency=1000.0, value=None):
-        """Add a row at the end, starting at what this table's values usually look like."""
+    def add_row(self, frequency_min=1000.0, frequency_max=None, value=None):
+        """Add a row at the end, starting at what this table's values usually look like.
+
+        Notes:
+            - A new row covers one frequency until its range is widened: no range is made up.
+        """
         self.beginInsertRows(QModelIndex(), len(self._data), len(self._data))
-        self._data.append([frequency,
+        self._data.append([frequency_min,
+                           frequency_min if frequency_max is None else frequency_max,
                            self.column.default if value is None else value])
         self.endInsertRows()
 
@@ -126,8 +142,8 @@ class FrequencyTableModel(QAbstractTableModel):
         self.endResetModel()
 
     def get_data(self):
-        """The table as the model holds it: frequency to value."""
-        return {row[0]: row[1] for row in self._data}
+        """The table as the telescope holds it: rows of `(from, to, value)`."""
+        return [tuple(row) for row in self._data]
 
 
 def model_for(attribute: str, data=None) -> FrequencyTableModel:

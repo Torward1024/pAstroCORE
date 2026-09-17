@@ -290,3 +290,92 @@ def test_a_moving_station_is_where_its_velocity_in_metres_per_year_puts_it():
         ours = rows.select(["x", "y", "z"]).to_numpy()
         worst = np.max(np.linalg.norm(ours - expected.xyz.to_value(u.m).T, axis=1))
         assert worst < 0.01, f"{telescope.get_code()} is {worst:,.2f} m from where it is"
+
+
+# --- sensitivity (E1) ---------------------------------------------------------------------------------
+#
+# Each of these states the formula a second way: through astropy's constants and units, through a
+# textbook identity, or through what the formula is claimed to preserve. None of them reads the
+# code's own arithmetic back.
+
+def test_an_sefd_is_twice_boltzmann_times_tsys_over_the_effective_area_in_janskys():
+    """Checked through astropy's constants and units, so a lost factor of 1e26 cannot hide -- which
+    is exactly what the old `calculate_sefd` did, giving 1.8e-25 for a dish of 18 Jy."""
+    from astropy import constants
+
+    from pastrocore.base.telescope import Telescope
+
+    dish = Telescope(code="EF", name="Effelsberg", diameter=100.0,
+                     system_temperature_table=[(4500.0, 5100.0, 25.0)],
+                     surface_efficiency_table=[(4500.0, 5100.0, 0.55)])
+    estimate = dish.get_sefd_estimate(4840.0)
+
+    area = 0.55 * np.pi * 50.0 ** 2 * u.m ** 2
+    expected = (2 * constants.k_B * 25.0 * u.K / area).to(u.Jy).value
+    assert estimate["origin"] == "parameters"
+    assert estimate["sefd"] == pytest.approx(expected, rel=1e-12)
+
+
+def test_an_sefd_is_the_system_temperature_over_the_gain_of_one_kelvin_per_2760_square_metres():
+    """The radio astronomer's identity: a gain of 1 K/Jy takes 2761 m^2 of effective area, so
+    SEFD = Tsys * 2761 / A_eff. Written from the identity, not from the code's constants."""
+    from pastrocore.base.telescope import Telescope
+
+    dish = Telescope(code="G", name="G", diameter=32.0,
+                     system_temperature_table=[(8000.0, 9000.0, 40.0)],
+                     effective_area_table=[(8000.0, 9000.0, 450.0)])
+
+    square_metres_per_kelvin_per_jansky = 2761.3  # 2 k / (1 Jy): the area that gives 1 K/Jy
+    assert dish.get_sefd_estimate(8400.0)["sefd"] == pytest.approx(
+        40.0 * square_metres_per_kelvin_per_jansky / 450.0, rel=1e-4)
+
+
+def test_ruze_loses_one_e_fold_when_the_surface_error_is_a_wavelength_over_four_pi():
+    from pastrocore.base.telescope import Telescope
+
+    frequency = 22000.0
+    wavelength = 299792458.0 / (frequency * 1e6)
+    dish = Telescope(code="R", name="R", diameter=22.0,
+                     surface_accuracy=wavelength / (4 * np.pi) * 1e6)
+
+    assert dish.get_ruze_efficiency(frequency) == pytest.approx(np.exp(-1.0), rel=1e-12)
+
+
+def test_an_efficiency_carried_by_ruze_keeps_what_the_surface_does_not_lose():
+    """`eta = eta0 * ruze(nu)`: what is not the surface's -- illumination, spillover, blockage --
+    is the same at every frequency, so eta / ruze is the same at the measurement and at the band."""
+    from pastrocore.base.telescope import Telescope
+
+    dish = Telescope(code="C", name="C", diameter=64.0, surface_accuracy=400.0,
+                     surface_efficiency_table=[(1400.0, 1700.0, 0.62)])
+    measured_at = np.sqrt(1400.0 * 1700.0)
+
+    carried = dish.get_aperture_efficiency(22235.0)
+
+    assert carried["value"] / dish.get_ruze_efficiency(22235.0) == pytest.approx(
+        0.62 / dish.get_ruze_efficiency(measured_at), rel=1e-12)
+    assert "carried by Ruze" in carried["basis"]
+
+
+def test_a_flux_between_measurements_is_on_the_straight_line_in_log_log():
+    from pastrocore.base.sources import Source
+
+    source = Source(name="S", flux_table={610.0: 4.2, 1400.0: 2.9, 5000.0: 1.4})
+
+    for frequency in (800.0, 1100.0, 2300.0, 4200.0):
+        below, above = (610.0, 1400.0) if frequency < 1400.0 else (1400.0, 5000.0)
+        flux_below, flux_above = source.flux_table[below], source.flux_table[above]
+        fraction = np.log(frequency / below) / np.log(above / below)
+        on_the_line = np.exp(np.log(flux_below) + fraction * np.log(flux_above / flux_below))
+        assert source.get_flux(frequency) == pytest.approx(on_the_line, rel=1e-12)
+
+
+def test_beyond_the_measurements_a_spectral_index_scales_from_the_nearest_one():
+    from pastrocore.base.sources import Source
+
+    source = Source(name="S", flux_table={1400.0: 2.0, 5000.0: 1.0}, spectral_index=-0.7)
+
+    assert source.get_flux(22000.0) == pytest.approx(1.0 * (22000.0 / 5000.0) ** -0.7, rel=1e-12)
+    assert source.get_flux(330.0) == pytest.approx(2.0 * (330.0 / 1400.0) ** -0.7, rel=1e-12)
+    assert Source(name="T", flux_table={1400.0: 2.0}).get_flux(5000.0) is None, (
+        "without an index the flux beyond the measurements is not guessed")

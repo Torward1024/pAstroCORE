@@ -42,8 +42,9 @@ def eager_log_calls(path):
 # Thirteen calls carry a format spec or a conversion -- `{x:.2f}`, `{x!r}` -- where `%s` would
 # render something different. They are left alone deliberately. The number may only go down: by
 # one when the calculator's per-call timing line became lazy, by one when the Sun angle's NaN
-# warning was rewritten along with the step, and by one with the beam pattern's drawing line.
-ALLOWED_EAGER = 13
+# warning was rewritten along with the step, by one with the beam pattern's drawing line, and by
+# three when the telescope's `calculate_*` methods -- unused, and wrong by a factor of 1e26 -- went.
+ALLOWED_EAGER = 10
 
 
 def test_logging_is_lazy():
@@ -860,13 +861,14 @@ def test_the_table_grid_refuses_what_the_telescope_would_refuse(attribute, qt_ap
     from pastrocore.gui.p_table_models import model_for
 
     grid = model_for(attribute)
-    grid.add_row(1000.0)
-    value = grid.index(0, 1)
+    grid.add_row(1000.0, 2000.0)
+    value = grid.index(0, 2)
 
     assert not grid.setData(value, "0", Qt.EditRole), "a zero is not a positive number"
     assert not grid.setData(value, "-1", Qt.EditRole)
     assert not grid.setData(value, "not a number", Qt.EditRole)
     assert not grid.setData(grid.index(0, 0), "0", Qt.EditRole), "nor is a zero a frequency"
+    assert not grid.setData(grid.index(0, 1), "500", Qt.EditRole), "a range runs low to high"
 
     # And what the grid does take, the telescope takes.
     assert grid.setData(value, "0.5", Qt.EditRole)
@@ -875,7 +877,9 @@ def test_the_table_grid_refuses_what_the_telescope_would_refuse(attribute, qt_ap
     # What it refuses, the telescope refuses too -- checked from the other side, so the two
     # cannot drift apart with only this file changed.
     with pytest.raises((InvariantError, ValueError)):
-        Telescope(code="T", name="T", **{attribute: {1000.0: 0.0}})
+        Telescope(code="T", name="T", **{attribute: [(1000.0, 2000.0, 0.0)]})
+    with pytest.raises((InvariantError, ValueError)):
+        Telescope(code="T", name="T", **{attribute: [(2000.0, 1000.0, 0.5)]})
 
 
 def test_the_interface_never_asks_for_a_method_the_model_does_not_have():

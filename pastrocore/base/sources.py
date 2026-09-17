@@ -1,6 +1,6 @@
 # base/sources.py
 from copy import deepcopy
-from typing import Annotated, Optional, Dict
+from typing import Annotated, Any, Optional, Dict
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch import InvariantError, invariant
@@ -131,34 +131,59 @@ class Source(BaseEntity):
         return True
 
     def get_flux(self, frequency: float) -> Optional[float]:
-        """Retrieve the flux for a given frequency, with interpolation or extrapolation."""
+        """Return the flux at a frequency, in Jy, or None when it cannot be told.
+
+        See `get_flux_estimate`, which says how the number was got.
+        """
+        return self.get_flux_estimate(frequency)["flux"]
+
+    def get_flux_estimate(self, frequency: float) -> Dict[str, Any]:
+        """Return the flux at a frequency, and how it was got (E1).
+
+        Args:
+            frequency (float): In MHz.
+
+        Returns:
+            Dict[str, Any]: `{"flux": float | None, "basis": str | None, "reason": str | None}`.
+
+        Notes:
+            - **A spectrum is a power law, `S ~ nu^alpha`.** Between two measured frequencies the
+              flux is on the power law through them: halfway between 5 Jy at 1 GHz and 7.5 Jy at
+              2 GHz is 6.34 Jy at 1.5 GHz. It was a straight line in frequency, 6.25.
+            - **Beyond what was measured, only with a spectral index**, from the nearest measured
+              point. It extrapolated from whichever point happened to be first in the table, which
+              could be the far end of the spectrum. Without an index the flux is not guessed.
+            - One measured point with an index is a power law through it; an index with no
+              measurement has nothing to scale, and says so.
+        """
         if not isinstance(frequency, (int, float)):
             raise TypeError(f"Frequency must be a number, got {type(frequency)}")
-        if not self.flux_table:
-            logger.warning("No flux data available for source '%s' at %s MHz", self.name, frequency)
-            return None
+        table = sorted((float(f), float(s)) for f, s in (self.flux_table or {}).items())
+        alpha = self.spectral_index
+        if not table:
+            return {"flux": None, "basis": None,
+                    "reason": ("a spectral index alone has no flux to scale" if alpha is not None
+                               else "no flux measured")}
 
-        if frequency in self.flux_table:
-            return self.flux_table[frequency]
+        measured = dict(table)
+        if frequency in measured:
+            return {"flux": measured[frequency], "basis": "measured", "reason": None}
 
-        if self.spectral_index is not None and self.flux_table:
-            ref_freq, ref_flux = next(iter(self.flux_table.items()))
-            flux = ref_flux * (frequency / ref_freq) ** self.spectral_index
-            logger.debug("Extrapolated flux=%s Jy for frequency %s MHz on '%s'", flux, frequency, self.name)
-            return flux
+        low, high = table[0], table[-1]
+        if low[0] < frequency < high[0]:
+            below = max((point for point in table if point[0] < frequency), key=lambda p: p[0])
+            above = min((point for point in table if point[0] > frequency), key=lambda p: p[0])
+            slope = math.log(above[1] / below[1]) / math.log(above[0] / below[0])
+            return {"flux": below[1] * (frequency / below[0]) ** slope,
+                    "basis": f"power law between {below[0]:g} and {above[0]:g} MHz", "reason": None}
 
-        freqs = sorted(self.flux_table.keys())
-        if frequency < freqs[0] or frequency > freqs[-1]:
-            logger.debug("Frequency %s MHz out of flux table range for '%s'", frequency, self.name)
-            return None
-        for i in range(len(freqs) - 1):
-            if freqs[i] <= frequency <= freqs[i + 1]:
-                f1, f2 = freqs[i], freqs[i + 1]
-                fl1, fl2 = self.flux_table[f1], self.flux_table[f2]
-                interpolated_flux = fl1 + (fl2 - fl1) * (frequency - f1) / (f2 - f1)
-                logger.debug("Interpolated flux=%s Jy for frequency %s MHz on '%s'", interpolated_flux, frequency, self.name)
-                return interpolated_flux
-        return None
+        if alpha is None:
+            return {"flux": None, "basis": None,
+                    "reason": f"measured from {low[0]:g} to {high[0]:g} MHz, and no spectral index "
+                              f"to reach {frequency:g} MHz"}
+        nearest = low if frequency < low[0] else high
+        return {"flux": nearest[1] * (frequency / nearest[0]) ** alpha,
+                "basis": f"from {nearest[0]:g} MHz with spectral index {alpha:g}", "reason": None}
 
     @property
     def ra_degrees(self) -> float:

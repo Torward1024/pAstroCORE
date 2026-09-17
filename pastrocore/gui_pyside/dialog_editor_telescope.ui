@@ -392,7 +392,7 @@
        <item row="4" column="0">
         <widget class="QLabel" name="labelSurfaceEfficiencyTable">
          <property name="text">
-          <string>Surface Efficiency Table (MHz, Efficiency):</string>
+          <string>Surface Efficiency Table (from-to MHz, efficiency):</string>
          </property>
         </widget>
        </item>
@@ -415,7 +415,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="labelSefdTable">
          <property name="text">
-          <string>SEFD Table (MHz, Jy):</string>
+          <string>SEFD Table (from-to MHz, Jy):</string>
          </property>
         </widget>
        </item>
@@ -556,7 +556,7 @@
        <item row="12" column="0" colspan="2">
         <widget class="QLabel" name="labelSystemTemperatureTable">
          <property name="text">
-          <string>System Temperature Table (MHz, K):</string>
+          <string>System Temperature Table (from-to MHz, K):</string>
          </property>
         </widget>
        </item>
@@ -601,7 +601,7 @@
        <item row="8" column="0" colspan="2">
         <widget class="QLabel" name="labelEffectiveAreaTable">
          <property name="text">
-          <string>Effective Area Table (MHz, m²):</string>
+          <string>Effective Area Table (from-to MHz, m²):</string>
          </property>
         </widget>
        </item>
