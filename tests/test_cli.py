@@ -117,10 +117,11 @@ def test_a_calculation_nobody_offers_is_refused(saved, capsys):
 def test_the_command_line_needs_nothing_from_the_window():
     """The whole point. A command line that has to import a dialog is not a second caller of a
     backend -- it is the window with the pixels removed."""
-    source = (ROOT / "pastrocore" / "cli.py").read_text(encoding="utf-8")
+    for module in ("cli.py", "cli_request.py", "cli_shell.py"):
+        source = (ROOT / "pastrocore" / module).read_text(encoding="utf-8")
 
-    assert "pastrocore.gui" not in source, "the command line reaches into the interface"
-    assert "PySide6" not in source, "the command line imports Qt"
+        assert "pastrocore.gui" not in source, f"{module} reaches into the interface"
+        assert "PySide6" not in source, f"{module} imports Qt"
 
 
 def test_it_starts_without_qt(saved):

@@ -1,11 +1,12 @@
 from msb_arch import Inspector
+from pastrocore.super.schedule_address import AddressQuestions
 from pastrocore.super.schedule_data import DataQuestions
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.super.schedule_runner import RunQuestions
 from msb_arch.utils.logging_setup import logger
 
 
-class ScheduleInspector(RunQuestions, DataQuestions, Inspector):
+class ScheduleInspector(AddressQuestions, RunQuestions, DataQuestions, Inspector):
     """Implementation of Inspector for inspecting scheduling entities using the Super framework.
 
     Reads, and nothing else. Besides the model's own getters it answers the questions this

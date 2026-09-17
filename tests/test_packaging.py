@@ -124,7 +124,7 @@ def test_every_dependency_the_code_imports_is_declared():
                 for name in manifest["project"]["dependencies"]}
 
     for needed in ("msb_arch", "polars", "astropy", "numpy", "scipy", "matplotlib",
-                   "pyside6", "pyarrow", "psutil"):
+                   "pyside6", "pyarrow", "psutil", "prompt_toolkit"):
         assert needed in declared, f"{needed} is imported and not declared"
 
 

@@ -9,9 +9,9 @@ class ScheduleManipulator(Manipulator):
 
     Which operations only read is said by their names (S1):
 
-    | Reads | Changes the project | Writes a file |
+    | Reads | Changes the project | Files, read or written |
     | --- | --- | --- |
-    | `inspect`, `visualize`, `analyze`, `catalogue` | `configure`, `calculate`, `compute`, `load` | `save`, `export`, `vex`, `cfx` |
+    | `inspect`, `visualize`, `analyze`, `catalogue` | `configure`, `calculate`, `compute` | `save`, `load`, `export`, `vex`, `cfx` |
 
     `inspect` is held to it by msb_arch, which since 3.0.0 calls nothing through it that is not
     named as a read; the questions this application asks of itself -- what can be calculated,
@@ -48,10 +48,19 @@ class ScheduleManipulator(Manipulator):
     #: other operation takes its attributes as parameters.
     CALLING = frozenset({"inspect", "configure"})
 
+    #: The operations that change the project in hand, which a command line saves after. A file
+    #: read or written -- `load`, `save`, `export` -- changes nothing in it.
+    CHANGING = frozenset({"configure", "calculate", "compute"})
+
     @classmethod
     def reads(cls, operation: Optional[str]) -> bool:
         """Report whether an operation only reads, by its name."""
         return operation in cls.READING
+
+    @classmethod
+    def changes(cls, operation: Optional[str]) -> bool:
+        """Report whether an operation changes the project in hand, by its name."""
+        return operation in cls.CHANGING
 
     def __init__(self, project: Optional['ScheduleProject'] = None,
                  journal_limit: Optional[int] = 500):
