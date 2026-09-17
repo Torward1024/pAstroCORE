@@ -8,6 +8,75 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.13.0] - 2026-09-17
+
+Two roadmap items, C1 and S1, and msb_arch 3.0.0 -- released for this, since the second needed the
+framework to mean what its operations are called.
+
+### Added
+
+- **C1: the catalogues are edited.** Options -> Sources Catalog and Telescopes Catalog add, edit and
+  remove entries -- a space telescope too -- and save, to the catalogue's own file or a new one. An
+  edit is made at once, so the generator and every Add from Catalog see it in the session; closing
+  with edits that are not saved asks whether to keep them, and Discard puts back what the file holds.
+  The title names the file and marks unsaved edits. A search hides rows instead of asking the
+  catalogue for every entry again on each key.
+- **A catalogue is JSON**: the same `Sources` and `Telescopes` a project holds, written whole and
+  atomically, so an SEFD table, a pointing limit or a spacecraft has somewhere to go. A `.dat`
+  catalogue still opens and is saved as JSON. The shipped catalogues are JSON now, and each is
+  checked to read back equal to the `.dat` it was converted from, which the tests keep. **The
+  catalogues that came with the application are never written**: an upgrade replaces them and an
+  install may not be writable, so saving one asks for a name, starting in a `catalogs` folder beside
+  the settings, and the application reads that file from then on.
+- **S1: a session is cut down to what is worth repeating.** Tools -> Session shows only the requests
+  that change something when asked, leaves selected rows out and brings them back, and saves what is
+  shown. **Everything is still recorded** -- what the window asked is what a bug report needs. A
+  replay does not ask questions again, and says how many it left out; a session saved by 1.12 still
+  replays.
+- The session table's **Call** column says what each request called: the operation's handler when
+  one was named -- `run` -- and the model's methods otherwise -- `create_item`. It was Method, which
+  is the handler alone, and empty for nearly everything the window asks.
+
+### Changed
+
+- **Requires msb_arch 3.0.0**, where `inspect` only reads: it calls `get`, and methods named `get_*`,
+  `has_*` or `is_*`, and refuses anything else. Four methods that read under other names are
+  renamed -- `observations` is `get_observations`, `right_ascension_parts` and `declination_parts`
+  are `get_right_ascension_parts` and `get_declination_parts`, `check_activity_status` is
+  `is_activatable`.
+- **The questions are `inspect`.** What can be calculated, in what order, what a session held and
+  whether a file of one checks out, what is stale and what an edit would reach were `compute`; which
+  results exist, their distinct values, their scan times and how many are unsaved were `export`. A
+  session could not tell a question from a change by its operation. `compute` is now running,
+  clearing, releasing and replaying, and `export` writes files. Which operations only read is said
+  in one place, `ScheduleManipulator.READING`, and a test places every registered operation.
+
+### Fixed
+
+- **Deactivating a source was recorded as a read**, and a failure of it showed no error box. It went
+  through `inspect` since 24.09.2025, when two requests were folded into one line and kept the first
+  one's operation. The other three tabs used `configure`; this one does now, and a test reads every
+  `inspect` call in the code against msb_arch's own rule.
+- **The shipped sources catalogue read `$` as a name**: 138 sources had an alternative name of `$`,
+  the files' mark for none, and every gravitational lens did. **A name with a space was split in
+  two** -- `Mrk 1419` was a source called `Mrk` with the J2000 name `1419`, and `IRAS 16293-2422` the
+  same. The names are separated by tabs, and are read that way.
+- **An edit refused by the catalogue's editor, then cancelled, stayed in the catalogue**: the editor
+  writes into the object it is given before its checks run. It is given a copy.
+- **A session file's handler was never checked.** A facade call records the handler among the
+  attributes, and `check` read only the request's own key.
+- A failed request no longer keeps what it named alive in any logging handler that keeps records --
+  fixed in msb_arch 3.0.0, found here.
+
+### Upgrading from 1.12.0
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| `pip` refuses to install, or `RequestError: inspect only reads` from your own script | msb_arch 3.0.0 is required, and `inspect` now calls only reads | `pip install -U msb_arch`. In a script, ask `configure` for a change, and use the renamed methods above |
+| Nothing | Your settings named the shipped `sources.dat` and `telescopes.dat`, which are JSON now | Nothing: the paths are corrected in the settings once, and nothing is said at every start |
+| `compute(method="catalogue")`, `"stale"` or `export(method="unsaved")` fails in your own script | The questions moved to `inspect` | `inspect(method="catalogue")`, and so on. A saved session needs nothing: it is read the new way |
+| A `.dat` catalogue you chose in Preferences | It still opens | Save it from its manager to have it as JSON |
+
 ## [1.12.0] - 2026-09-16
 
 ### Fixed
