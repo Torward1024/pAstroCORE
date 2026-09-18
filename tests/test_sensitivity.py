@@ -35,8 +35,9 @@ def observed():
 
 def run(core, observation, *calculations, **asked):
     asked.setdefault("force", True)
+    asked.setdefault("time_step", 600.0)
     outcome = core.compute(obj=None, method="run", targets=[observation],
-                           calculations=list(calculations), time_step=600.0, **asked)
+                           calculations=list(calculations), **asked)
     assert not outcome["failed"], outcome["failed"]
 
 
@@ -146,6 +147,56 @@ def test_the_sefd_away_from_the_zenith_is_dimmed_by_more_air_and_warmed_by_it(ob
         assert row["sefd"] == pytest.approx(
             row["sefd_zenith"] * np.exp(0.08 * (airmass - 1.0)) * tsys / 40.0, rel=1e-12)
     assert (track["sefd"] > track["sefd_zenith"]).all(), "below the zenith a station is worse"
+
+
+def test_a_schedule_that_starts_well_and_goes_wrong_later_is_still_a_result(observed):
+    """A column whose first rows are empty and whose later ones are not was the broken case.
+
+    polars reads the type of a numpy array of objects from what it starts with: a reason column
+    beginning with None and holding strings further down is an `Object` column, and casting one to
+    a string raises `cannot cast 'Object' type` -- logged, swallowed by the handler, and the whole
+    calculation came back empty. The fixture's day-long scan starts below the horizon, so its very
+    first row carries a reason and nothing ever noticed.
+    """
+    from astropy.time import Time
+
+    project, observation, core = observed
+    scans = observation.get_scans()
+    first = scans.get_items()[0]
+    source = observation.get_sources().get_items()[0]
+    for existing in list(scans.get_items()):
+        scans.remove(existing.name)
+    # The first scan is one the stations can observe throughout; a later one is not.
+    for index in range(9):
+        scans.create_scan(name=f"scan_{index:02d}",
+                          start=Time(first.get_start().mjd + 0.6 + index * 0.045, format="mjd"),
+                          duration=600.0, source=source, telescopes=list(first.telescopes),
+                          frequencies=list(first.frequencies))
+    run(core, observation, "sefd_track", time_step=300.0)
+
+    followed = frame(observation, "sefd_track").sort(["time", "telescope_code"])
+
+    assert followed.height, "the whole calculation came back empty"
+    assert followed["reason"][0] is None, "this needs a result that begins without a reason"
+    assert 0 < followed["reason"].null_count() < followed.height, "and carries one later"
+
+
+def test_there_is_no_sefd_at_an_elevation_the_dish_does_not_point_at(observed):
+    """A flat atmosphere's airmass runs away at the horizon: 1/sin(0.5 deg) is 115, and the SEFD
+    it gives is tens of millions of janskys at an elevation the station never observes at."""
+    project, observation, core = observed
+    station = observation.get_telescopes().get_items()[0]
+    station.set({"elevation_range": (30.0, 90.0)})
+    run(core, observation, "sefd_track", opacity=[[900.0, 1100.0, 0.08]], t_atm=270.0)
+
+    followed = frame(observation, "sefd_track").filter(pl.col("telescope_code") == station.get_code())
+    worked_out = followed.filter(pl.col("sefd").is_not_null())
+    refused = followed.filter(pl.col("sefd").is_null() & (pl.col("elevation") > 0)
+                              & (pl.col("elevation") < 30.0))
+
+    assert worked_out.height and worked_out["elevation"].min() >= 30.0
+    assert refused.height, "the fixture has to hold a sample below the limit for this to say anything"
+    assert "outside what" in refused["reason"][0] and "30-90 deg" in refused["reason"][0]
 
 
 def test_a_gain_curve_is_a_ratio_to_the_zenith_so_its_normalisation_does_not_matter(observed):
