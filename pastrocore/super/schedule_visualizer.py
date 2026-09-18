@@ -317,6 +317,12 @@ class ScheduleVisualizer(Super):
 
 
     @staticmethod
+    def _clock(mjd: float) -> str:
+        """Return the time of day of an MJD, as `hh:mm`, for labelling one moment among many."""
+        minutes = int(round((float(mjd) % 1.0) * 1440.0)) % 1440
+        return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+    @staticmethod
     def _time_axis(ax) -> None:
         """Label a time axis in MJD with as much of the fraction as the ticks need.
 
@@ -2204,6 +2210,10 @@ class ScheduleVisualizer(Super):
 
             stations = sorted(rows["telescope_code"].unique().to_list())
             bands = sorted(rows["if_name"].unique().to_list())
+            # A band is labelled by where it is rather than by what it is called: a name is a
+            # name, and the generator's are `if_fe45672cb62e4eb8b04cd5a18bb3537f`.
+            spelled = {row["if_name"]: f"{row['frequency']:g} MHz"
+                       for row in rows.iter_rows(named=True)}
             ax = self._setup_axes(fig, "sefd", code)
             ax.set_xlabel(labels["xlabel"], fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel(labels["ylabel"], fontsize=self._style_config["font"]["label_size"])
@@ -2243,7 +2253,8 @@ class ScheduleVisualizer(Super):
             fig.subplots_adjust(left=0.10, bottom=0.12, right=0.85, top=0.88)
 
             handles = [Patch(facecolor=self._style_config["colors"][index % len(self._style_config["colors"])],
-                             edgecolor="black", label=band) for index, band in enumerate(bands)]
+                             edgecolor="black", label=spelled.get(band, band))
+                       for index, band in enumerate(bands)]
             if result["computed"]:
                 handles.append(Patch(facecolor="white", edgecolor="black", hatch="//",
                                      label="from parameters"))
@@ -2430,11 +2441,14 @@ class ScheduleVisualizer(Super):
 
             ax.set_yticks(np.arange(len(baselines)) + 0.5)
             ax.set_yticklabels(baselines, fontsize=self._style_config["font"]["tick_size"])
-            # Names while they fit, numbers once they do not: fifty scan names along an axis are
-            # a black band.
-            ax.set_xticks(np.arange(len(scans)) + 0.5)
-            ax.set_xticklabels(scans if len(scans) <= 12 else np.arange(1, len(scans) + 1),
-                               rotation=90 if len(scans) <= 12 else 0,
+            # **A scan is shown by when it starts**, as every list of scans in the interface shows
+            # it: two scans of one source are told apart by their time, and a generated name is
+            # `scan_9167c64358014a2da61b9070687d1173`. At most twenty ticks, because fifty labels
+            # along an axis are a black band.
+            clock = [self._clock(when) for when in ordered["time"].to_list()]
+            step = max(1, len(scans) // 20)
+            ax.set_xticks(np.arange(len(scans))[::step] + 0.5)
+            ax.set_xticklabels(clock[::step], rotation=90,
                                fontsize=self._style_config["font"]["tick_size"])
             fig.subplots_adjust(left=0.15, bottom=0.20, right=0.88, top=0.88)
 

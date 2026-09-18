@@ -3061,8 +3061,11 @@ class ScheduleCalculator(Super):
               not matter: one peaking at 1 at 50 degrees and the same curve doubled give one answer.
             - What is not given is not applied, and `basis` says so. With no system temperature at
               zenith the atmosphere's emission cannot be added, and `basis` says that too.
-            - No SEFD below the horizon. In space there is no atmosphere and no elevation, and the
-              SEFD is the zenith's.
+            - **No SEFD where the dish does not point** -- below the horizon, and outside its own
+              elevation range. A flat atmosphere's airmass runs away towards the horizon, so a
+              station observing above 15 degrees would otherwise carry SEFDs of tens of millions
+              of janskys at elevations it never uses. In space there is no atmosphere and no
+              elevation, and the SEFD is the zenith's.
         """
         try:
             time_step = attributes.get("time_step")
@@ -3129,7 +3132,14 @@ class ScheduleCalculator(Super):
                 if not columns["time"]:
                     logger.warning("No station and band to follow in '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=dtypes)
-                return pl.DataFrame({name: np.concatenate(parts) for name, parts in columns.items()},
+                # **The text columns are handed over as lists.** A numpy array of objects that
+                # happen to be strings is an `Object` column to polars, and one holding nothing
+                # but None -- a scan where every sample worked out, so no row has a reason --
+                # cannot be cast to a string at all: `cannot cast 'Object' type`, and the whole
+                # calculation came back empty.
+                joined = {name: np.concatenate(parts) for name, parts in columns.items()}
+                return pl.DataFrame({name: values.tolist() if values.dtype == object else values
+                                     for name, values in joined.items()},
                                     schema=dtypes).fill_nan(None)
 
             metadata = {"time_step": time_step, "scan_count": self._active_scan_count(obj),
@@ -3267,8 +3277,13 @@ class ScheduleCalculator(Super):
             return answer
 
         parts = []
+        # **Where the dish can actually point**, not merely above the horizon. A flat atmosphere's
+        # airmass runs away as the elevation goes to zero -- 1/sin(0.5 deg) is 115 -- so a station
+        # whose limit is 15 degrees was given SEFDs of tens of millions of janskys at elevations it
+        # never observes at, and every plot of the track was that spike.
+        low, high = (float(value) for value in telescope.get_elevation_range())
         with np.errstate(divide="ignore", invalid="ignore"):
-            above = elevation > 0
+            above = (elevation >= max(low, 0.0)) & (elevation <= high) & (elevation > 0)
             airmass = np.where(above, 1.0 / np.sin(np.radians(elevation)), np.nan)
 
             row = Telescope._covering(opacity, frequency)
@@ -3309,8 +3324,11 @@ class ScheduleCalculator(Super):
         for index in np.flatnonzero(np.isnan(sefd)):
             if np.isnan(elevation[index]):
                 reason[index] = f"no position for {code} at this sample"
-            elif not above[index]:
+            elif elevation[index] <= 0:
                 reason[index] = "below the horizon"
+            elif not above[index]:
+                reason[index] = (f"{elevation[index]:.1f} deg is outside what {code} points at, "
+                                 f"{low:g}-{high:g} deg")
             elif sefd_zenith is None:
                 reason[index] = no_zenith
             elif not_positive[index]:
