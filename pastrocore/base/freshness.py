@@ -41,6 +41,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from msb_arch.utils.logging_setup import logger
 
+from pastrocore.base import data_structure
 from pastrocore.base.data_structure import CalculatedDataStructure
 
 #: The metadata field a result's input fingerprint is stored under.
@@ -49,8 +50,11 @@ DIGEST_FIELD = "inputs_digest"
 #: Parameters that change the answer without being part of the model. The detection threshold,
 #: the bits per sample, the weather assumed and the gain curves are E1's: the same baseline
 #: detects at 5 sigma and not at 7, and in dry air and not in wet.
-PARAMETERS = ("time_step", "target_telescope", "units", "threshold", "bits",
-              "recording_efficiency", "opacity", "t_atm", "gain_curve")
+#:
+#: Declared beside the schemas rather than here, because a second reader appeared: a dialog asks
+#: a calculation which of these it takes, and two lists of the same thing is how one of them
+#: comes to be missing an entry.
+PARAMETERS = data_structure.PARAMETERS
 
 _ACCESSORS = {
     "telescopes": "get_telescopes",

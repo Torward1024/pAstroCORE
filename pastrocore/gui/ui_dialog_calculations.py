@@ -15,17 +15,18 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
-    QDoubleSpinBox, QFrame, QGridLayout, QHBoxLayout,
-    QLabel, QListWidget, QListWidgetItem, QPushButton,
-    QSizePolicy, QSpacerItem, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
+    QDialog, QDoubleSpinBox, QFrame, QGridLayout,
+    QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
+    QSpacerItem, QTableView, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_CalculationDialog(object):
     def setupUi(self, CalculationDialog):
         if not CalculationDialog.objectName():
             CalculationDialog.setObjectName(u"CalculationDialog")
         CalculationDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        CalculationDialog.resize(600, 450)
+        CalculationDialog.resize(700, 700)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -164,6 +165,114 @@ class Ui_CalculationDialog(object):
 
         self.gridLayout_2.addWidget(self.recalculateCheck, 1, 0, 1, 2)
 
+        self.groupSensitivity = QGroupBox(CalculationDialog)
+        self.groupSensitivity.setObjectName(u"groupSensitivity")
+        self.gridLayoutSensitivity = QGridLayout(self.groupSensitivity)
+        self.gridLayoutSensitivity.setObjectName(u"gridLayoutSensitivity")
+        self.labelThreshold = QLabel(self.groupSensitivity)
+        self.labelThreshold.setObjectName(u"labelThreshold")
+
+        self.gridLayoutSensitivity.addWidget(self.labelThreshold, 0, 0, 1, 1)
+
+        self.thresholdSpin = QDoubleSpinBox(self.groupSensitivity)
+        self.thresholdSpin.setObjectName(u"thresholdSpin")
+        self.thresholdSpin.setDecimals(1)
+        self.thresholdSpin.setMinimum(0.100000000000000)
+        self.thresholdSpin.setMaximum(1000.000000000000000)
+        self.thresholdSpin.setValue(5.000000000000000)
+
+        self.gridLayoutSensitivity.addWidget(self.thresholdSpin, 0, 1, 1, 1)
+
+        self.labelBits = QLabel(self.groupSensitivity)
+        self.labelBits.setObjectName(u"labelBits")
+
+        self.gridLayoutSensitivity.addWidget(self.labelBits, 0, 2, 1, 1)
+
+        self.bitsCombo = QComboBox(self.groupSensitivity)
+        self.bitsCombo.setObjectName(u"bitsCombo")
+
+        self.gridLayoutSensitivity.addWidget(self.bitsCombo, 0, 3, 1, 1)
+
+        self.labelAirTemperature = QLabel(self.groupSensitivity)
+        self.labelAirTemperature.setObjectName(u"labelAirTemperature")
+
+        self.gridLayoutSensitivity.addWidget(self.labelAirTemperature, 1, 0, 1, 1)
+
+        self.airTemperatureSpin = QDoubleSpinBox(self.groupSensitivity)
+        self.airTemperatureSpin.setObjectName(u"airTemperatureSpin")
+        self.airTemperatureSpin.setDecimals(1)
+        self.airTemperatureSpin.setMinimum(0.000000000000000)
+        self.airTemperatureSpin.setMaximum(400.000000000000000)
+        self.airTemperatureSpin.setValue(0.000000000000000)
+
+        self.gridLayoutSensitivity.addWidget(self.airTemperatureSpin, 1, 1, 1, 1)
+
+        self.fillCheck = QCheckBox(self.groupSensitivity)
+        self.fillCheck.setObjectName(u"fillCheck")
+
+        self.gridLayoutSensitivity.addWidget(self.fillCheck, 1, 2, 1, 2)
+
+        self.labelOpacity = QLabel(self.groupSensitivity)
+        self.labelOpacity.setObjectName(u"labelOpacity")
+
+        self.gridLayoutSensitivity.addWidget(self.labelOpacity, 2, 0, 1, 2)
+
+        self.labelGainCurves = QLabel(self.groupSensitivity)
+        self.labelGainCurves.setObjectName(u"labelGainCurves")
+
+        self.gridLayoutSensitivity.addWidget(self.labelGainCurves, 2, 2, 1, 2)
+
+        self.opacityTable = QTableView(self.groupSensitivity)
+        self.opacityTable.setObjectName(u"opacityTable")
+        self.opacityTable.setMinimumSize(QSize(0, 110))
+        self.opacityTable.horizontalHeader().setStretchLastSection(True)
+
+        self.gridLayoutSensitivity.addWidget(self.opacityTable, 3, 0, 1, 2)
+
+        self.gainCurveTable = QTableView(self.groupSensitivity)
+        self.gainCurveTable.setObjectName(u"gainCurveTable")
+        self.gainCurveTable.setMinimumSize(QSize(0, 110))
+        self.gainCurveTable.horizontalHeader().setStretchLastSection(True)
+
+        self.gridLayoutSensitivity.addWidget(self.gainCurveTable, 3, 2, 1, 2)
+
+        self.layoutOpacityButtons = QHBoxLayout()
+        self.layoutOpacityButtons.setObjectName(u"layoutOpacityButtons")
+        self.opacityAdd = QPushButton(self.groupSensitivity)
+        self.opacityAdd.setObjectName(u"opacityAdd")
+        self.opacityAdd.setAutoDefault(False)
+
+        self.layoutOpacityButtons.addWidget(self.opacityAdd)
+
+        self.opacityRemove = QPushButton(self.groupSensitivity)
+        self.opacityRemove.setObjectName(u"opacityRemove")
+        self.opacityRemove.setAutoDefault(False)
+
+        self.layoutOpacityButtons.addWidget(self.opacityRemove)
+
+
+        self.gridLayoutSensitivity.addLayout(self.layoutOpacityButtons, 4, 0, 1, 2)
+
+        self.layoutGainCurveButtons = QHBoxLayout()
+        self.layoutGainCurveButtons.setObjectName(u"layoutGainCurveButtons")
+        self.gainCurveAdd = QPushButton(self.groupSensitivity)
+        self.gainCurveAdd.setObjectName(u"gainCurveAdd")
+        self.gainCurveAdd.setAutoDefault(False)
+
+        self.layoutGainCurveButtons.addWidget(self.gainCurveAdd)
+
+        self.gainCurveRemove = QPushButton(self.groupSensitivity)
+        self.gainCurveRemove.setObjectName(u"gainCurveRemove")
+        self.gainCurveRemove.setAutoDefault(False)
+
+        self.layoutGainCurveButtons.addWidget(self.gainCurveRemove)
+
+
+        self.gridLayoutSensitivity.addLayout(self.layoutGainCurveButtons, 4, 2, 1, 2)
+
+
+        self.gridLayout_2.addWidget(self.groupSensitivity, 2, 0, 1, 2)
+
 
         self.gridLayout_3.addLayout(self.gridLayout_2, 3, 0, 1, 1)
 
@@ -197,5 +306,29 @@ class Ui_CalculationDialog(object):
         self.recalculateCheck.setToolTip(QCoreApplication.translate("CalculationDialog", u"A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.", None))
 #endif // QT_CONFIG(tooltip)
         self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recompute everything", None))
+        self.groupSensitivity.setTitle(QCoreApplication.translate("CalculationDialog", u"Sensitivity", None))
+        self.labelThreshold.setText(QCoreApplication.translate("CalculationDialog", u"Detection (sigma):", None))
+#if QT_CONFIG(tooltip)
+        self.thresholdSpin.setToolTip(QCoreApplication.translate("CalculationDialog", u"The signal-to-noise a baseline needs to count as a detection.", None))
+#endif // QT_CONFIG(tooltip)
+        self.labelBits.setText(QCoreApplication.translate("CalculationDialog", u"Bits per sample:", None))
+#if QT_CONFIG(tooltip)
+        self.bitsCombo.setToolTip(QCoreApplication.translate("CalculationDialog", u"What the recording keeps of the signal: two-level quantising keeps 2/pi of it, four-level 0.8825.", None))
+#endif // QT_CONFIG(tooltip)
+        self.labelAirTemperature.setText(QCoreApplication.translate("CalculationDialog", u"Air (K):", None))
+#if QT_CONFIG(tooltip)
+        self.airTemperatureSpin.setToolTip(QCoreApplication.translate("CalculationDialog", u"The temperature of the atmosphere, for the noise its emission adds away from the zenith. An opacity needs one.", None))
+#endif // QT_CONFIG(tooltip)
+        self.airTemperatureSpin.setSpecialValueText(QCoreApplication.translate("CalculationDialog", u"not stated", None))
+#if QT_CONFIG(tooltip)
+        self.fillCheck.setToolTip(QCoreApplication.translate("CalculationDialog", u"Write an SEFD worked out from a station's parameters into its own SEFD table, over the band. What was measured is never replaced.", None))
+#endif // QT_CONFIG(tooltip)
+        self.fillCheck.setText(QCoreApplication.translate("CalculationDialog", u"Fill the SEFD tables", None))
+        self.labelOpacity.setText(QCoreApplication.translate("CalculationDialog", u"Zenith opacity:", None))
+        self.labelGainCurves.setText(QCoreApplication.translate("CalculationDialog", u"Gain curves:", None))
+        self.opacityAdd.setText(QCoreApplication.translate("CalculationDialog", u"Add", None))
+        self.opacityRemove.setText(QCoreApplication.translate("CalculationDialog", u"Remove", None))
+        self.gainCurveAdd.setText(QCoreApplication.translate("CalculationDialog", u"Add", None))
+        self.gainCurveRemove.setText(QCoreApplication.translate("CalculationDialog", u"Remove", None))
     # retranslateUi
 

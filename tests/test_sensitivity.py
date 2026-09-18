@@ -307,6 +307,9 @@ def test_weather_that_cannot_be_used_is_refused_rather_than_half_applied(observe
 
     assert outcome["failed"], "an opacity alone cannot say what the air adds"
     assert not observation.get_calculated_data_by_key("sefd_track"), "and nothing was stored"
+    refused = [row for row in outcome["report"] if row["outcome"] == "failed"]
+    assert refused and "t_atm" in refused[0]["error"], (
+        "the report has to say why, or it says 'failed' and sends the user to the log")
 
 
 # --- what cannot be worked out is said ---------------------------------------------------------------
@@ -517,6 +520,127 @@ def test_the_sensitivity_grid_marks_every_baseline_that_misses_the_threshold(obs
     crossed = draw(core, observation, "baseline_sensitivity").get_axes()[0].collections[1]
 
     assert len(crossed.get_offsets()) == 1, "and now it is not"
+
+
+# --- asked for in the interface -----------------------------------------------------------------------
+
+def dialog_for(project, qt_application):
+    """The calculation dialog, as the window opens it."""
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+
+    return CalculationDialog(ScheduleManipulator(project), time_step=600)
+
+
+def tick_only(dialog, label):
+    """Tick one calculation and untick the rest, as a user clicking would."""
+    from PySide6.QtCore import Qt
+
+    for index in range(dialog.ui.calcList.count()):
+        item = dialog.ui.calcList.item(index)
+        item.setCheckState(Qt.Checked if item.text() == label else Qt.Unchecked)
+    dialog.update_params_ui()
+
+
+def test_the_dialog_offers_the_parameters_a_calculation_takes_and_no_others(observed, qt_application):
+    """Asked, not listed: a detection threshold beside a beam pattern would be this dialog
+    knowing which calculation is which."""
+    project, observation, core = observed
+    dialog = dialog_for(project, qt_application)
+    try:
+        tick_only(dialog, "Beam Pattern")
+        assert not dialog.ui.thresholdSpin.isEnabled()
+        assert not dialog.ui.opacityTable.isEnabled()
+
+        tick_only(dialog, "Baseline Sensitivity")
+        assert dialog.ui.thresholdSpin.isEnabled() and dialog.ui.bitsCombo.isEnabled()
+        assert dialog.ui.opacityTable.isEnabled() and dialog.ui.airTemperatureSpin.isEnabled()
+        assert dialog.ui.gainCurveTable.isEnabled()
+
+        tick_only(dialog, "SEFD")
+        assert dialog.ui.fillCheck.isEnabled(), "filling the table is the SEFD's to be asked"
+        assert not dialog.ui.thresholdSpin.isEnabled()
+    finally:
+        dialog.close()
+
+
+def test_the_bits_offered_are_the_ones_the_calculator_knows(observed, qt_application):
+    """How much quantising leaves is physics; a combo box holding 1 and 2 because somebody typed
+    them is that physics written down twice."""
+    from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+    project, observation, core = observed
+    dialog = dialog_for(project, qt_application)
+    try:
+        offered = [dialog.ui.bitsCombo.itemData(index)
+                   for index in range(dialog.ui.bitsCombo.count())]
+        assert offered == sorted(ScheduleCalculator.RECORDING_EFFICIENCY)
+    finally:
+        dialog.close()
+
+
+def test_what_is_typed_into_the_dialog_is_what_the_request_carries(observed, qt_application, monkeypatch):
+    """The boxes are only worth having if what they hold reaches the calculation."""
+    from PySide6.QtCore import QObject, Signal
+
+    from pastrocore.gui import p_dialog_calculations
+
+    sent = {}
+
+    class Recorder(QObject):
+        progress = Signal(int, str)
+        finished = Signal(dict, list, dict)
+        error = Signal(str)
+
+        def __init__(self, manipulator, targets, keys, params):
+            super().__init__()
+            sent.update(keys=keys, params=params)
+
+        def start(self):
+            pass
+
+    monkeypatch.setattr(p_dialog_calculations, "CalculationThread", Recorder)
+
+    project, observation, core = observed
+    dialog = dialog_for(project, qt_application)
+    try:
+        tick_only(dialog, "Baseline Sensitivity")
+        dialog.ui.thresholdSpin.setValue(7.0)
+        dialog.ui.bitsCombo.setCurrentIndex(0)
+        dialog.ui.airTemperatureSpin.setValue(270.0)
+        dialog.opacity_model.add_row(900.0, 1100.0, 0.08)
+        dialog.gain_curve_model.add_row("ALMA", 900.0, 1100.0, [0.9, 0.004, -0.00003])
+        dialog.run_calculation()
+
+        # Per calculation, by the label the list shows.
+        asked = sent["params"]["Baseline Sensitivity"]
+        assert asked["threshold"] == 7.0
+        assert asked["bits"] == dialog.ui.bitsCombo.itemData(0)
+        assert asked["t_atm"] == 270.0
+        assert asked["opacity"] == [[900.0, 1100.0, 0.08]]
+        assert asked["gain_curve"] == {"ALMA": [[900.0, 1100.0, [0.9, 0.004, -0.00003]]]}
+        assert "fill" not in asked, "what was not ticked is not sent"
+    finally:
+        dialog.worker = None
+        dialog.close()
+
+
+def test_a_gain_curve_is_typed_however_it_is_written_down_and_refused_when_it_is_not_one(observed, qt_application):
+    from PySide6.QtCore import Qt
+
+    from pastrocore.gui.p_table_models import GainCurveTableModel
+
+    model = GainCurveTableModel()
+    model.add_row("EF", 900.0, 1100.0, [1.0])
+
+    assert model.setData(model.index(0, 3), "0.9 0.004 -3e-05", Qt.EditRole)
+    assert model.get_data() == {"EF": [[900.0, 1100.0, [0.9, 0.004, -3e-05]]]}
+    assert model.setData(model.index(0, 3), "0.9, 0.004", Qt.EditRole), "commas are how they are quoted"
+    assert not model.setData(model.index(0, 3), "a curve", Qt.EditRole)
+    assert not model.setData(model.index(0, 1), "-5", Qt.EditRole), "a frequency is positive"
+    assert model.get_data() == {"EF": [[900.0, 1100.0, [0.9, 0.004]]]}
+
+    model.add_row("", 900.0, 1100.0, [1.0])
+    assert set(model.get_data()) == {"EF"}, "a row nobody has named yet is not a curve"
 
 
 # --- living with the rest ---------------------------------------------------------------------------

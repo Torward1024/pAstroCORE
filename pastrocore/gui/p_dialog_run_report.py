@@ -29,7 +29,7 @@ class RunReportDialog(QDialog):
           failure to it.
     """
 
-    COLUMNS = ["Observation", "Calculation", "Seconds", "Outcome"]
+    COLUMNS = ["Observation", "Calculation", "Seconds", "Outcome", "Why"]
 
     def __init__(self, outcome: dict, parent=None):
         super().__init__(parent)
@@ -69,7 +69,8 @@ class RunReportDialog(QDialog):
         self.ui.tableSteps.setRowCount(len(rows))
         for index, row in enumerate(rows):
             cells = [row.get("observation", ""), row.get("label", row.get("step", "")),
-                     f"{row.get('seconds', 0.0):.2f}", row.get("outcome", "")]
+                     f"{row.get('seconds', 0.0):.2f}", row.get("outcome", ""),
+                     row.get("error", "")]
             for column, value in enumerate(cells):
                 item = QTableWidgetItem(value)
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -81,8 +82,9 @@ class RunReportDialog(QDialog):
                 self.ui.tableSteps.setItem(index, column, item)
 
         header = self.ui.tableSteps.horizontalHeader()
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        for column in (0, 2, 3):
+        # The reason a step refused is what a reader has come for, so it takes the room.
+        header.setSectionResizeMode(4, QHeaderView.Stretch)
+        for column in (0, 1, 2, 3):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
         logger.debug("Run report shown with %s step(s)", len(rows))
 
@@ -91,6 +93,7 @@ class RunReportDialog(QDialog):
         lines = [self.ui.labelSummary.text(), ""]
         lines += [f"{row.get('observation', ''):<16} {row.get('label', ''):<28} "
                   f"{row.get('seconds', 0.0):>8.2f}  {row.get('outcome', '')}"
+                  f"{'  ' + row['error'] if row.get('error') else ''}"
                   for row in self._outcome.get("report") or []]
         return "\n".join(lines)
 

@@ -218,6 +218,11 @@ class RunQuestions:
                 # request has to say what. Read from the columns rather than listed, so a new
                 # calculation of the same shape needs nothing added here.
                 "needs_target": "target_code" in (schema.get("columns") or []),
+                # What it takes beyond the model, read from what its result records. A dialog
+                # offering a detection threshold beside a beam pattern is a dialog that knows
+                # which calculation is which, which is knowledge about the model living in a
+                # window.
+                "parameters": list(CalculatedDataStructure.parameters_of(key)),
             }
             if observation is not None:
                 entry["available"] = key in held
@@ -553,6 +558,26 @@ class RunQuestions:
         """
         return sorted(obj.stale_results()) if hasattr(obj, "stale_results") else []
 
+    def _inspect_recording(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Report what a recording keeps of the signal, by bits per sample (E1).
+
+        Args:
+            obj: Ignored.
+            attributes: Ignored.
+
+        Returns:
+            List[Dict[str, Any]]: `{"bits": int, "efficiency": float}`, fewest bits first.
+
+        Notes:
+            - Asked rather than listed. How much of the correlation quantising the signal leaves
+              is physics -- two-level keeps 2/pi of it -- and a dialog offering one bit and two
+              because somebody typed them into a combo box is that physics written down twice.
+        """
+        from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+        return [{"bits": bits, "efficiency": float(efficiency)}
+                for bits, efficiency in sorted(ScheduleCalculator.RECORDING_EFFICIENCY.items())]
+
 
 class ScheduleRunner(RunQuestions, Super):
     """Running calculations, and the other requests that change what a project holds.
@@ -663,11 +688,16 @@ class ScheduleRunner(RunQuestions, Super):
             if name not in measured and name not in outcome.failed:
                 continue            # never reached: the run stopped above it
             key = name.split("/", 1)[-1]
+            failed = name in outcome.failed
             rows.append({"step": name,
                          "observation": name.split("/", 1)[0],
                          "label": spelled.get(key, labels.get(name, key)),
                          "seconds": measured.get(name, 0.0),
-                         "outcome": "failed" if name in outcome.failed else "ok"})
+                         "outcome": "failed" if failed else "ok",
+                         # **Why, not only that.** A step refused because an opacity was given
+                         # without the temperature of the air said so in the log and nowhere a
+                         # user looks; the report said "failed" and stopped there.
+                         "error": self._why(outcome, name) if failed else ""})
 
         return {"ran": ran,
                 "failed": list(outcome.failed),
@@ -688,6 +718,17 @@ class ScheduleRunner(RunQuestions, Super):
                             "work": sum(timings.values()),
                             "slowest": slowest.split("/", 1)[-1] if slowest else None,
                             "slowest_seconds": timings[slowest] if slowest else 0.0}}
+
+    @staticmethod
+    def _why(outcome: Any, name: str) -> str:
+        """Return what a step said when it refused, or an empty string when it said nothing."""
+        try:
+            response = outcome[name]
+        except Exception:                               # noqa: BLE001 - a report, not a request
+            return ""
+        if isinstance(response, dict):
+            return str(response.get("error") or "")
+        return str(getattr(response, "error", "") or "")
 
     def _compute_replay(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Run a recorded session against the project in hand.
