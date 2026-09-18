@@ -8,6 +8,71 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.15.0] - 2026-09-18
+
+E1: how well a schedule would be heard, and whether it would detect anything.
+
+### Added
+
+- **Three calculations, and none of them guesses.**
+  - **`sefd`** -- each station's SEFD in each band, and where it came from: the station's SEFD
+    table, or `2 k Tsys / A_eff` in janskys from its system temperature and its effective area or
+    aperture efficiency, or none, with the reason. Asked with `fill`, it writes what it computed
+    into the station's own table over the band -- the one thing E1 writes into the model -- and
+    never over a measurement.
+  - **`sefd_track`** -- that SEFD along every scan, on the time grid. A quoted SEFD is the one at
+    zenith, through the atmosphere there; away from it the source is dimmed through more air, the
+    system is warmed by what more air emits, and the dish's gain is the one where it points:
+    `SEFD = SEFD_zenith e^(tau0 (A - 1)) Tsys(el) / Tsys_zenith g(90) / g(el)`, `A = 1/sin(el)`.
+    Nothing is given for an elevation the station does not point at.
+  - **`baseline_sensitivity`** -- per scan, baseline and band, and for the bands together: the
+    time both stations see the source beside the scan's length, the noise summed over that time
+    piece by piece at the SEFDs each piece had, the signal-to-noise against the source's flux,
+    whether it detects, and the shortest scan that would. Checked against the VLBA's published
+    baseline sensitivities.
+- **The weather and the gain curves are parameters of a run, not properties of a station**:
+  `opacity` rows `[f_min, f_max, tau0]` and `t_atm` in kelvin, the same at every station, and
+  `gain_curve` by station code, `[f_min, f_max, [c0, c1, ...]]` in elevation. They are recorded
+  with the result, and changing them is another answer rather than the stored one. A curve is
+  taken as `g(90)/g(el)`, so its normalisation does not matter; an opacity without an air
+  temperature is refused rather than half applied.
+- **Each draws itself**: SEFDs as bars on a log scale, measured plain and computed hatched; the
+  track as a line per scan with the zenith behind it; detection as a grid of baselines by scans,
+  red where the signal-to-noise is poor, the threshold on the colour bar and every cell that
+  misses it crossed out. Each has its tab, and exporting needed nothing: the catalogue says what
+  there is.
+- **The calculation dialog asks for what a calculation takes** -- a detection threshold, the
+  bits per sample, whether to fill the SEFD tables, the zenith opacity and the air's temperature,
+  a gain curve per station -- and offers each only when a ticked calculation takes it. Which one
+  takes what is read off what its result records; the recordings on offer are the calculator's,
+  `inspect(method="recording")`.
+- **A refused step says why** in the run report, not only in the log.
+
+### Changed
+
+- **A telescope's measured tables are rows of `(f_min, f_max, value)`** -- SEFD, system
+  temperature, aperture efficiency, effective area. A band takes a value only from a row covering
+  its frequency, and rows in one table may not overlap. `get_sefd` interpolated across the table,
+  which made a 22 GHz SEFD out of an L-band and a Q-band measurement.
+- **A source's flux is a power law** between measured frequencies, and beyond them only with a
+  spectral index, from the nearest point: `Source.get_flux_estimate` says how it was got.
+- `Telescope.add_sefd(frequency_min, frequency_max, sefd)` takes the range it holds for.
+
+### Removed
+
+- `Telescope.calculate_sefd`, `calculate_effective_area` and `calculate_surface_efficiency`:
+  unused, writing into the tables, and `calculate_sefd` had lost the conversion to janskys --
+  1.8e-25 for an 18 Jy dish. `get_sefd_estimate` and `get_aperture_efficiency` replace them.
+
+### Upgrading from 1.14.0
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| A telescope's tables show a range per row | They are rows now; one written before reads as a row covering its one frequency, with no range made up | Widen the rows the receivers really cover, in the telescope editor |
+| Results show as stale once | A telescope is written in its new form, so the fingerprint of what results were computed from moved | Run the calculations again, or leave them: nothing is recomputed unasked |
+| `add_sefd(frequency, sefd)` raises `TypeError` | It takes the range: `add_sefd(frequency_min, frequency_max, sefd)` | Pass the range |
+| `calculate_sefd` is gone | Replaced by `get_sefd_estimate`, which says where the number came from | Use `get_sefd_estimate(frequency)["sefd"]` |
+
 ## [1.14.0] - 2026-09-17
 
 L4: everything the window can ask, from a terminal.
