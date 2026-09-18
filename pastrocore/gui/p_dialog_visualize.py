@@ -10,6 +10,9 @@ from .p_tab_vis_beam_pattern import BeamPatternVisualizationTab
 from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
 from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
 from .p_tab_vis_parallactic import ParallacticAngleVisualizationTab
+from .p_tab_vis_sefd import SEFDVisualizationTab
+from .p_tab_vis_sefd_track import SEFDTrackVisualizationTab
+from .p_tab_vis_sensitivity import BaselineSensitivityVisualizationTab
 from .p_tab_vis_spacecraft import (SpacecraftPointingVisualizationTab,
                                    SpacecraftVisibilityVisualizationTab)
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -239,6 +242,9 @@ class VisualizationDialog(QDialog):
                 "beam_pattern": BeamPatternVisualizationTab,
                 "mollweide_tracks": MollweideVisualizationTab,
                 "parallactic_angle": ParallacticAngleVisualizationTab,
+                "sefd": SEFDVisualizationTab,
+                "sefd_track": SEFDTrackVisualizationTab,
+                "baseline_sensitivity": BaselineSensitivityVisualizationTab,
                 "telescope_az_el": SpacecraftPointingVisualizationTab,
                 "telescope_visibility": SpacecraftVisibilityVisualizationTab,
             }

@@ -23,8 +23,9 @@ import matplotlib
 import matplotlib.ticker
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 from matplotlib.projections import register_projection
 from matplotlib.projections.geo import MollweideAxes
@@ -2159,4 +2160,287 @@ class ScheduleVisualizer(Super):
 
             result["telescopes"] = len(plotted_telescopes)
             logger.debug("Parallactic angle plot completed: %s", result)
+            return result
+
+    # --- sensitivity and detection (E1) -----------------------------------------------------------
+
+    def _visualize_sefd(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+        """Draw each station's SEFD in each band, saying which of them was measured.
+
+        Args:
+            obj: The observation to draw.
+            attributes: `telescopes`, the station codes to show; `frequencies`, in MHz;
+                `store_key`.
+
+        Returns:
+            Dict[str, Any]: How many stations and bands were drawn, how many SEFDs came from a
+                table, how many were computed from the dish, and how many there are none of.
+
+        Notes:
+            - **A measured SEFD and a computed one are not the same claim**, so the bars say which:
+              a plain bar was measured over a range covering the band, a hatched one was worked out
+              from the dish, its efficiency and its system temperature.
+            - **Log scale**, because an array mixes a 25-metre dish with a 100-metre one, and on a
+              linear axis the sensitive half is a line along the bottom.
+            - A station with no SEFD in a band gets no bar and is named under the axis. A bar of
+              zero would read as an infinitely sensitive station.
+        """
+        with self._lock:
+            store_key = attributes.get("store_key", "sefd")
+            code = obj.get_observation_code()
+            labels = {"xlabel": "Telescope", "ylabel": "SEFD, (Jy)", "title": f"SEFD\nObs. code: {code}"}
+            logger.debug("Plotting SEFDs for %s with attributes: %s", code, attributes)
+
+            data = obj.scan_calculated_data(store_key)
+            if data is None:
+                return self._create_empty_plot(fig, "sefd", code, labels=labels)
+            if attributes.get("telescopes"):
+                data = data.filter(pl.col("telescope_code").is_in(list(attributes["telescopes"])))
+            if attributes.get("frequencies"):
+                data = data.filter(pl.col("frequency").is_in([float(f) for f in attributes["frequencies"]]))
+            rows = data.collect()
+            if rows.is_empty():
+                return self._create_empty_plot(fig, "sefd", code, labels=labels)
+
+            stations = sorted(rows["telescope_code"].unique().to_list())
+            bands = sorted(rows["if_name"].unique().to_list())
+            ax = self._setup_axes(fig, "sefd", code)
+            ax.set_xlabel(labels["xlabel"], fontsize=self._style_config["font"]["label_size"])
+            ax.set_ylabel(labels["ylabel"], fontsize=self._style_config["font"]["label_size"])
+            ax.set_title(labels["title"], fontsize=self._style_config["font"]["title_size"])
+            ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
+
+            result = {"telescopes": len(stations), "bands": len(bands),
+                      "measured": 0, "computed": 0, "missing": 0}
+            width = 0.8 / len(bands)
+            for band_index, band in enumerate(bands):
+                colour = self._style_config["colors"][band_index % len(self._style_config["colors"])]
+                for station_index, station in enumerate(stations):
+                    found = rows.filter((pl.col("telescope_code") == station)
+                                        & (pl.col("if_name") == band))
+                    if found.is_empty():
+                        continue
+                    row = found.row(0, named=True)
+                    left = station_index + (band_index - (len(bands) - 1) / 2.0) * width
+                    if row["sefd"] is None:
+                        result["missing"] += 1
+                        ax.text(left, 0.02, "no SEFD", transform=ax.get_xaxis_transform(),
+                                rotation=90, ha="center", va="bottom",
+                                fontsize=self._style_config["font"]["tick_size"])
+                        continue
+                    measured = row["origin"] == "table"
+                    result["measured" if measured else "computed"] += 1
+                    ax.bar(left, row["sefd"], width=width * 0.9, color=colour, alpha=0.85,
+                           edgecolor="black", linewidth=0.5, hatch=None if measured else "//")
+
+            if not result["measured"] and not result["computed"]:
+                logger.debug("No SEFD to draw for '%s'", code)
+                return self._create_empty_plot(fig, "sefd", code, labels=labels)
+
+            ax.set_yscale("log")
+            ax.set_xticks(np.arange(len(stations)))
+            ax.set_xticklabels(stations, fontsize=self._style_config["font"]["tick_size"])
+            fig.subplots_adjust(left=0.10, bottom=0.12, right=0.85, top=0.88)
+
+            handles = [Patch(facecolor=self._style_config["colors"][index % len(self._style_config["colors"])],
+                             edgecolor="black", label=band) for index, band in enumerate(bands)]
+            if result["computed"]:
+                handles.append(Patch(facecolor="white", edgecolor="black", hatch="//",
+                                     label="from parameters"))
+            fig.legend(handles=handles, loc=self._style_config["legend"]["loc"],
+                       bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
+                       fontsize=self._style_config["legend"]["fontsize"], title="Bands:",
+                       title_fontsize=self._style_config["legend"]["title_fontsize"])
+            logger.debug("SEFD plot completed: %s", result)
+            return result
+
+    def _visualize_sefd_track(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+        """Draw each station's SEFD along the scans, as the source rises and sets.
+
+        Args:
+            obj: The observation to draw.
+            attributes: `telescopes`, `frequencies` in MHz, `scans`, `source_name`, `time_range`
+                as a pair of MJDs, and `store_key`.
+
+        Returns:
+            Dict[str, Any]: How many stations, bands and scans were drawn, and how many samples.
+
+        Notes:
+            - **A line per scan rather than per station**, so nothing is drawn across the gap
+              between two scans: a station's SEFD between them is not on the way from one to the
+              other, and a line there would invite reading a slew as a measurement.
+            - The zenith SEFD is drawn as a faint line behind each station's, because what the
+              elevation costs is the distance between the two.
+        """
+        with self._lock:
+            store_key = attributes.get("store_key", "sefd_track")
+            code = obj.get_observation_code()
+            labels = {"xlabel": "Time, (MJD)", "ylabel": "SEFD, (Jy)",
+                      "title": f"SEFD along the scans\nObs. code: {code}"}
+            logger.debug("Plotting the SEFD track for %s with attributes: %s", code, attributes)
+
+            data = obj.scan_calculated_data(store_key)
+            if data is None:
+                return self._create_empty_plot(fig, "sefd_track", code, labels=labels)
+            if attributes.get("telescopes"):
+                data = data.filter(pl.col("telescope_code").is_in(list(attributes["telescopes"])))
+            if attributes.get("frequencies"):
+                data = data.filter(pl.col("frequency").is_in([float(f) for f in attributes["frequencies"]]))
+            if attributes.get("scans"):
+                data = data.filter(pl.col("scan_name").is_in(list(attributes["scans"])))
+            if attributes.get("source_name"):
+                data = data.filter(pl.col("source_name") == attributes["source_name"])
+            if attributes.get("time_range"):
+                start, end = attributes["time_range"]
+                data = data.filter((pl.col("time") >= float(start)) & (pl.col("time") <= float(end)))
+            rows = data.filter(pl.col("sefd").is_not_null()).collect()
+            if rows.is_empty():
+                return self._create_empty_plot(fig, "sefd_track", code, labels=labels)
+
+            stations = sorted(rows["telescope_code"].unique().to_list())
+            bands = sorted(rows["if_name"].unique().to_list())
+            ax = self._setup_axes(fig, "sefd_track", code)
+            ax.set_xlabel(labels["xlabel"], fontsize=self._style_config["font"]["label_size"])
+            ax.set_ylabel(labels["ylabel"], fontsize=self._style_config["font"]["label_size"])
+            ax.set_title(labels["title"], fontsize=self._style_config["font"]["title_size"])
+            ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
+            self._time_axis(ax)
+
+            styles = [self._style_config["linestyles"]["default"],
+                      self._style_config["linestyles"]["secondary"], "-.", ":"]
+            result = {"telescopes": len(stations), "bands": len(bands),
+                      "scans": rows["scan_name"].unique().len(), "points": 0}
+            handles, names = [], []
+            for station_index, station in enumerate(stations):
+                colour = self._style_config["colors"][station_index % len(self._style_config["colors"])]
+                of_station = rows.filter(pl.col("telescope_code") == station)
+                zenith = of_station["sefd_zenith"].drop_nulls()
+                if zenith.len():
+                    ax.axhline(zenith.min(), color=colour, linestyle="--", linewidth=1.0, alpha=0.35)
+                for band_index, band in enumerate(bands):
+                    of_band = of_station.filter(pl.col("if_name") == band)
+                    if of_band.is_empty():
+                        continue
+                    label = station if len(bands) == 1 else f"{station} {band}"
+                    for scan in sorted(of_band["scan_name"].unique().to_list()):
+                        piece = of_band.filter(pl.col("scan_name") == scan).sort("time")
+                        drawn = ax.plot(piece["time"].to_numpy(), piece["sefd"].to_numpy(),
+                                        color=colour, linestyle=styles[band_index % len(styles)],
+                                        linewidth=self._style_config["lines"]["width"], alpha=0.85,
+                                        label=label if label not in names else None)[0]
+                        result["points"] += piece.height
+                        if label not in names:
+                            handles.append(drawn)
+                            names.append(label)
+
+            fig.subplots_adjust(left=0.10, bottom=0.12, right=0.85, top=0.88)
+            if handles:
+                fig.legend(handles=handles, labels=names,
+                           loc=self._style_config["legend"]["loc"],
+                           bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
+                           fontsize=self._style_config["legend"]["fontsize"], title="Telescopes:",
+                           title_fontsize=self._style_config["legend"]["title_fontsize"])
+            logger.debug("SEFD track plot completed: %s", result)
+            return result
+
+    def _visualize_baseline_sensitivity(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+        """Draw what each baseline reaches on each scan, and mark what does not reach the threshold.
+
+        Args:
+            obj: The observation to draw.
+            attributes: `baselines`, `scans`, `source_name`, `if_name` -- one band or `all` for
+                the bands together, which is the default -- and `store_key`.
+
+        Returns:
+            Dict[str, Any]: How many baselines and scans were drawn, how many of the cells are a
+                detection, and the threshold they were held against.
+
+        Notes:
+            - **A baseline by a scan is a grid, so it is drawn as one.** A schedule of fifty scans
+              over an array of ten stations is forty-five lines of fifty points, which no legend
+              saves.
+            - **Signal-to-noise spans orders of magnitude** across an array that mixes a 100-metre
+              dish with a 25-metre one, so the colours are logarithmic and the colour bar carries
+              the threshold as a line.
+            - A cell that reaches nothing -- no SEFD, no flux, no time together -- is left blank
+              rather than dark, which would read as a very poor baseline rather than as no answer.
+        """
+        with self._lock:
+            store_key = attributes.get("store_key", "baseline_sensitivity")
+            code = obj.get_observation_code()
+            labels = {"xlabel": "Scan", "ylabel": "Baseline",
+                      "title": f"Baseline sensitivity\nObs. code: {code}"}
+            logger.debug("Plotting baseline sensitivity for %s with attributes: %s", code, attributes)
+
+            data = obj.scan_calculated_data(store_key)
+            if data is None:
+                return self._create_empty_plot(fig, "baseline_sensitivity", code, labels=labels)
+            data = data.filter(pl.col("if_name") == attributes.get("if_name", "all"))
+            if attributes.get("baselines"):
+                data = data.filter(pl.col("baseline").is_in(list(attributes["baselines"])))
+            if attributes.get("scans"):
+                data = data.filter(pl.col("scan_name").is_in(list(attributes["scans"])))
+            if attributes.get("source_name"):
+                data = data.filter(pl.col("source_name") == attributes["source_name"])
+            rows = data.collect()
+            if rows.is_empty() or rows["snr"].drop_nulls().is_empty():
+                return self._create_empty_plot(fig, "baseline_sensitivity", code, labels=labels)
+
+            baselines = sorted(rows["baseline"].unique().to_list())
+            ordered = rows.select(["scan_name", "time"]).unique().sort(["time", "scan_name"])
+            scans = ordered["scan_name"].to_list()
+            place = {(row["baseline"], row["scan_name"]): row for row in rows.iter_rows(named=True)}
+
+            grid = np.full((len(baselines), len(scans)), np.nan)
+            missed = []
+            threshold = float((obj.get_calculated_metadata(store_key) or {}).get("threshold") or 5.0)
+            result = {"baselines": len(baselines), "scans": len(scans), "detected": 0,
+                      "threshold": threshold, "cells": 0}
+            for row_index, baseline in enumerate(baselines):
+                for column, scan in enumerate(scans):
+                    row = place.get((baseline, scan))
+                    if row is None or row["snr"] is None:
+                        continue
+                    grid[row_index, column] = row["snr"]
+                    result["cells"] += 1
+                    if row["detected"]:
+                        result["detected"] += 1
+                    else:
+                        missed.append((column + 0.5, row_index + 0.5))
+
+            ax = self._setup_axes(fig, "baseline_sensitivity", code)
+            ax.set_xlabel(labels["xlabel"], fontsize=self._style_config["font"]["label_size"])
+            ax.set_ylabel(labels["ylabel"], fontsize=self._style_config["font"]["label_size"])
+            ax.set_title(labels["title"], fontsize=self._style_config["font"]["title_size"])
+            ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
+            ax.grid(False)
+
+            reached = grid[np.isfinite(grid) & (grid > 0)]
+            # One value, or one value repeated, has no range to spread colours over, and a
+            # logarithmic norm asked for one raises rather than drawing.
+            norm = None
+            if reached.size and reached.min() < reached.max():
+                norm = LogNorm(vmin=float(reached.min()), vmax=float(reached.max()))
+            mesh = ax.pcolormesh(np.arange(len(scans) + 1), np.arange(len(baselines) + 1),
+                                 np.ma.masked_invalid(grid),
+                                 cmap=self._style_config["colormaps"]["redpurple"], norm=norm)
+            if missed:
+                ax.scatter([x for x, _ in missed], [y for _, y in missed], marker="x", color="black",
+                           s=self._style_config["markers"]["default_size"], linewidths=1.2)
+
+            ax.set_yticks(np.arange(len(baselines)) + 0.5)
+            ax.set_yticklabels(baselines, fontsize=self._style_config["font"]["tick_size"])
+            # Names while they fit, numbers once they do not: fifty scan names along an axis are
+            # a black band.
+            ax.set_xticks(np.arange(len(scans)) + 0.5)
+            ax.set_xticklabels(scans if len(scans) <= 12 else np.arange(1, len(scans) + 1),
+                               rotation=90 if len(scans) <= 12 else 0,
+                               fontsize=self._style_config["font"]["tick_size"])
+            fig.subplots_adjust(left=0.15, bottom=0.20, right=0.88, top=0.88)
+
+            bar = fig.colorbar(mesh, ax=ax)
+            bar.set_label("Signal-to-noise", fontsize=self._style_config["font"]["label_size"])
+            if norm is not None and norm.vmin <= threshold <= norm.vmax:
+                bar.ax.axhline(threshold, color="black", linewidth=1.5)
+            logger.debug("Baseline sensitivity plot completed: %s", result)
             return result

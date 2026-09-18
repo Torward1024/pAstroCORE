@@ -15,12 +15,12 @@ code disagree.
 | --- | --- | --- | --- | --- |
 | `az_el` | Az/El | yes | yes | `time`, `source_name`, `scan_name`, `telescope_code`, `az`, `el` |
 | `baseline_projections` | Baseline Projections | yes | yes | `time`, `source_name`, `scan_name`, `baseline`, `projection` |
-| `baseline_sensitivity` | Baseline Sensitivity | yes | no | `time`, `scan_name`, `source_name`, `baseline`, `if_name`, `frequency`, `bandwidth`, `scan_duration`, `duration`, `sefd_1`, `sefd_2`, `noise_1s`, `noise`, `flux`, `flux_basis`, `snr`, `detected`, `min_duration`, `reason` |
+| `baseline_sensitivity` | Baseline Sensitivity | yes | yes | `time`, `scan_name`, `source_name`, `baseline`, `if_name`, `frequency`, `bandwidth`, `scan_duration`, `duration`, `sefd_1`, `sefd_2`, `noise_1s`, `noise`, `flux`, `flux_basis`, `snr`, `detected`, `min_duration`, `reason` |
 | `beam_pattern` | Beam Pattern | yes | yes | `telescope_code`, `theta`, `pattern` |
 | `mollweide_tracks` | Mollweide Tracks | yes | yes | `time`, `scan_name`, `telescope_code`, `lon`, `lat` |
 | `parallactic_angle` | Parallactic Angle | yes | yes | `time`, `source_name`, `scan_name`, `telescope_code`, `parallactic_angle` |
-| `sefd` | SEFD | yes | no | `telescope_code`, `if_name`, `frequency`, `bandwidth`, `sefd`, `origin`, `tsys`, `effective_area`, `efficiency`, `basis`, `reason`, `filled` |
-| `sefd_track` | SEFD Track | yes | no | `time`, `scan_name`, `source_name`, `telescope_code`, `if_name`, `frequency`, `elevation`, `airmass`, `opacity`, `attenuation`, `tsys`, `gain`, `sefd_zenith`, `sefd`, `basis`, `reason` |
+| `sefd` | SEFD | yes | yes | `telescope_code`, `if_name`, `frequency`, `bandwidth`, `sefd`, `origin`, `tsys`, `effective_area`, `efficiency`, `basis`, `reason`, `filled` |
+| `sefd_track` | SEFD Track | yes | yes | `time`, `scan_name`, `source_name`, `telescope_code`, `if_name`, `frequency`, `elevation`, `airmass`, `opacity`, `attenuation`, `tsys`, `gain`, `sefd_zenith`, `sefd`, `basis`, `reason` |
 | `sun_angles` | Sun Angles | yes | yes | `time`, `source_name`, `scan_name`, `telescope_code`, `angle` |
 | `telescope_az_el` | Space Telescope Pointing | yes | yes | `time`, `target_code`, `scan_name`, `telescope_code`, `az`, `el`, `range` |
 | `telescope_visibility` | Space Telescope Visibility | yes | yes | `time`, `target_code`, `scan_name`, `telescope_code`, `visibility` |
@@ -199,6 +199,12 @@ together under `if_name` `all`, where signal-to-noise adds in quadrature. The so
 unresolved — the correlated flux is the whole flux — and the result says so. Nothing that cannot
 be worked out is guessed: a station with no SEFD, a source with no flux at that frequency, two
 stations that never see it together, all leave the value empty and name the reason.
+
+Each of the three draws itself. `sefd` is a bar per station and band, on a log scale, with what
+was computed hatched and what was measured plain; `sefd_track` is a line per scan with the zenith
+behind it, so what the elevation costs is the distance between the two; `baseline_sensitivity` is
+a grid of baselines by scans, coloured by signal-to-noise with the threshold marked on the colour
+bar, and every cell that misses it crossed out.
 
 ## What each result depends on
 
