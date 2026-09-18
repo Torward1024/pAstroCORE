@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.14.0 shipped.** What is left, what was decided against, and why.
+**1.15.0 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
@@ -10,13 +10,8 @@ its criterion holds, not when it feels tidy.
 Seventeen items from using it, ranked: what cost an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 They land in this order, a stage or an item per release, unless a later one turns out to need an
-earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0.**
-
-### Stage 3 -- what it cannot do yet
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| E1 | **Sensitivity and detection** | Three results the calculator produces and the window draws. **A station's SEFD per band** -- from its SEFD table where it has one, otherwise `2 k T_sys / (eta A)` from its system temperature, surface efficiency and diameter or effective area -- with the source of each value recorded. **A baseline's noise per scan** by the radiometer equation, `sqrt(SEFD_1 SEFD_2) / (eta_rec sqrt(2 dnu tau))`, from the band's bandwidth and the scan's duration. **Detection**: the signal-to-noise each baseline reaches on each scan from the source's flux at that frequency, drawn per baseline and scan against a threshold, and the **shortest scan** that reaches it -- 5 sigma unless asked otherwise. A value that cannot be computed (no flux at that frequency, no system temperature) is named, not guessed. `test_physics` checks the numbers against the equations independently and against a published array calculator's case |
+earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0; E1 in 1.15.0.**
+With E1 the last of stage 3 is in: what is left is for somebody else to install it and start.
 
 ### Stage 4 -- for anyone to install and use
 
@@ -80,6 +75,7 @@ that happens when one is sent.
 | **1.12.0** | **O1.** A generation is a plan: saved whole, timed by the backend, its presets the model's. **R1, M1** answered -- opening a second project deleted the first one's results, and the memory that climbs through a session is caches filling, with a bound |
 | **1.13.0** | **C1, S1.** The catalogues are edited in their managers and kept as JSON -- the `Sources` and `Telescopes` a project holds, with a reader fixed on the way. A session is cut down to what changed something, by the operation's name: msb_arch 3.0.0 made `inspect` read and nothing else, and the questions moved to it from `compute` and `export` |
 | **1.14.0** | **L4.** Every request the window can make, from a terminal: `pastrocore-cli ask <project> <operation> <address> key=value`, and a shell that completes what the orchestrator says there is. No command table and no new language -- an address is how a person names a part, resolved from MSB's model graph, and a script is a session file |
+| **1.15.0** | **E1.** How well a schedule would be heard. Each station's SEFD per band, from its table or its dish and system temperature, with where it came from; the same SEFD followed along every scan by elevation; each baseline's noise summed over the time both stations see the source, against the source's power-law flux and a threshold, and the shortest scan that would detect it. The weather and the gain curves are the run's assumptions and go with the request -- a station carries only what was measured of it, and a computed SEFD written into its table when asked. Checked against the VLBA's published baseline sensitivities; drawn, exported, and asked for in the calculation dialog, which offers each parameter only beside a calculation that takes it |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in
