@@ -311,6 +311,118 @@ class CalculatedDataStructure:
                 "telescope_code": pl.String,
                 "parallactic_angle": pl.Float64
             }
+        },
+        "sefd": {
+            # E1. Not scans or sources: a station's SEFD in a band depends on the station and the
+            # band and on nothing else.
+            "label": "SEFD",
+            "depends_on": ("telescopes", "frequencies"),
+            "columns": ["telescope_code", "if_name", "frequency", "bandwidth", "sefd", "origin",
+                        "tsys", "effective_area", "efficiency", "basis", "reason", "filled"],
+            "metadata": {
+                "filled": int
+            },
+            "converters": {},
+            "deserialization_converters": {},
+            "dtypes": {
+                "telescope_code": pl.String,
+                "if_name": pl.String,
+                "frequency": pl.Float64,
+                "bandwidth": pl.Float64,
+                "sefd": pl.Float64,
+                "origin": pl.String,
+                "tsys": pl.Float64,
+                "effective_area": pl.Float64,
+                "efficiency": pl.Float64,
+                "basis": pl.String,
+                "reason": pl.String,
+                "filled": pl.Boolean
+            }
+        },
+        "sefd_track": {
+            # E1. A station's SEFD at every sample of the time grid, from where the source stands:
+            # one row per sample, station and band. The weather and the gain curves it was worked
+            # out with are parameters, not the stations', so they are recorded here.
+            "label": "SEFD Track",
+            "depends_on": ("telescopes", "sources", "scans", "frequencies"),
+            "columns": ["time", "scan_name", "source_name", "telescope_code", "if_name", "frequency",
+                        "elevation", "airmass", "opacity", "attenuation", "tsys", "gain",
+                        "sefd_zenith", "sefd", "basis", "reason"],
+            "metadata": {
+                "time_step": float,
+                "scan_count": int,
+                "opacity": list,
+                "t_atm": float,
+                "gain_curve": dict,
+                "assumption": str
+            },
+            "converters": {
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
+            },
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "scan_name": pl.String,
+                "source_name": pl.String,
+                "telescope_code": pl.String,
+                "if_name": pl.String,
+                "frequency": pl.Float64,
+                "elevation": pl.Float64,
+                "airmass": pl.Float64,
+                "opacity": pl.Float64,
+                "attenuation": pl.Float64,
+                "tsys": pl.Float64,
+                "gain": pl.Float64,
+                "sefd_zenith": pl.Float64,
+                "sefd": pl.Float64,
+                "basis": pl.String,
+                "reason": pl.String
+            }
+        },
+        "baseline_sensitivity": {
+            # E1. One row per scan, baseline and band, and one with `if_name` "all" for the bands
+            # together. `time` is the scan's start, so the analyzer can find runs of detection.
+            "label": "Baseline Sensitivity",
+            "depends_on": ("telescopes", "sources", "scans", "frequencies"),
+            "columns": ["time", "scan_name", "source_name", "baseline", "if_name", "frequency",
+                        "bandwidth", "scan_duration", "duration", "sefd_1", "sefd_2", "noise_1s",
+                        "noise", "flux", "flux_basis", "snr", "detected", "min_duration", "reason"],
+            "metadata": {
+                "threshold": float,
+                "bits": int,
+                "recording_efficiency": float,
+                "opacity": list,
+                "t_atm": float,
+                "gain_curve": dict,
+                "time_step": float,
+                "scan_count": int,
+                "assumption": str
+            },
+            "converters": {
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
+            },
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "scan_name": pl.String,
+                "source_name": pl.String,
+                "baseline": pl.String,
+                "if_name": pl.String,
+                "frequency": pl.Float64,
+                "bandwidth": pl.Float64,
+                "scan_duration": pl.Float64,
+                "duration": pl.Float64,
+                "sefd_1": pl.Float64,
+                "sefd_2": pl.Float64,
+                "noise_1s": pl.Float64,
+                "noise": pl.Float64,
+                "flux": pl.Float64,
+                "flux_basis": pl.String,
+                "snr": pl.Float64,
+                "detected": pl.Boolean,
+                "min_duration": pl.Float64,
+                "reason": pl.String
+            }
         }
     }
 

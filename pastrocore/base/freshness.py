@@ -46,8 +46,11 @@ from pastrocore.base.data_structure import CalculatedDataStructure
 #: The metadata field a result's input fingerprint is stored under.
 DIGEST_FIELD = "inputs_digest"
 
-#: Parameters that change the answer without being part of the model.
-PARAMETERS = ("time_step", "target_telescope", "units")
+#: Parameters that change the answer without being part of the model. The detection threshold,
+#: the bits per sample, the weather assumed and the gain curves are E1's: the same baseline
+#: detects at 5 sigma and not at 7, and in dry air and not in wet.
+PARAMETERS = ("time_step", "target_telescope", "units", "threshold", "bits",
+              "recording_efficiency", "opacity", "t_atm", "gain_curve")
 
 _ACCESSORS = {
     "telescopes": "get_telescopes",
