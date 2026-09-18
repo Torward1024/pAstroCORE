@@ -6,6 +6,7 @@ from msb_arch.utils.logging_setup import logger
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
 from pastrocore.gui.p_dialog_progress import ProgressDialog, stop_and_wait
+from pastrocore.gui.p_table_models import Column, FrequencyTableModel, GainCurveTableModel
 
 
 class CalculationThread(QThread):
@@ -99,15 +100,30 @@ class CalculationDialog(QDialog):
         # Which calculations cannot run without being told what to point at. The catalogue says
         # so, from the columns of the result, so nothing here lists them.
         self._needs_target = set()
+        # What each calculation takes beyond the model, as the catalogue reports it. Which box a
+        # person types it into is this dialog's business; which calculation takes what is not.
+        self._parameters = {}
         self.calc_type = calc_type
         self.time_step = time_step
         self.init_ui()
         self.load_settings()
 
+    #: Which boxes stand for which parameter. What a parameter *is* and which calculation takes
+    #: it are the model's to say; where it is typed is this dialog's.
+    PARAMETER_WIDGETS = {
+        "threshold": ("labelThreshold", "thresholdSpin"),
+        "bits": ("labelBits", "bitsCombo"),
+        "fill": ("fillCheck",),
+        "t_atm": ("labelAirTemperature", "airTemperatureSpin"),
+        "opacity": ("labelOpacity", "opacityTable", "opacityAdd", "opacityRemove"),
+        "gain_curve": ("labelGainCurves", "gainCurveTable", "gainCurveAdd", "gainCurveRemove"),
+    }
+
     def init_ui(self):
         """Initialize the dialog UI."""
         self.populate_calc_list()
         self.populate_targets()
+        self.setup_sensitivity()
         self.ui.calcList.itemChanged.connect(self.handle_calc_selection)
         self.ui.calcList.itemChanged.connect(self.log_calc_selection)
         self.ui.selectAllCalcButton.clicked.connect(self.select_all_calcs)
@@ -143,6 +159,7 @@ class CalculationDialog(QDialog):
             self.ui.calcList.addItem(item)
             if entry.get("needs_target"):
                 self._needs_target.add(entry["key"])
+            self._parameters[entry["key"]] = set(entry.get("parameters") or ())
         logger.debug("Populated %s calculations, all checked.", self.ui.calcList.count())
 
     def populate_targets(self):
@@ -261,8 +278,53 @@ class CalculationDialog(QDialog):
                 other.setCheckState(Qt.Checked)
         self.update_params_ui()
 
+    def setup_sensitivity(self):
+        """Build the boxes E1's calculations are asked with, and fill what the model answers.
+
+        Notes:
+            - **The recordings come from the backend.** How much of the correlation two-level
+              quantising leaves is physics, and a combo box holding 1 and 2 because somebody
+              typed them is that physics written down a second time.
+            - The two grids hold an assumption of the run rather than anything of the model's,
+              so they start empty: nothing is applied that was not asked for.
+        """
+        self.opacity_model = FrequencyTableModel(Column("Opacity at zenith", default=0.05))
+        self.ui.opacityTable.setModel(self.opacity_model)
+        self.gain_curve_model = GainCurveTableModel()
+        self.ui.gainCurveTable.setModel(self.gain_curve_model)
+
+        self.ui.opacityAdd.clicked.connect(lambda: self.opacity_model.add_row())
+        self.ui.opacityRemove.clicked.connect(
+            lambda: self._remove_selected(self.ui.opacityTable, self.opacity_model))
+        self.ui.gainCurveAdd.clicked.connect(lambda: self.gain_curve_model.add_row())
+        self.ui.gainCurveRemove.clicked.connect(
+            lambda: self._remove_selected(self.ui.gainCurveTable, self.gain_curve_model))
+
+        recordings = self.manipulator.inspect(obj=None, method="recording") or []
+        self.ui.bitsCombo.clear()
+        for recording in recordings:
+            self.ui.bitsCombo.addItem(
+                f"{recording['bits']} ({recording['efficiency']:.3f})", recording["bits"])
+        if self.ui.bitsCombo.count():
+            self.ui.bitsCombo.setCurrentIndex(self.ui.bitsCombo.count() - 1)
+        self.update_params_ui()
+
+    @staticmethod
+    def _remove_selected(view, model):
+        """Take out the rows somebody has selected, from the bottom so the indexes hold."""
+        rows = sorted({index.row() for index in view.selectionModel().selectedIndexes()},
+                      reverse=True)
+        for row in rows:
+            model.remove_row(row)
+
     def update_params_ui(self):
-        """Update the parameters UI based on selected calculations."""
+        """Offer exactly the parameters the selected calculations take.
+
+        Notes:
+            - Asked, not listed. A calculation says what it takes -- the catalogue reads it off
+              what the result records -- so a detection threshold is not offered beside a beam
+              pattern, and a parameter added to a calculation appears here on its own.
+        """
         selected_keys = [self.ui.calcList.item(i).data(Qt.UserRole + 1)
                          for i in range(self.ui.calcList.count())
                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
@@ -270,7 +332,43 @@ class CalculationDialog(QDialog):
         # comparing a title against the one calculation that happens not to be sampled.
         sampled = all(CalculatedDataStructure.uses_time_step(key) for key in selected_keys if key)
         self.ui.timeStepSpin.setEnabled(bool(selected_keys) and sampled)
-        logger.debug("Updated params UI, timeStepSpin enabled: %s", sampled)
+
+        wanted = self._wanted_parameters(selected_keys)
+        for parameter, widgets in self.PARAMETER_WIDGETS.items():
+            for name in widgets:
+                getattr(self.ui, name).setEnabled(parameter in wanted)
+        logger.debug("Updated params UI, timeStepSpin enabled: %s, parameters offered: %s",
+                     sampled, sorted(wanted))
+
+    def _wanted_parameters(self, keys) -> set:
+        """What the selected calculations take between them."""
+        wanted = set()
+        for key in keys:
+            wanted |= self._parameters.get(key, set())
+        return wanted
+
+    def _asked_parameters(self, keys) -> dict:
+        """Read the parameters the selected calculations take off the boxes that stand for them.
+
+        Notes:
+            - What is not asked for is not sent: no opacity means the calculation applies none
+              and says so, which is not the same as an opacity of zero.
+        """
+        wanted = self._wanted_parameters(keys)
+        asked = {}
+        if "threshold" in wanted:
+            asked["threshold"] = self.ui.thresholdSpin.value()
+        if "bits" in wanted and self.ui.bitsCombo.currentData() is not None:
+            asked["bits"] = int(self.ui.bitsCombo.currentData())
+        if "fill" in wanted and self.ui.fillCheck.isChecked():
+            asked["fill"] = True
+        if "opacity" in wanted and self.opacity_model.get_data():
+            asked["opacity"] = [list(row) for row in self.opacity_model.get_data()]
+        if "t_atm" in wanted and self.ui.airTemperatureSpin.value() > 0:
+            asked["t_atm"] = self.ui.airTemperatureSpin.value()
+        if "gain_curve" in wanted and self.gain_curve_model.get_data():
+            asked["gain_curve"] = self.gain_curve_model.get_data()
+        return asked
 
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
@@ -294,6 +392,11 @@ class CalculationDialog(QDialog):
             "time_step": self.ui.timeStepSpin.value(),
             "force": self.ui.recalculateCheck.isChecked()
         }
+        # What the selected calculations take beyond the model: a detection threshold, the
+        # recording, the weather assumed, the gain curves. A step that takes none of them is
+        # handed them all the same and ignores them, as it does the time step.
+        params.update(self._asked_parameters([self._key_for_label(label)
+                                              for label in selected_calcs]))
         calc_params = {calc: params.copy() for calc in selected_calcs}
 
         # The list shows labels and the catalogue speaks keys, so compare on the key the item

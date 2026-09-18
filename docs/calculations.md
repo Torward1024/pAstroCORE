@@ -200,6 +200,26 @@ unresolved — the correlated flux is the whole flux — and the result says so.
 be worked out is guessed: a station with no SEFD, a source with no flux at that frequency, two
 stations that never see it together, all leave the value empty and name the reason.
 
+**What each takes is asked, not listed.** A parameter that changes an answer is recorded with
+it — otherwise freshness could not tell one answer from another — so the catalogue reads a
+calculation's parameters off what its result records, and the calculation dialog offers a
+detection threshold beside baseline sensitivity and not beside a beam pattern:
+
+```python
+entries = {entry["key"]: entry for entry in manipulator.inspect(obj=None, method="catalogue")}
+
+assert {"threshold", "bits", "opacity", "t_atm", "gain_curve"} <= set(
+    entries["baseline_sensitivity"]["parameters"])
+assert entries["sefd"]["parameters"] == ["fill"]
+assert entries["beam_pattern"]["parameters"] == []
+
+# The recordings on offer are the calculator's, with what each keeps of the signal.
+assert [row["bits"] for row in manipulator.inspect(obj=None, method="recording")] == [1, 2]
+```
+
+A run that refuses a step says why in its report — an opacity with no air temperature is named
+there, not only in the log.
+
 Each of the three draws itself. `sefd` is a bar per station and band, on a log scale, with what
 was computed hatched and what was measured plain; `sefd_track` is a line per scan with the zenith
 behind it, so what the elevation costs is the distance between the two; `baseline_sensitivity` is

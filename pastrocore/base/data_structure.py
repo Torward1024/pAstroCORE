@@ -3,6 +3,13 @@ from typing import Dict, List, Type, Optional
 import numpy as np
 import polars as pl
 
+#: What a calculation can be given beyond the model: the same answer from other parameters is
+#: another answer, so each is recorded with the result. `freshness` fingerprints these, and a
+#: dialog asks a calculation which of them it takes rather than keeping a list of its own.
+PARAMETERS = ("time_step", "target_telescope", "units", "threshold", "bits",
+              "recording_efficiency", "opacity", "t_atm", "gain_curve")
+
+
 class CalculatedDataStructure:
     """Schema definition for calculated data Polars DataFrames."""
     SCHEMAS = {
@@ -317,6 +324,9 @@ class CalculatedDataStructure:
             # band and on nothing else.
             "label": "SEFD",
             "depends_on": ("telescopes", "frequencies"),
+            # Told to do rather than computed with: it writes what it worked out into the
+            # station's own table, and the result is the same either way.
+            "asks": ("fill",),
             "columns": ["telescope_code", "if_name", "frequency", "bandwidth", "sefd", "origin",
                         "tsys", "effective_area", "efficiency", "basis", "reason", "filled"],
             "metadata": {
@@ -506,6 +516,29 @@ class CalculatedDataStructure:
               comparison against its title.
         """
         return "time_step" in (cls.entry_for(key).get("metadata") or {})
+
+    @classmethod
+    def parameters_of(cls, key: str) -> tuple:
+        """Return what a calculation can be asked for beyond the model itself.
+
+        Args:
+            key (str): The result's store key or its handler's name.
+
+        Returns:
+            tuple: Parameter names, in the order they are declared.
+
+        Notes:
+            - **Read from what the result records.** A parameter that changes the answer has to
+              be recorded with it -- otherwise freshness could not tell one answer from another
+              -- so the metadata already names them, and a dialog asking what to offer needs no
+              list of its own.
+            - `asks` is the other kind: what a calculation is told to *do* rather than what it
+              computes with. `fill` writes an SEFD into the station it was worked out for, and
+              nothing about the result differs, so nothing records it.
+        """
+        entry = cls.entry_for(key)
+        recorded = tuple(name for name in PARAMETERS if name in (entry.get("metadata") or {}))
+        return recorded + tuple(entry.get("asks", ()))
 
     @classmethod
     def store_key_for(cls, key: str) -> str:

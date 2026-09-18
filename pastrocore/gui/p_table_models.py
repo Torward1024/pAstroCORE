@@ -146,6 +146,117 @@ class FrequencyTableModel(QAbstractTableModel):
         return [tuple(row) for row in self._data]
 
 
+class GainCurveTableModel(QAbstractTableModel):
+    """A grid of gain curves: whose dish, over which frequencies, and the polynomial (E1).
+
+    Args:
+        data (list): Rows of `[code, from MHz, to MHz, [c0, c1, ...]]`.
+
+    Notes:
+        - **A gain curve is not a station's table.** It is an assumption of a calculation, like
+          the weather, so it is typed where the calculation is asked for and goes with the
+          request rather than into the model.
+        - The coefficients are a polynomial in elevation, in degrees, and only their *shape*
+          matters: the calculation takes `g(90) / g(el)`, so a curve normalised at 50 degrees
+          and the same curve doubled give one answer.
+    """
+
+    HEADINGS = ("Telescope", "From (MHz)", "To (MHz)", "Polynomial in elevation")
+
+    def __init__(self, data=None):
+        super().__init__()
+        self._data = data if data else []
+
+    def rowCount(self, parent=QModelIndex()):
+        return len(self._data)
+
+    def columnCount(self, parent=QModelIndex()):
+        return 4
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+        if role not in (Qt.DisplayRole, Qt.EditRole):
+            return None
+        value = self._data[index.row()][index.column()]
+        if index.column() == 3:
+            return ", ".join(f"{coefficient:g}" for coefficient in value)
+        return str(value)
+
+    def setData(self, index, value, role=Qt.EditRole):
+        """Take a station, a range or a polynomial, or refuse the edit."""
+        if role != Qt.EditRole:
+            return False
+        row = self._data[index.row()]
+        column = index.column()
+
+        if column == 0:
+            code = str(value).strip()
+            if not code:
+                return False
+            row[0] = code
+        elif column == 3:
+            # Whatever separates them: a curve is copied out of a gain file or a paper, and
+            # refusing it over a comma would be refusing it over nothing.
+            try:
+                coefficients = [float(part) for part in str(value).replace(",", " ").split()]
+            except (TypeError, ValueError):
+                return False
+            if not coefficients:
+                return False
+            row[3] = coefficients
+        else:
+            try:
+                typed = float(value)
+            except (TypeError, ValueError):
+                return False
+            if typed <= 0:
+                return False
+            if column == 1 and typed > row[2]:
+                return False
+            if column == 2 and typed < row[1]:
+                return False
+            row[column] = typed
+
+        self.dataChanged.emit(index, index)
+        return True
+
+    def flags(self, index):
+        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+    def headerData(self, section, orientation, role):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.HEADINGS[section]
+        return None
+
+    def add_row(self, code="", frequency_min=1000.0, frequency_max=None, coefficients=None):
+        self.beginInsertRows(QModelIndex(), len(self._data), len(self._data))
+        self._data.append([code, frequency_min,
+                           frequency_min if frequency_max is None else frequency_max,
+                           list(coefficients) if coefficients else [1.0]])
+        self.endInsertRows()
+
+    def remove_row(self, row):
+        self.beginRemoveRows(QModelIndex(), row, row)
+        del self._data[row]
+        self.endRemoveRows()
+
+    def get_data(self):
+        """The curves as a request carries them: `{code: [[from, to, [c0, c1, ...]], ...]}`.
+
+        Notes:
+            - A row whose station is still blank is not a curve for nobody; it is a row somebody
+              is part way through typing, and it is left out.
+        """
+        curves = {}
+        for code, low, high, coefficients in self._data:
+            if not str(code).strip():
+                continue
+            curves.setdefault(str(code).strip(), []).append(
+                [float(low), float(high), [float(value) for value in coefficients]])
+        return curves
+
+
 def model_for(attribute: str, data=None) -> FrequencyTableModel:
     """Return the grid for one of a telescope's tables, by the name it is stored under.
 
