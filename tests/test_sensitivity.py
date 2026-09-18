@@ -158,20 +158,9 @@ def test_a_schedule_that_starts_well_and_goes_wrong_later_is_still_a_result(obse
     calculation came back empty. The fixture's day-long scan starts below the horizon, so its very
     first row carries a reason and nothing ever noticed.
     """
-    from astropy.time import Time
-
     project, observation, core = observed
-    scans = observation.get_scans()
-    first = scans.get_items()[0]
-    source = observation.get_sources().get_items()[0]
-    for existing in list(scans.get_items()):
-        scans.remove(existing.name)
     # The first scan is one the stations can observe throughout; a later one is not.
-    for index in range(9):
-        scans.create_scan(name=f"scan_{index:02d}",
-                          start=Time(first.get_start().mjd + 0.6 + index * 0.045, format="mjd"),
-                          duration=600.0, source=source, telescopes=list(first.telescopes),
-                          frequencies=list(first.frequencies))
+    a_schedule_of(observation)
     run(core, observation, "sefd_track", time_step=300.0)
 
     followed = frame(observation, "sefd_track").sort(["time", "telescope_code"])
@@ -435,6 +424,81 @@ def test_the_track_plot_draws_the_sefds_it_followed_and_the_zenith_behind_them(o
     assert sorted(followed["sefd"].to_list()) == pytest.approx(drawn, rel=1e-12)
     assert sum(1 for line in axes.get_lines() if line.get_linestyle() == "--") == stations, \
         "the zenith goes behind each station"
+
+
+def a_schedule_of(observation, count=9):
+    """Replace the fixture's day-long scan with a run of short ones through the night.
+
+    Notes:
+        - One scan is one cell of a grid and one point of a track, which is not enough to say
+          anything about either. The stations lose the source part-way through, which is the
+          other half of what these plots are for.
+    """
+    from astropy.time import Time
+
+    scans = observation.get_scans()
+    first = scans.get_items()[0]
+    source = observation.get_sources().get_items()[0]
+    for existing in list(scans.get_items()):
+        scans.remove(existing.name)
+    for index in range(count):
+        scans.create_scan(name=f"scan_{index:02d}",
+                          start=Time(first.get_start().mjd + 0.6 + index * 0.045, format="mjd"),
+                          duration=600.0, source=source, telescopes=list(first.telescopes),
+                          frequencies=list(first.frequencies))
+
+
+def rendered(figure):
+    """Draw the figure for real, so what is measured is what a reader would see."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    FigureCanvasAgg(figure)
+    figure.canvas.draw()
+    return figure.canvas.get_renderer()
+
+
+@pytest.mark.parametrize("plot_type", ["sefd", "sefd_track"])
+def test_the_legend_sits_beside_the_plot_and_not_on_top_of_it(observed, plot_type):
+    """"from parameters" was written across the bars: the margin was a fixed fraction of the
+    figure and the legend is as wide as its longest label."""
+    project, observation, core = observed
+    run(core, observation, plot_type)
+
+    figure = draw(core, observation, plot_type)
+    renderer = rendered(figure)
+    legend = figure.legends[0]
+
+    assert legend.get_window_extent(renderer).x0 >= figure.get_axes()[0].get_window_extent(renderer).x1
+
+
+def test_the_colour_bar_counts_sigmas_in_plain_numbers_and_red_is_the_poor_end(observed):
+    project, observation, core = observed
+    # Several scans at different elevations, so the bar has a range to label -- and a narrow one,
+    # which is where a logarithmic bar puts its ticks outside what is drawn.
+    a_schedule_of(observation)
+    run(core, observation, "baseline_sensitivity", time_step=300.0,
+        opacity=[[900.0, 1100.0, 0.06]], t_atm=270.0)
+
+    figure = draw(core, observation, "baseline_sensitivity")
+    rendered(figure)
+    grid, bar = figure.get_axes()
+    colours = grid.collections[0].cmap
+
+    assert "sigma" in bar.get_ylabel(), "a signal-to-noise of five is five of something"
+    labels = [text.get_text() for text in bar.get_yticklabels() if text.get_text()]
+    assert labels, "the bar has to be readable at all"
+    # A unicode minus is still a number; "2 x 10^0" is not, and that is what a logarithmic bar
+    # writes for a signal-to-noise of two.
+    numbers = [float(label.replace("\N{MINUS SIGN}", "-")) for label in labels]
+    low, high = grid.collections[0].get_clim()
+    inside = [number for number in numbers if low <= number <= high]
+    assert len(inside) >= 3, (
+        f"the bar is coloured over {low:.2f}-{high:.2f} and labelled {numbers}: a logarithmic "
+        f"bar over a range this narrow puts its ticks at 0.1, 1, 10 and 100")
+
+    poorest, best = colours(0.0), colours(1.0)
+    assert poorest[0] > poorest[2], "the lowest signal-to-noise is red"
+    assert best[2] > best[0], "and the highest is not"
 
 
 def test_the_sensitivity_grid_marks_every_baseline_that_misses_the_threshold(observed):

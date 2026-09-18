@@ -7,7 +7,7 @@ from pastrocore.base.sources import Source, Sources
 from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.frequencies import IF, Frequencies
 from msb_arch.utils.logging_setup import logger
-from typing import Dict, Any, Callable, Union, List
+from typing import Dict, Any, Callable, Optional, Union, List
 
 import threading
 import os
@@ -315,6 +315,24 @@ class ScheduleVisualizer(Super):
         return [scan.name for scan in obj.get_scans().get_items()
                 if scan.source is not None and scan.source.name in wanted]
 
+
+    def _legend_beside(self, fig: Figure, handles: List[Any], title: str,
+                       labels: Optional[List[str]] = None):
+        """Put a legend to the right of the plot, with the plot given the rest of the width.
+
+        Notes:
+            - **The room it needs is reserved rather than guessed.** A legend anchored to the
+              figure's edge extends leftwards as far as its longest label, so a plot whose margin
+              was set to a fixed fraction had "from parameters" written across its bars. A
+              constrained layout measures the legend and leaves the axes what is left.
+            - The layout engine stays on the figure, which is why `_visualize` clears it before
+              drawing into a borrowed one.
+        """
+        fig.set_layout_engine("constrained")
+        named = {"labels": labels} if labels is not None else {}
+        return fig.legend(handles=handles, loc="outside right upper", title=title, **named,
+                          fontsize=self._style_config["legend"]["fontsize"],
+                          title_fontsize=self._style_config["legend"]["title_fontsize"])
 
     @staticmethod
     def _clock(mjd: float) -> str:
@@ -2250,7 +2268,6 @@ class ScheduleVisualizer(Super):
             ax.set_yscale("log")
             ax.set_xticks(np.arange(len(stations)))
             ax.set_xticklabels(stations, fontsize=self._style_config["font"]["tick_size"])
-            fig.subplots_adjust(left=0.10, bottom=0.12, right=0.85, top=0.88)
 
             handles = [Patch(facecolor=self._style_config["colors"][index % len(self._style_config["colors"])],
                              edgecolor="black", label=spelled.get(band, band))
@@ -2258,10 +2275,7 @@ class ScheduleVisualizer(Super):
             if result["computed"]:
                 handles.append(Patch(facecolor="white", edgecolor="black", hatch="//",
                                      label="from parameters"))
-            fig.legend(handles=handles, loc=self._style_config["legend"]["loc"],
-                       bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
-                       fontsize=self._style_config["legend"]["fontsize"], title="Bands:",
-                       title_fontsize=self._style_config["legend"]["title_fontsize"])
+            self._legend_beside(fig, handles, "Bands:")
             logger.debug("SEFD plot completed: %s", result)
             return result
 
@@ -2344,13 +2358,8 @@ class ScheduleVisualizer(Super):
                             handles.append(drawn)
                             names.append(label)
 
-            fig.subplots_adjust(left=0.10, bottom=0.12, right=0.85, top=0.88)
             if handles:
-                fig.legend(handles=handles, labels=names,
-                           loc=self._style_config["legend"]["loc"],
-                           bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
-                           fontsize=self._style_config["legend"]["fontsize"], title="Telescopes:",
-                           title_fontsize=self._style_config["legend"]["title_fontsize"])
+                self._legend_beside(fig, handles, "Telescopes:", labels=names)
             logger.debug("SEFD track plot completed: %s", result)
             return result
 
@@ -2427,14 +2436,16 @@ class ScheduleVisualizer(Super):
             ax.grid(False)
 
             reached = grid[np.isfinite(grid) & (grid > 0)]
-            # One value, or one value repeated, has no range to spread colours over, and a
-            # logarithmic norm asked for one raises rather than drawing.
+            # **Logarithmic only when it spans more than a decade.** One value, or one repeated,
+            # has no range to spread colours over and a logarithmic norm asked for one raises;
+            # over a narrow range it labels a signal-to-noise of two as "2 x 10^0".
             norm = None
-            if reached.size and reached.min() < reached.max():
+            if reached.size and reached.max() >= 10.0 * reached.min():
                 norm = LogNorm(vmin=float(reached.min()), vmax=float(reached.max()))
+            # Red is the poor end: a baseline that hears nothing is what a reader looks for.
             mesh = ax.pcolormesh(np.arange(len(scans) + 1), np.arange(len(baselines) + 1),
-                                 np.ma.masked_invalid(grid),
-                                 cmap=self._style_config["colormaps"]["redpurple"], norm=norm)
+                                 np.ma.masked_invalid(grid), norm=norm,
+                                 cmap=self._style_config["colormaps"]["redpurple"].reversed())
             if missed:
                 ax.scatter([x for x, _ in missed], [y for _, y in missed], marker="x", color="black",
                            s=self._style_config["markers"]["default_size"], linewidths=1.2)
@@ -2450,11 +2461,21 @@ class ScheduleVisualizer(Super):
             ax.set_xticks(np.arange(len(scans))[::step] + 0.5)
             ax.set_xticklabels(clock[::step], rotation=90,
                                fontsize=self._style_config["font"]["tick_size"])
-            fig.subplots_adjust(left=0.15, bottom=0.20, right=0.88, top=0.88)
+            fig.set_layout_engine("constrained")
 
             bar = fig.colorbar(mesh, ax=ax)
-            bar.set_label("Signal-to-noise", fontsize=self._style_config["font"]["label_size"])
-            if norm is not None and norm.vmin <= threshold <= norm.vmax:
+            # **Sigmas**: the signal-to-noise a baseline reaches is the flux over the noise, which
+            # is what a threshold of five is five of.
+            bar.set_label("Signal-to-noise, (sigma)",
+                          fontsize=self._style_config["font"]["label_size"])
+            # Plain numbers on the bar, whichever norm it carries: a logarithmic one writes
+            # "2 x 10^0" where a reader wants 2.
+            plain = matplotlib.ticker.ScalarFormatter(useOffset=False)
+            plain.set_scientific(False)
+            bar.ax.yaxis.set_major_formatter(plain)
+            bar.ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+            low, high = mesh.get_clim()
+            if low <= threshold <= high:
                 bar.ax.axhline(threshold, color="black", linewidth=1.5)
             logger.debug("Baseline sensitivity plot completed: %s", result)
             return result
