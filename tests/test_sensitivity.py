@@ -7,6 +7,7 @@ baseline sensitivity of identical antennas, `SEFD / (eta_s sqrt(2 dnu tau))`, wi
 """
 import copy
 import json
+import pathlib
 
 import numpy as np
 import polars as pl
@@ -326,6 +327,83 @@ def test_a_filled_row_that_would_overlap_a_measured_one_is_not_written_and_says_
     assert station.sefd_table == [(1010.0, 1100.0, 400.0)]
 
 
+# --- what it draws ------------------------------------------------------------------------------------
+
+def draw(core, observation, plot_type, **attributes):
+    """Draw one plot and hand back its figure, as the visualization tab does."""
+    response = core.visualize(obj=observation, plot_type=plot_type, return_figure=True,
+                              show=False, raise_on_error=False, **attributes)
+    assert response.ok, response.error
+    figure = (response.value or {}).get("figure")
+    assert figure is not None, f"'{plot_type}' drew nothing at all"
+    return figure
+
+
+def test_the_sefd_plot_says_which_sefd_was_measured_and_which_was_worked_out(observed):
+    project, observation, core = observed
+    measured, computed = observation.get_telescopes().get_items()
+    measured.set({"sefd_table": [(990.0, 1010.0, 999.0)]})
+    run(core, observation, "sefd")
+
+    figure = draw(core, observation, "sefd")
+    axes = figure.get_axes()[0]
+    bars = {round(bar.get_height(), 6): bar.get_hatch() for bar in axes.patches}
+    worked_out = frame(observation, "sefd").filter(
+        pl.col("telescope_code") == computed.get_code())["sefd"][0]
+
+    assert axes.get_yscale() == "log", "a 25-metre dish beside a 100-metre one needs it"
+    assert len(axes.patches) == 2
+    assert bars[999.0] is None, "a measurement is drawn plainly"
+    assert bars[round(worked_out, 6)] == "//", "and what was computed is hatched"
+
+
+def test_a_station_with_no_sefd_gets_no_bar_but_is_named(observed):
+    project, observation, core = observed
+    station = observation.get_telescopes().get_items()[0]
+    station.set({"system_temperature_table": []})
+    run(core, observation, "sefd")
+
+    figure = draw(core, observation, "sefd")
+    axes = figure.get_axes()[0]
+
+    assert len(axes.patches) == 1, "a bar of zero would read as an infinitely sensitive station"
+    assert [text.get_text() for text in axes.texts] == ["no SEFD"]
+
+
+def test_the_track_plot_draws_the_sefds_it_followed_and_the_zenith_behind_them(observed):
+    project, observation, core = observed
+    run(core, observation, "sefd_track", opacity=[[900.0, 1100.0, 0.08]], t_atm=270.0)
+
+    figure = draw(core, observation, "sefd_track")
+    axes = figure.get_axes()[0]
+    followed = frame(observation, "sefd_track").filter(pl.col("sefd").is_not_null())
+    stations = followed["telescope_code"].unique().len()
+    drawn = sorted(value for line in axes.get_lines() for value in line.get_ydata()
+                   if line.get_linestyle() != "--")
+
+    assert sorted(followed["sefd"].to_list()) == pytest.approx(drawn, rel=1e-12)
+    assert sum(1 for line in axes.get_lines() if line.get_linestyle() == "--") == stations, \
+        "the zenith goes behind each station"
+
+
+def test_the_sensitivity_grid_marks_every_baseline_that_misses_the_threshold(observed):
+    project, observation, core = observed
+    run(core, observation, "baseline_sensitivity")
+    reached = frame(observation, "baseline_sensitivity").filter(pl.col("if_name") == "all")["snr"][0]
+
+    figure = draw(core, observation, "baseline_sensitivity")
+    grid = figure.get_axes()[0].collections[0].get_array()
+    marks = [collection for collection in figure.get_axes()[0].collections[1:]]
+
+    assert grid.compressed().tolist() == pytest.approx([reached], rel=1e-12)
+    assert not marks, "it is detected, so nothing is crossed out"
+
+    run(core, observation, "baseline_sensitivity", threshold=reached * 2.0)
+    crossed = draw(core, observation, "baseline_sensitivity").get_axes()[0].collections[1]
+
+    assert len(crossed.get_offsets()) == 1, "and now it is not"
+
+
 # --- living with the rest ---------------------------------------------------------------------------
 
 def test_a_new_flux_makes_the_sensitivity_stale_and_leaves_the_sefd_alone(observed):
@@ -340,6 +418,28 @@ def test_a_new_flux_makes_the_sensitivity_stale_and_leaves_the_sefd_alone(observ
 
     assert freshness.is_stale(observation, "baseline_sensitivity") is True
     assert freshness.is_stale(observation, "sefd") is False
+
+
+def test_the_new_results_export_like_any_other(observed, tmp_path):
+    """Nothing lists what can be exported: the dialog asks the catalogue and the columns come
+    from the schema, so a calculation that exists is one that can be written out."""
+    project, observation, core = observed
+    run(core, observation, "baseline_sensitivity")
+
+    labels = {entry["key"]: entry["label"] for entry in core.inspect(obj=None, method="catalogue")}
+    response = core.export(obj=observation, export_data=True, export_vis=False,
+                           export_path=str(tmp_path), raise_on_error=False,
+                           calc_types=[labels[key] for key in
+                                       ("sefd", "sefd_track", "baseline_sensitivity")])
+
+    assert response.ok, response.error
+    written = {pathlib.Path(path).stem.split("_")[-1]: pathlib.Path(path)
+               for path in response.value["written"]}
+    assert len(response.value["written"]) == 3, sorted(written)
+
+    detection = next(path for path in written.values() if "sensitivity" in path.name.lower())
+    header = detection.read_text(encoding="utf-8").splitlines()[0]
+    assert "snr" in header and "scan_duration" in header and "min_duration" in header
 
 
 def test_detection_can_be_asked_of_the_analyzer_like_any_other_result(observed):

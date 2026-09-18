@@ -28,6 +28,9 @@ TABS = {
     "p_tab_vis_beam_pattern": None,
     "p_tab_vis_mollweide": None,
     "p_tab_vis_parallactic": None,
+    "p_tab_vis_sefd": None,
+    "p_tab_vis_sefd_track": None,
+    "p_tab_vis_sensitivity": None,
     "p_tab_vis_time_on_source": None,
 }
 def tab_class(module_name):
