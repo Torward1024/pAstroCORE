@@ -1,3 +1,4 @@
+from msb_arch import InvariantError
 from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
@@ -272,7 +273,7 @@ class ScheduleCalculator(Super):
         return len(entries)
 
     def _warm_topocentric(self, observation: Observation, scans: List[Scan], times_df: pl.DataFrame,
-                          position_df: pl.DataFrame) -> int:
+                          position_df: pl.DataFrame, frame: Optional[str] = None) -> int:
         """Transform every scan's samples for every ground station at once, before they are asked.
 
         Args:
@@ -280,6 +281,8 @@ class ScheduleCalculator(Super):
             scans (List[Scan]): The scans a step is about to process one at a time.
             times_df (pl.DataFrame): The time grid, as the step reads it.
             position_df (pl.DataFrame): The stations' GCRS positions, as the step reads them.
+            frame (Optional[str]): The one frame every station is wanted in -- the elevation
+                of an equatorial mount is asked too -- or None for each mount's own.
 
         Returns:
             int: How many station-scan views were transformed.
@@ -308,18 +311,18 @@ class ScheduleCalculator(Super):
                 if not tel.isactive or isinstance(tel, SpaceTelescope):
                     continue
                 mount = tel.get("mount_type").value
-                frame = "altaz" if mount == "AZIM" else "hadec" if mount == "EQUA" else None
+                wanted = frame or ("altaz" if mount == "AZIM" else "hadec" if mount == "EQUA" else None)
                 positions = scan_positions.filter(pl.col("telescope_code") == tel.get_code()).select(["x", "y", "z"]).to_numpy()
-                if frame is None or len(positions) != len(times_mjd):
+                if wanted is None or len(positions) != len(times_mjd):
                     continue
-                key, positions, times = self._topocentric_key(source, positions, times_mjd, frame)
+                key, positions, times = self._topocentric_key(source, positions, times_mjd, wanted)
                 with self._topocentric_lock:
                     if key in self._topocentric_cache:
                         continue
-                chunks[frame].append((key, source, positions, times))
+                chunks[wanted].append((key, source, positions, times))
 
         warmed = 0
-        for frame, entries in chunks.items():
+        for chunk_frame, entries in chunks.items():
             if not entries:
                 continue
             lengths = [len(times) for _, _, _, times in entries]
@@ -327,7 +330,7 @@ class ScheduleCalculator(Super):
             dec = np.concatenate([np.full(n, float(source.dec_degrees)) for (_, source, _, _), n in zip(entries, lengths)])
             positions = np.concatenate([positions for _, _, positions, _ in entries])
             times = np.concatenate([times for _, _, _, times in entries])
-            everything = self._transform_topocentric(ra, dec, positions, times, frame)
+            everything = self._transform_topocentric(ra, dec, positions, times, chunk_frame)
             offset = 0
             for (key, _, _, _), n in zip(entries, lengths):
                 self._hold_topocentric(key, tuple(np.array(values[offset:offset + n]) for values in everything))
@@ -2945,6 +2948,658 @@ class ScheduleCalculator(Super):
             np.concatenate(durations_list)
         )
     
+    #: What the recording keeps of the signal, by bits per sample: the correlation lost to quantising
+    #: it. Two-level is 2/pi; four-level with the optimal threshold, 0.8825 (Thompson, Moran &
+    #: Swenson, table 8.1).
+    RECORDING_EFFICIENCY = {1: 2.0 / np.pi, 2: 0.8825}
+
+    @time_execution
+    def _calculate_sefd(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
+        """Work out each station's SEFD in each band of the observation, and say where it came from (E1).
+
+        Args:
+            obj: The observation or project.
+            attributes: `fill` -- write an SEFD computed from a station's parameters into its SEFD
+                table, as a row covering the band; `store_key`; `recalculate`.
+
+        Returns:
+            pl.DataFrame: One row per station and band: `sefd` in Jy, its `origin` -- `table`,
+                `parameters` or `none` -- the parts it was computed from, the `basis`, the `reason`
+                there is none, and whether it was `filled` into the table.
+
+        Notes:
+            - The physics is the telescope's own (`Telescope.get_sefd_estimate`): the table first,
+              then `2 k Tsys / A_eff` from rows covering the band's frequency.
+            - **Filling writes only what was computed, and only where nothing was measured.** The
+              row covers the band -- from its frequency up by its bandwidth -- and a row that would
+              overlap one already in the table is not written; the reason says so. What was
+              measured is never replaced.
+        """
+        try:
+            store_key = attributes.get("store_key", "sefd")
+            fill = bool(attributes.get("fill", False))
+            if fill:
+                # Filling is something to do, not something to look up: a stored answer would
+                # skip it.
+                attributes = {**attributes, "recalculate": True}
+
+            def calculate_sefd(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
+                telescopes = obs.get_telescopes().get_active_items()
+                bands = obs.get_frequencies().get_active_items()
+                rows = []
+                for telescope in telescopes:
+                    for band in bands:
+                        estimate = telescope.get_sefd_estimate(float(band.frequency))
+                        filled, reason = False, estimate["reason"]
+                        if fill and estimate["origin"] == "parameters":
+                            low = float(band.frequency)
+                            high = low + float(band.bandwidth)
+                            try:
+                                telescope.add_sefd(low, high, estimate["sefd"])
+                                filled = True
+                            except (InvariantError, ValueError) as e:
+                                reason = f"not written to the SEFD table: {e}"
+                        rows.append({
+                            "telescope_code": telescope.get_code(), "if_name": band.name,
+                            "frequency": float(band.frequency), "bandwidth": float(band.bandwidth),
+                            "sefd": estimate["sefd"], "origin": estimate["origin"],
+                            "tsys": estimate["tsys"], "effective_area": estimate["effective_area"],
+                            "efficiency": estimate["efficiency"], "basis": estimate["basis"],
+                            "reason": reason, "filled": filled})
+                if not rows:
+                    logger.warning("No active stations or bands in '%s'", obs.get_observation_code())
+                return pl.DataFrame(rows, schema=CalculatedDataStructure.get_dtypes("sefd"))
+
+            metadata = {"filled": 0}
+            df = self._process_object(obj, attributes, calculate_sefd, store_key, metadata)
+            if not df.is_empty():
+                metadata["filled"] = int(df["filled"].sum())
+                self._store_result(obj, store_key, df, metadata)
+            return df
+        except Exception as e:
+            logger.error("Failed to work out SEFDs for '%s': %s",
+                         obj.get_observation_code() if isinstance(obj, Observation) else obj.name,
+                         str(e), exc_info=True)
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sefd"))
+
+    #: What a station's SEFD along a scan takes for granted, recorded with the result.
+    TRACK_ASSUMPTION = ("the SEFD a station has is the one at zenith, through the atmosphere there; "
+                        "the atmosphere is flat, airmass 1/sin(elevation)")
+
+    @time_execution
+    def _calculate_sefd_track(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
+        """Work out each station's SEFD at every sample of every scan, from where the source stands (E1).
+
+        Args:
+            obj: The observation or project.
+            attributes: `opacity`, rows `[f_min, f_max, tau0]` of the zenith opacity assumed at
+                every station, in MHz; `t_atm`, the temperature of the atmosphere in kelvin, which
+                an opacity needs; `gain_curve`, by station code, rows
+                `[f_min, f_max, [c0, c1, ...]]` of a polynomial in elevation, in degrees;
+                `time_step`; `store_key`; `recalculate`.
+
+        Returns:
+            pl.DataFrame: One row per sample, station and band: the `elevation` and the `airmass`,
+                the `opacity` and the `attenuation` over the zenith's it gives, the system
+                temperature `tsys`, the `gain` over the zenith's, the `sefd_zenith` and the `sefd`
+                there, the `basis` saying what was applied, and the `reason` where there is no SEFD.
+
+        Notes:
+            - **On the time grid** -- every sample `times` holds, whether the station sees the
+              source then or not. What the SEFD would be is worth drawing; when the source is seen
+              is `time_on_source`'s to say.
+            - **The zenith SEFD is the one seen at zenith, through the atmosphere there**: the
+              `sefd` result. Away from the zenith
+              `SEFD = SEFD_zenith e^(tau0 (A - 1)) Tsys / Tsys_zenith g(90) / g(el)` -- the source
+              dimmed through more air, the system warmed by what more air emits,
+              `Tsys = Tsys_zenith + T_atm (e^-tau0 - e^(-tau0 A))`, and the dish's gain there. The
+              airmass is a flat atmosphere's, `A = 1 / sin(el)`.
+            - **Nothing of this is written to a station.** The weather is the day's rather than the
+              dish's, so the opacity is a parameter and the same at every station; a gain curve is
+              given by the station's code.
+            - **A gain curve is taken as the ratio `g(90) / g(el)`**, so how it was normalised does
+              not matter: one peaking at 1 at 50 degrees and the same curve doubled give one answer.
+            - What is not given is not applied, and `basis` says so. With no system temperature at
+              zenith the atmosphere's emission cannot be added, and `basis` says that too.
+            - No SEFD below the horizon. In space there is no atmosphere and no elevation, and the
+              SEFD is the zenith's.
+        """
+        try:
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "sefd_track")
+            opacity, t_atm, gain_curve = self._elevation_parameters(attributes)
+            # The weather and the curves are not the model's, so freshness cannot see them change;
+            # a stored answer for other ones is another answer.
+            if self._parameters_differ(obj, store_key, {"opacity": opacity, "t_atm": t_atm,
+                                                        "gain_curve": gain_curve}):
+                attributes = {**attributes, "recalculate": True}
+
+            sefd_attrs = {"store_key": "sefd", "recalculate": False}
+            time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+            position_attrs = {"time_step": time_step, "store_key": "telescope_positions",
+                              "recalculate": False}
+            dtypes = CalculatedDataStructure.get_dtypes("sefd_track")
+
+            def calculate_sefd_track(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
+                scans, _, _ = self._get_active_components(obs)
+                if not scans:
+                    return pl.DataFrame(schema=dtypes)
+                zenith = {(row["telescope_code"], row["if_name"]): row
+                          for row in self._calculate_sefd(obs, sefd_attrs).iter_rows(named=True)}
+                times_df = self._calculate_time_arrays(obs, time_attrs)
+                position_df = self._calculate_telescope_positions(obs, position_attrs)
+                if times_df.is_empty():
+                    logger.error("Missing times for '%s'", obs.get_observation_code())
+                    return pl.DataFrame(schema=dtypes)
+                by_scan = {}
+                if not position_df.is_empty():
+                    by_scan = position_df.partition_by("scan_name", as_dict=True)
+                    # An equatorial mount's elevation is asked too, which visibility never needs.
+                    self._warm_topocentric(obs, scans, times_df, position_df, frame="altaz")
+
+                columns: Dict[str, list] = {name: [] for name in dtypes}
+                for scan in scans:
+                    source = scan.get_source(obs)
+                    if source is None or not source.isactive:
+                        continue
+                    times_mjd = times_df.filter(pl.col("scan_name") == scan.name)["time"].to_numpy()
+                    n = len(times_mjd)
+                    if n == 0:
+                        continue
+                    bands = [b for b in scan.get_frequencies(obs).get_items() if b.isactive]
+                    for telescope in scan.get_telescopes(obs).get_items():
+                        if not telescope.isactive:
+                            continue
+                        code = telescope.get_code()
+                        elevation = self._elevation_along(telescope, source, by_scan.get((scan.name,)),
+                                                          times_mjd)
+                        for band in bands:
+                            along = self._sefd_along(telescope, band, zenith.get((code, band.name)),
+                                                     elevation, n, opacity, t_atm,
+                                                     gain_curve.get(code, []))
+                            along.update(time=times_mjd,
+                                         scan_name=np.full(n, scan.name, dtype=object),
+                                         source_name=np.full(n, source.name, dtype=object),
+                                         telescope_code=np.full(n, code, dtype=object),
+                                         if_name=np.full(n, band.name, dtype=object),
+                                         frequency=np.full(n, float(band.frequency)))
+                            for name in dtypes:
+                                columns[name].append(along[name])
+
+                if not columns["time"]:
+                    logger.warning("No station and band to follow in '%s'", obs.get_observation_code())
+                    return pl.DataFrame(schema=dtypes)
+                return pl.DataFrame({name: np.concatenate(parts) for name, parts in columns.items()},
+                                    schema=dtypes).fill_nan(None)
+
+            metadata = {"time_step": time_step, "scan_count": self._active_scan_count(obj),
+                        "opacity": opacity, "t_atm": t_atm, "gain_curve": gain_curve,
+                        "assumption": self.TRACK_ASSUMPTION}
+            df = self._process_object(obj, attributes, calculate_sefd_track, store_key, metadata)
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                self._store_result(obj, store_key, df, metadata)
+            return df
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error("Failed to follow SEFDs along the scans of '%s': %s",
+                         obj.get_observation_code() if isinstance(obj, Observation) else obj.name,
+                         str(e), exc_info=True)
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sefd_track"))
+
+    @classmethod
+    def _elevation_parameters(cls, attributes: Dict[str, Any]) -> Tuple[List[list], Optional[float], Dict[str, List[list]]]:
+        """Return the weather and the gain curves a calculation was asked with, checked.
+
+        Returns:
+            Tuple: `opacity` rows `[f_min, f_max, tau0]`, `t_atm` in kelvin or None, and
+                `gain_curve` rows `[f_min, f_max, [c0, c1, ...]]` by station code -- as plain lists,
+                which is what they read back as from a saved result, so the two compare.
+
+        Raises:
+            ValueError: Saying what is wrong with them.
+        """
+        def an_opacity(value: Any) -> Optional[str]:
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not value >= 0:
+                return f"an opacity of {value!r} is not one: it is a number, zero or more"
+            return None
+
+        def a_polynomial(value: Any) -> Optional[str]:
+            if (not isinstance(value, (list, tuple)) or not value
+                    or any(isinstance(c, bool) or not isinstance(c, (int, float)) for c in value)):
+                return f"{value!r} is not a polynomial's coefficients, [c0, c1, ...]"
+            return None
+
+        opacity = [[low, high, float(tau)] for low, high, tau
+                   in cls._frequency_rows(attributes.get("opacity"), "opacity", an_opacity)]
+        t_atm = attributes.get("t_atm")
+        if t_atm is not None:
+            if isinstance(t_atm, bool) or not isinstance(t_atm, (int, float)) or not t_atm > 0:
+                raise ValueError(f"t_atm of {t_atm!r} is not a temperature: it is in kelvin, above zero")
+            t_atm = float(t_atm)
+        if opacity and t_atm is None:
+            raise ValueError("an opacity needs t_atm, the temperature of the atmosphere in kelvin, "
+                             "for what more air emits")
+
+        curves = attributes.get("gain_curve") or {}
+        if not isinstance(curves, dict):
+            raise ValueError("gain_curve is given by station code: "
+                             "{code: [[f_min, f_max, [c0, c1, ...]]]}")
+        gain_curve = {str(code): [[low, high, [float(c) for c in coefficients]] for low, high, coefficients
+                                  in cls._frequency_rows(rows, f"gain_curve of {code}", a_polynomial)]
+                      for code, rows in sorted(curves.items())}
+        return opacity, t_atm, gain_curve
+
+    @staticmethod
+    def _frequency_rows(rows: Any, name: str, refuse: Callable[[Any], Optional[str]]) -> List[list]:
+        """Return rows of `[f_min, f_max, value]` given as a parameter, checked as a telescope's tables are.
+
+        Raises:
+            ValueError: A row that is not one, a range the wrong way round, rows that overlap, or
+                a value `refuse` gives a reason against.
+        """
+        if rows is None:
+            return []
+        if not isinstance(rows, (list, tuple)):
+            raise ValueError(f"{name} is rows of [f_min, f_max, value], not {rows!r}")
+        checked = []
+        for row in rows:
+            if not isinstance(row, (list, tuple)) or len(row) != 3:
+                raise ValueError(f"{name}: {row!r} is not a row of [f_min, f_max, value]")
+            try:
+                low, high = float(row[0]), float(row[1])
+            except (TypeError, ValueError):
+                raise ValueError(f"{name}: {row!r} does not start with two frequencies") from None
+            if not 0 < low <= high:
+                raise ValueError(f"{name}: a range {low:g}-{high:g} MHz runs from a positive "
+                                 f"frequency up")
+            problem = refuse(row[2])
+            if problem:
+                raise ValueError(f"{name} over {low:g}-{high:g} MHz: {problem}")
+            checked.append([low, high, row[2]])
+        checked.sort(key=lambda row: (row[0], row[1]))
+        for (low, high, _), (next_low, next_high, _) in zip(checked, checked[1:]):
+            if next_low < high:
+                raise ValueError(f"{name}: rows {low:g}-{high:g} and {next_low:g}-{next_high:g} MHz "
+                                 f"overlap, so a frequency between would have two values")
+        return checked
+
+    def _elevation_along(self, telescope: Telescope, source: Source, scan_positions: Optional[pl.DataFrame],
+                         times_mjd: np.ndarray) -> Optional[np.ndarray]:
+        """Return a ground station's elevation of a source at each sample, NaN where it has no position, and None in space."""
+        if isinstance(telescope, SpaceTelescope):
+            return None
+        n = len(times_mjd)
+        elevation = np.full(n, np.nan)
+        if scan_positions is None:
+            return elevation
+        positions = (scan_positions.filter(pl.col("telescope_code") == telescope.get_code())
+                     .select(["x", "y", "z"]).to_numpy())
+        if len(positions) != n:
+            return elevation
+        known = ~np.any(np.isnan(positions), axis=1)
+        if np.any(known):
+            _, altitude, _ = self._topocentric(source, positions, times_mjd, "altaz")
+            elevation[known] = altitude[known]
+        return elevation
+
+    @staticmethod
+    def _sefd_along(telescope: Telescope, band: Any, zenith: Optional[dict], elevation: Optional[np.ndarray],
+                    n: int, opacity: List[list], t_atm: Optional[float], curve: List[list]) -> Dict[str, np.ndarray]:
+        """Return one station's SEFD in one band at each sample of a scan, and what went into it."""
+        frequency = float(band.frequency)
+        code = telescope.get_code()
+        sefd_zenith = zenith["sefd"] if zenith else None
+        tsys_zenith = (zenith or {}).get("tsys") or telescope.get_system_temperature(frequency)
+        nothing = np.full(n, np.nan)
+        answer = {"sefd_zenith": np.full(n, np.nan if sefd_zenith is None else float(sefd_zenith))}
+        reason = np.full(n, None, dtype=object)
+        no_zenith = zenith["reason"] if zenith else f"no SEFD worked out for {code} in {band.name}"
+
+        if elevation is None:
+            if sefd_zenith is None:
+                reason[:] = no_zenith
+            answer.update(elevation=nothing, airmass=nothing, opacity=nothing, attenuation=np.ones(n),
+                          tsys=np.full(n, np.nan if tsys_zenith is None else float(tsys_zenith)),
+                          gain=np.ones(n), sefd=answer["sefd_zenith"].copy(), reason=reason,
+                          basis=np.full(n, "in space: no atmosphere and no elevation", dtype=object))
+            return answer
+
+        parts = []
+        with np.errstate(divide="ignore", invalid="ignore"):
+            above = elevation > 0
+            airmass = np.where(above, 1.0 / np.sin(np.radians(elevation)), np.nan)
+
+            row = Telescope._covering(opacity, frequency)
+            tau = None if row is None else float(row[2])
+            if tau is None:
+                attenuation = np.where(above, 1.0, np.nan)
+                parts.append(f"no opacity covers {frequency:g} MHz" if opacity else "no opacity given")
+            else:
+                attenuation = np.exp(tau * (airmass - 1.0))
+                parts.append(f"opacity {tau:g} over {row[0]:g}-{row[1]:g} MHz")
+
+            if tsys_zenith is None:
+                tsys, warming = nothing, np.where(above, 1.0, np.nan)
+                if tau is not None:
+                    parts.append("its emission not added: no system temperature at zenith")
+            else:
+                added = t_atm * (np.exp(-tau) - np.exp(-tau * airmass)) if tau is not None else 0.0
+                tsys = np.where(above, float(tsys_zenith) + added, np.nan)
+                warming = tsys / float(tsys_zenith)
+
+            row = Telescope._covering(curve, frequency)
+            not_positive = np.zeros(n, dtype=bool)
+            zenith_gain = None
+            if row is None:
+                gain = np.where(above, 1.0, np.nan)
+                parts.append("no gain curve")
+            else:
+                coefficients = [float(c) for c in row[2]]
+                zenith_gain = float(np.polynomial.polynomial.polyval(90.0, coefficients))
+                gain = np.polynomial.polynomial.polyval(elevation, coefficients) / zenith_gain
+                not_positive = (above & ~(gain > 0)) if zenith_gain > 0 else above
+                gain = np.where(above & ~not_positive, gain, np.nan)
+                parts.append(f"gain curve over {row[0]:g}-{row[1]:g} MHz")
+
+            sefd = (np.nan if sefd_zenith is None else float(sefd_zenith)) * attenuation * warming / gain
+
+        # Where there is no SEFD, the first thing that stood in its way.
+        for index in np.flatnonzero(np.isnan(sefd)):
+            if np.isnan(elevation[index]):
+                reason[index] = f"no position for {code} at this sample"
+            elif not above[index]:
+                reason[index] = "below the horizon"
+            elif sefd_zenith is None:
+                reason[index] = no_zenith
+            elif not_positive[index]:
+                where = "the zenith" if zenith_gain <= 0 else f"{elevation[index]:.1f} deg"
+                reason[index] = f"the gain curve is not positive at {where}"
+
+        answer.update(elevation=elevation, airmass=airmass,
+                      opacity=np.where(above, np.nan if tau is None else tau, np.nan),
+                      attenuation=attenuation, tsys=tsys, gain=gain, sefd=sefd, reason=reason,
+                      basis=np.full(n, "; ".join(parts), dtype=object))
+        return answer
+
+    @time_execution
+    def _calculate_baseline_sensitivity(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
+        """Work out each baseline's noise on each scan, the signal-to-noise it reaches, and the shortest scan that would detect the source (E1).
+
+        Args:
+            obj: The observation or project.
+            attributes: `threshold`, the signal-to-noise a detection needs (5); `bits` per sample,
+                1 or 2 (2); `recording_efficiency`, to state the system's efficiency outright rather
+                than from the bits -- the VLBA quotes 0.8 for everything the recording loses;
+                `opacity`, `t_atm` and `gain_curve`, for the SEFDs along the scan, as
+                `sefd_track` takes them; `time_step`; `store_key`; `recalculate`.
+
+        Returns:
+            pl.DataFrame: A row per scan, baseline and band, and a row with `if_name` `all` per scan
+                and baseline for the bands together: `duration` both stations see the source, the
+                stations' SEFDs over it, `noise` in Jy, `flux`, `snr`, `detected`, `min_duration`
+                in seconds, and the `reason` where something could not be worked out.
+
+        Notes:
+            - **The time is the time both stations see the source** -- the overlap of their
+              `time_on_source` blocks, not the scan's length.
+            - **Noise by the radiometer equation, summed over that time**: each piece of it adds
+              `2 dnu P dt eta^2 / (SEFD1 SEFD2)` to `1 / sigma^2`, with the SEFDs of the sample it
+              lies in (`sefd_track`), `eta` what the recording keeps, `dnu` the band's width and
+              `P` its polarizations, whose parallel hands add. With the SEFDs constant this is
+              `sqrt(SEFD1 SEFD2) / (eta sqrt(2 dnu tau P))`.
+            - **Detection** is `snr >= threshold`, and the shortest scan reaching it is
+              `(threshold sigma_1s / S)^2`, with `sigma_1s` the noise in one second at the SEFDs
+              the scan had.
+            - **All bands together** add as signal-to-noise does, `sqrt(sum snr_i^2)`, over the bands
+              with a flux and both SEFDs -- which is what fringe fitting across a recording gets.
+            - **The source is taken as unresolved**: the correlated flux is the total flux. On a
+              baseline that resolves it the flux is lower, and the result says what it assumed.
+            - A value that cannot be worked out -- no SEFD, no flux at that frequency, no time
+              together -- is left empty with the reason, never guessed.
+        """
+        try:
+            store_key = attributes.get("store_key", "baseline_sensitivity")
+            time_step = attributes.get("time_step")
+            threshold = float(attributes.get("threshold", 5.0))
+            bits = int(attributes.get("bits", 2))
+            if bits not in self.RECORDING_EFFICIENCY:
+                raise ValueError(f"{bits} bits per sample: the recording efficiency is known for "
+                                 f"{', '.join(str(b) for b in self.RECORDING_EFFICIENCY)}")
+            if threshold <= 0:
+                raise ValueError(f"a detection threshold of {threshold} sigma is not one")
+            stated = attributes.get("recording_efficiency")
+            efficiency = float(stated) if stated is not None else self.RECORDING_EFFICIENCY[bits]
+            if not 0 < efficiency <= 1:
+                raise ValueError(f"a recording efficiency of {efficiency} is not a fraction")
+            opacity, t_atm, gain_curve = self._elevation_parameters(attributes)
+            asked = {"threshold": threshold, "bits": bits, "recording_efficiency": efficiency,
+                     "opacity": opacity, "t_atm": t_atm, "gain_curve": gain_curve}
+
+            # A result worked out for another threshold, another recording or other weather is
+            # another answer, and a stored one would otherwise be handed back as this one.
+            if self._parameters_differ(obj, store_key, asked):
+                attributes = {**attributes, "recalculate": True}
+
+            track_attrs = {"time_step": time_step, "store_key": "sefd_track", "recalculate": False,
+                           "opacity": opacity, "t_atm": t_atm, "gain_curve": gain_curve}
+            on_source_attrs = {"time_step": time_step, "store_key": "time_on_source",
+                               "recalculate": False}
+
+            def calculate_baseline_sensitivity(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
+                tracks = self._tracks_by_scan(self._calculate_sefd_track(obs, track_attrs))
+                blocks = self._calculate_time_on_source(obs, on_source_attrs)
+                scans, _, _ = self._get_active_components(obs)
+
+                rows = []
+                for scan in scans:
+                    source = scan.get_source(obs)
+                    if source is None or not source.isactive:
+                        continue
+                    stations = [t for t in scan.get_telescopes(obs).get_items() if t.isactive]
+                    bands = [b for b in scan.get_frequencies(obs).get_items() if b.isactive]
+                    seen = self._blocks_by_station(blocks, scan.name)
+                    start = float(scan.get_MJD_starttime())
+                    for i, first in enumerate(stations):
+                        for second in stations[i + 1:]:
+                            codes = (first.get_code(), second.get_code())
+                            together = self._overlap_intervals(seen.get(codes[0], []),
+                                                               seen.get(codes[1], []))
+                            common = {"time": start, "scan_name": scan.name,
+                                      "source_name": source.name, "baseline": "-".join(codes),
+                                      "scan_duration": float(scan.get_duration()),
+                                      "duration": sum(end - begin for begin, end in together) * 86400.0}
+                            per_band = []
+                            for band in bands:
+                                sefds = self._sefd_together(
+                                    together, tracks.get((scan.name, codes[0], band.name)),
+                                    tracks.get((scan.name, codes[1], band.name)), codes)
+                                per_band.append(self._band_sensitivity(common, band, source, sefds,
+                                                                       efficiency, threshold))
+                            rows.extend(per_band)
+                            rows.append(self._all_bands(common, per_band, threshold))
+
+                if not rows:
+                    logger.warning("No baselines to work out sensitivity for in '%s'",
+                                   obs.get_observation_code())
+                return pl.DataFrame(rows, schema=CalculatedDataStructure.get_dtypes("baseline_sensitivity"))
+
+            metadata = {**asked, "time_step": time_step, "scan_count": self._active_scan_count(obj),
+                        "assumption": "unresolved source: the correlated flux is the total flux"}
+            df = self._process_object(obj, attributes, calculate_baseline_sensitivity, store_key, metadata)
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                self._store_result(obj, store_key, df, metadata)
+            return df
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error("Failed to work out baseline sensitivity for '%s': %s",
+                         obj.get_observation_code() if isinstance(obj, Observation) else obj.name,
+                         str(e), exc_info=True)
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_sensitivity"))
+
+    @staticmethod
+    def _parameters_differ(obj: Any, store_key: str, wanted: Dict[str, Any]) -> bool:
+        """Report whether a stored result was worked out with other parameters than these."""
+        holders = obj.get_observations() if isinstance(obj, ScheduleProject) else [obj]
+        for holder in holders:
+            stored = holder.get_calculated_metadata(store_key) if hasattr(holder, "get_calculated_metadata") else None
+            if stored and any(stored.get(name) != value for name, value in wanted.items()):
+                return True
+        return False
+
+    @staticmethod
+    def _blocks_by_station(blocks: pl.DataFrame, scan_name: str) -> Dict[str, List[Tuple[float, float]]]:
+        """Return each station's time-on-source intervals in one scan, as MJD pairs."""
+        seen: Dict[str, List[Tuple[float, float]]] = {}
+        if blocks.is_empty():
+            return seen
+        for row in blocks.filter(pl.col("scan_name") == scan_name).iter_rows(named=True):
+            seen.setdefault(row["telescope_code"], []).append((row["start"], row["end"]))
+        return seen
+
+    @staticmethod
+    def _overlap_intervals(first: List[Tuple[float, float]], second: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+        """Return the intervals two stations see the source at the same time, as MJD pairs."""
+        together = []
+        for start_a, end_a in first:
+            for start_b, end_b in second:
+                start, end = max(start_a, start_b), min(end_a, end_b)
+                if end > start:
+                    together.append((start, end))
+        return sorted(together)
+
+    @staticmethod
+    def _tracks_by_scan(track: pl.DataFrame) -> Dict[Tuple[str, str, str], Dict[str, Any]]:
+        """Return each station's SEFD along each scan in each band, in time order: NaN where there is none."""
+        tracks: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        if track.is_empty():
+            return tracks
+        parts = track.sort("time").partition_by(["scan_name", "telescope_code", "if_name"],
+                                                as_dict=True, maintain_order=True)
+        for key, part in parts.items():
+            tracks[key] = {"time": part["time"].to_numpy(),
+                           "sefd": part["sefd"].cast(pl.Float64).fill_null(np.nan).to_numpy(),
+                           "reason": part["reason"].to_list()}
+        return tracks
+
+    @staticmethod
+    def _sefd_together(together: List[Tuple[float, float]], first: Optional[dict], second: Optional[dict],
+                       codes: Tuple[str, str]) -> Dict[str, Any]:
+        """Return a baseline's SEFDs over the time both stations see the source, weighted as its noise is.
+
+        Returns:
+            Dict[str, Any]: `sefd_1` and `sefd_2`, each station's SEFD averaged over the time
+                together; `sefd`, the baseline's, `sqrt(tau / sum(dt / (SEFD1 SEFD2)))`; and the
+                `reason` there is none.
+
+        Notes:
+            - **`1 / sigma^2` adds up over time**, each piece of the time together bringing
+              `dt / (SEFD1 SEFD2)`. The one SEFD giving the same noise over all of it is the one
+              above; with the SEFDs constant it is `sqrt(SEFD1 SEFD2)`, and the radiometer equation
+              is the whole scan's.
+            - Each piece takes the SEFDs of the sample it lies in: a sample stands for the time
+              from it to the next, as `time_on_source` counts it, and a lone sample for the scan.
+            - A piece shorter than a microsecond is not time but the float noise of an MJD, which
+              resolves no finer -- and it would put a block's end into the next sample, whose SEFD
+              may be one below the horizon.
+        """
+        answer = {"sefd_1": None, "sefd_2": None, "sefd": None, "reason": None}
+        if not together:
+            return answer
+        missing = [code for code, track in zip(codes, (first, second)) if track is None]
+        if missing:
+            answer["reason"] = f"no SEFD along the scan for {', '.join(missing)}"
+            return answer
+
+        times = first["time"]
+        lengths, samples = [], []
+        for start, end in together:
+            cuts = np.concatenate(([start], times[(times > start) & (times < end)], [end]))
+            seconds = np.round(np.diff(cuts) * 86400.0, 6)
+            index = np.clip(np.searchsorted(times, (cuts[:-1] + cuts[1:]) / 2.0, side="right") - 1, 0, None)
+            lengths.append(seconds[seconds > 0])
+            samples.append(index[seconds > 0])
+        seconds, index = np.concatenate(lengths), np.concatenate(samples)
+        if seconds.sum() <= 0:
+            return answer
+
+        sefd_1, sefd_2 = first["sefd"][index], second["sefd"][index]
+        problems: List[str] = []
+        for code, track, values in ((codes[0], first, sefd_1), (codes[1], second, sefd_2)):
+            for k in index[np.isnan(values)]:
+                problem = f"{code}: {track['reason'][k]}"
+                if problem not in problems:
+                    problems.append(problem)
+        if problems:
+            answer["reason"] = "; ".join(problems)
+            return answer
+
+        tau = seconds.sum()
+        answer.update(sefd_1=float((seconds * sefd_1).sum() / tau),
+                      sefd_2=float((seconds * sefd_2).sum() / tau),
+                      sefd=float(np.sqrt(tau / (seconds / (sefd_1 * sefd_2)).sum())))
+        return answer
+
+    @staticmethod
+    def _band_sensitivity(common: Dict[str, Any], band: Any, source: Source, sefds: Dict[str, Any],
+                          efficiency: float, threshold: float) -> Dict[str, Any]:
+        """Return one baseline's row for one band, from its SEFDs over the time together."""
+        frequency = float(band.frequency)
+        row = {**common, "if_name": band.name, "frequency": frequency,
+               "bandwidth": float(band.bandwidth), "sefd_1": sefds["sefd_1"],
+               "sefd_2": sefds["sefd_2"], "noise": None, "flux": None, "flux_basis": None,
+               "snr": None, "detected": None, "min_duration": None, "reason": None, "noise_1s": None}
+        reasons = []
+        if common["duration"] <= 0:
+            reasons.append("the two stations do not see the source together in this scan")
+        elif sefds["reason"]:
+            reasons.append(sefds["reason"])
+
+        flux = source.get_flux_estimate(frequency)
+        row["flux"], row["flux_basis"] = flux["flux"], flux["basis"]
+        if flux["flux"] is None:
+            reasons.append(f"{source.name}: {flux['reason']}")
+
+        if sefds["sefd"] is not None and common["duration"] > 0:
+            polarizations = max(1, len(band.polarizations or []))
+            bandwidth_hz = float(band.bandwidth) * 1e6
+            noise_1s = sefds["sefd"] / (efficiency * np.sqrt(2.0 * bandwidth_hz * polarizations))
+            row["noise_1s"] = float(noise_1s)
+            row["noise"] = float(noise_1s / np.sqrt(common["duration"]))
+            if flux["flux"] is not None:
+                row["min_duration"] = float((threshold * noise_1s / flux["flux"]) ** 2)
+                row["snr"] = float(flux["flux"] / row["noise"])
+                row["detected"] = row["snr"] >= threshold
+
+        row["reason"] = "; ".join(reasons) or None
+        return row
+
+    @staticmethod
+    def _all_bands(common: Dict[str, Any], per_band: List[Dict[str, Any]], threshold: float) -> Dict[str, Any]:
+        """Return one baseline's row for all its bands together: signal-to-noise adds in quadrature."""
+        row = {**common, "if_name": "all", "frequency": None,
+               "bandwidth": float(sum(r["bandwidth"] for r in per_band)) if per_band else None,
+               "sefd_1": None, "sefd_2": None, "noise": None, "flux": None, "flux_basis": None,
+               "snr": None, "detected": None, "min_duration": None, "reason": None, "noise_1s": None}
+        if common["duration"] <= 0:
+            row["reason"] = "the two stations do not see the source together in this scan"
+            return row
+        usable = [r for r in per_band if r["noise_1s"] is not None and r["flux"] is not None]
+        if not usable:
+            row["reason"] = "no band with both SEFDs and a flux"
+            return row
+        per_second = sum((r["flux"] / r["noise_1s"]) ** 2 for r in usable)
+        row["min_duration"] = float(threshold ** 2 / per_second)
+        row["noise"] = float(1.0 / np.sqrt(sum(1.0 / r["noise"] ** 2 for r in usable)))
+        row["snr"] = float(np.sqrt(per_second * common["duration"]))
+        row["detected"] = row["snr"] >= threshold
+        if len(usable) < len(per_band):
+            row["reason"] = f"{len(per_band) - len(usable)} band(s) left out"
+        return row
+
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate each active telescope's beam, once, for every frequency at the same time.
