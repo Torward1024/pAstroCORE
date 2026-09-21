@@ -19,6 +19,7 @@ from pastrocore.utils.catalogmanager import CatalogManager
 # UI files. The dialogs are imported where they are opened rather than here: between them
 # they pull in matplotlib and every visualization tab, which is 570 ms of a start-up that
 # happens whether or not anyone opens a dialog.
+from pastrocore import theme
 from pastrocore.gui.styling import load_stylesheet
 from pastrocore.gui.ui_main_window import Ui_MainWindow
 from pastrocore.gui.p_tab_project import ProjectInfoTab
@@ -93,6 +94,9 @@ class PAstroCoreMainWindow(QMainWindow):
         from pastrocore.gui.p_status_bar import WindowStatusBar
 
         self.status = WindowStatusBar(self.ui.mainStatusBar, self)
+        # The plots are drawn in the window's palette. The sheet itself is already on the
+        # application by now -- `main` puts it there before there is a window to show it.
+        self.apply_theme()
 
     def _offer_abandoned_sessions(self, root=None):
         """Offer back results left by a session that did not close normally.
@@ -140,6 +144,29 @@ class PAstroCoreMainWindow(QMainWindow):
             self.project.set_residency_share(float(self.settings.get("results_memory_share", 0.5)))
         except (TypeError, ValueError) as e:
             logger.error("Ignoring invalid results memory share in settings: %s", str(e))
+
+    def apply_theme(self) -> str:
+        """Put the chosen palette on the window and on the plots (U1).
+
+        Returns:
+            str: The theme now in force -- `light` or `dark`.
+
+        Notes:
+            - **One choice, two places.** The stylesheet and the visualizer's colours are
+              generated from the same tokens, so a window in the dark theme does not hold a
+              white rectangle where a plot is.
+            - A plot already drawn keeps the palette it was drawn in until it is redrawn; a
+              figure belongs to the tab showing it, and repainting one from here is how a
+              toolbar came to hold axes that had been cleared.
+        """
+        choice = self.settings.get("theme", "system")
+        application = QApplication.instance()
+        dark = system_is_dark(application)
+        if application is not None:
+            application.setStyleSheet(load_stylesheet(choice, dark))
+        name = self.manipulator.set_plot_theme(theme.resolve(choice, dark))
+        logger.info("Theme '%s' applied to the window and the plots", name)
+        return name
 
     def _connect(self, signal, slot):
         """Connect a widget signal and remember it, so it can be taken back exactly."""
@@ -1263,6 +1290,9 @@ class PAstroCoreMainWindow(QMainWindow):
             update_logging_level(new_log_level)
             logger.info("Logger level updated to %s", new_log_level_str)
 
+        if "theme" in changed_keys:
+            self.apply_theme()
+
         if "results_memory_share" in changed_keys:
             self._apply_residency_budget()
 
@@ -1667,6 +1697,24 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.error("Could not remove this session's scratch directory: %s", str(e))
         super().closeEvent(event)
 
+def system_is_dark(application=None) -> bool:
+    """Report whether the desktop is set to a dark colour scheme.
+
+    Args:
+        application (QApplication): The application, or None to ask for the running one.
+
+    Returns:
+        bool: True when the desktop says dark. False when it says light, and when it does not
+            say -- a theme that cannot be told is the light one, not a coin toss.
+    """
+    application = application or QApplication.instance()
+    try:
+        return application.styleHints().colorScheme() == QtCore.Qt.ColorScheme.Dark
+    except Exception as e:                              # noqa: BLE001 - appearance is not fatal
+        logger.debug("Cannot tell what the desktop's colour scheme is: %s", str(e))
+        return False
+
+
 def _warm_coordinate_tables() -> None:
     """Do one throwaway coordinate transform, so the user's first calculation is not the one
     that pays for loading astropy's reference tables.
@@ -1717,11 +1765,13 @@ def main() -> None:
     _warm_coordinate_tables()
 
     app = QApplication(sys.argv)
-    # One stylesheet, read from a file. 224 `styleSheet` properties across 24
-    # forms and 131 lines inline here made "what does this application look
-    # like" a question with no answer; `pastrocore.qss` is the answer, and it
-    # is editable without regenerating a form or touching this module.
-    app.setStyleSheet(load_stylesheet())
+    # One palette, generated from the tokens in `pastrocore.theme` (U1). 224 `styleSheet`
+    # properties across 24 forms and 131 lines inline here made "what does this application look
+    # like" a question with no answer; a stylesheet answered that and then held the same rule
+    # twice itself. The theme follows the desktop unless the settings say otherwise, and a user's
+    # own sheet still replaces ours whole.
+    app.setStyleSheet(load_stylesheet(_startup_settings.get("theme", "system"),
+                                      system_is_dark(app)))
     window = PAstroCoreMainWindow(_startup_settings)
     window.show()
     # Build the deferred operations, and then read the catalogue once, while the user is

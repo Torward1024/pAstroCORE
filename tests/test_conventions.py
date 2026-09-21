@@ -597,17 +597,17 @@ def _responses_read_without_asking_for_one(tree):
 
 
 def test_styling_lives_in_the_stylesheet_and_nowhere_else():
-    """G1's exit criterion: no `setStyleSheet` in the codebase.
+    """G1's exit criterion, and U1's: no `setStyleSheet` in the codebase, and no colour typed
+    into a rule.
 
     224 `styleSheet` properties were spread across 24 `.ui` forms and 131 lines were written
     inline in `app.main`, so "what does this application look like" had no answer and copying a
     form was how a second variant of a rule came to exist -- 38 spin boxes were styled two
-    different ways for no reason anybody chose.
+    different ways for no reason anybody chose. The stylesheet that answered that then held the
+    same rule twice itself, so it is generated from tokens now.
 
-    One call survives, and it is the one that applies the file.
+    One call survives, and it is the one that applies what was generated.
     """
-    from pastrocore.gui.styling import SHIPPED
-
     offenders = {}
     for path in sorted((ROOT / "pastrocore").rglob("*.py")):
         if path.name.startswith(("ui_", "rc_")):
@@ -618,12 +618,18 @@ def test_styling_lives_in_the_stylesheet_and_nowhere_else():
         if found:
             offenders[path.relative_to(ROOT).as_posix()] = found
 
-    assert offenders == {"pastrocore/app.py": [1543]} or list(offenders) == ["pastrocore/app.py"], (
+    assert list(offenders) == ["pastrocore/app.py"], (
         "styling has escaped the stylesheet:\n  "
         + "\n  ".join(f"{name}: lines {lines}" for name, lines in offenders.items())
-        + f"\nPut the rule in {SHIPPED.name} instead.")
+        + "\nPut the rule in pastrocore/theme.py instead, in tokens.")
 
-    assert SHIPPED.is_file(), "the stylesheet the application loads is not there"
+    # And the rules themselves hold no colour: a `#rrggbb` in the template is a colour that does
+    # not follow the palette, which is how a dark theme comes to have one white corner.
+    from pastrocore import theme
+
+    typed_in = [line.strip() for line in theme.TEMPLATE.splitlines()
+                if re.search(r"#[0-9a-fA-F]{3,8}\b", line)]
+    assert not typed_in, f"the stylesheet template holds colours of its own: {typed_in}"
 
 
 def test_no_form_styles_itself():

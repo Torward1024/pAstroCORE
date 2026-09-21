@@ -240,8 +240,13 @@ class ScheduleVisualizer(Super):
                 raise ValueError("colors must be a list or tuple")
             if 'colormaps' in config and not isinstance(config['colormaps'], dict):
                 raise ValueError("colormaps must be a dictionary")
-            if 'intersection_color' in config and not isinstance(config['intersection_color'], (tuple, list)):
-                raise ValueError("intersection_color must be a tuple or list")
+            # A colour is `#1f6feb` as readily as it is `(0.12, 0.44, 0.92)`: every other colour
+            # in this configuration is a string, and a theme generated from tokens hands over
+            # the same hex the window is styled in.
+            if 'intersection_color' in config and not isinstance(config['intersection_color'],
+                                                                 (tuple, list, str)):
+                raise ValueError("intersection_color must be a colour: a name, a hex string or "
+                                 "a tuple of components")
             if 'markers' in config:
                 if not isinstance(config['markers'], dict):
                     raise ValueError("markers must be a dictionary")

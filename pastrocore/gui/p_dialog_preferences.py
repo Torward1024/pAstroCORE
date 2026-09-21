@@ -1,6 +1,7 @@
 # p_dialog_preferences.py
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Signal, Slot
+from pastrocore import theme
 from pastrocore.gui.ui_dialog_preferences import Ui_PreferencesDialog
 from msb_arch.utils.logging_setup import logger
 import os
@@ -44,6 +45,12 @@ class PreferencesDialog(QDialog):
 
         self.ui.resultsMemorySpin.setValue(int(round(
             float(self.settings.get("results_memory_share", 0.5)) * 100)))
+
+        # The themes are the model's to name; this only spells them for a reader (U1).
+        for choice in theme.CHOICES:
+            self.ui.comboTheme.addItem(choice.capitalize(), choice)
+        chosen = self.ui.comboTheme.findData(self.settings.get("theme", "system"))
+        self.ui.comboTheme.setCurrentIndex(chosen if chosen >= 0 else 0)
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -112,6 +119,9 @@ class PreferencesDialog(QDialog):
         results_memory_share = round(self.ui.resultsMemorySpin.value() / 100, 2)
         if results_memory_share != self.original_settings.get("results_memory_share", 0.5):
             changed_keys.append("results_memory_share")
+        chosen_theme = self.ui.comboTheme.currentData() or "system"
+        if chosen_theme != self.original_settings.get("theme", "system"):
+            changed_keys.append("theme")
 
         if changed_keys:
             self.settings["sources_catalog_path"] = sources_path
@@ -120,6 +130,7 @@ class PreferencesDialog(QDialog):
             self.settings["time_step"] = time_step
             self.settings["clear_log_on_start"] = clear_log_on_start
             self.settings["results_memory_share"] = results_memory_share
+            self.settings["theme"] = chosen_theme
             logger.info("Settings updated in PreferencesDialog: sources_path=%s, telescopes_path=%s, log_level=%s, time_step=%s, clear_log_on_start=%s", sources_path, telescopes_path, log_level, time_step, clear_log_on_start)
             if "clear_log_on_start" in changed_keys:
                 logger.info("Log file clearing setting changed and applied immediately.")
