@@ -96,6 +96,12 @@
       </item>
       <item row="5" column="1">
        <widget class="QSpinBox" name="atLeastSpin">
+        <property name="maximumSize">
+         <size>
+          <width>120</width>
+          <height>16777215</height>
+         </size>
+        </property>
         <property name="minimum">
          <number>1</number>
         </property>
@@ -152,6 +158,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="askButton">
+       <property name="role" stdset="0">
+        <string>primary</string>
+       </property>
        <property name="text">
         <string>Show</string>
        </property>

@@ -90,7 +90,7 @@ class Ui_ObservationInfoTab(object):
     # setupUi
 
     def retranslateUi(self, ObservationInfoTab):
-        self.lbl_obs_info.setText(QCoreApplication.translate("ObservationInfoTab", u"Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.", None))
+        self.lbl_obs_info.setText(QCoreApplication.translate("ObservationInfoTab", u"Start time: --; duration: -- s", None))
         self.label_2.setText(QCoreApplication.translate("ObservationInfoTab", u"Observation code:", None))
         self.label.setText(QCoreApplication.translate("ObservationInfoTab", u"Type:", None))
         self.combo_obs_type.setCurrentText("")

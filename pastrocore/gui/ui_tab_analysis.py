@@ -88,6 +88,7 @@ class Ui_AnalysisTab(object):
 
         self.atLeastSpin = QSpinBox(self.questionBox)
         self.atLeastSpin.setObjectName(u"atLeastSpin")
+        self.atLeastSpin.setMaximumSize(QSize(120, 16777215))
         self.atLeastSpin.setMinimum(1)
         self.atLeastSpin.setMaximum(64)
         self.atLeastSpin.setValue(2)
@@ -159,6 +160,7 @@ class Ui_AnalysisTab(object):
         self.filtersBox.setTitle(QCoreApplication.translate("AnalysisTab", u"Only these", None))
         self.exportButton.setText(QCoreApplication.translate("AnalysisTab", u"Export...", None))
         self.refreshButton.setText(QCoreApplication.translate("AnalysisTab", u"Refresh", None))
+        self.askButton.setProperty(u"role", QCoreApplication.translate("AnalysisTab", u"primary", None))
         self.askButton.setText(QCoreApplication.translate("AnalysisTab", u"Show", None))
         self.statusLabel.setText("")
     # retranslateUi

@@ -73,7 +73,7 @@ class Ui_RunReportDialog(object):
 
     def retranslateUi(self, RunReportDialog):
         RunReportDialog.setWindowTitle(QCoreApplication.translate("RunReportDialog", u"Run Report", None))
-        self.labelSummary.setText(QCoreApplication.translate("RunReportDialog", u"lblSummary", None))
+        self.labelSummary.setText(QCoreApplication.translate("RunReportDialog", u"No run yet", None))
 #if QT_CONFIG(tooltip)
         self.pushButtonCopy.setToolTip(QCoreApplication.translate("RunReportDialog", u"Copy the report as text, for a bug report", None))
 #endif // QT_CONFIG(tooltip)

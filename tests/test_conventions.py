@@ -649,6 +649,26 @@ def test_no_form_says_anything_in_a_lookalike_alphabet():
     assert not offenders, f"these forms say something in another alphabet: {offenders}"
 
 
+def test_no_form_ships_a_placeholder_where_its_text_should_be():
+    """Three forms were shipped saying `lblSummary` and `[get_start_time_date]`.
+
+    Something fills them at run time -- and until it does, or if it fails, that is what a user
+    reads. A form is what is on screen before any code runs.
+    """
+    forms = ROOT / "pastrocore" / "gui_pyside"
+    offenders = {}
+    for form in sorted(forms.glob("*.ui")):
+        text = form.read_text(encoding="utf-8")
+        names = set(re.findall(r'name="(\w+)"', text))
+        said = re.findall(r"<string[^>]*>([^<]*)</string>", text)
+        wrong = sorted({one for one in said
+                        if one.strip() in names or re.search(r"\[[A-Za-z_][\w.]*\]", one)})
+        if wrong:
+            offenders[form.name] = wrong
+
+    assert not offenders, f"these forms show a placeholder rather than words: {offenders}"
+
+
 def test_a_form_names_the_button_that_does_the_thing():
     """U1: a dialog's main action is named, not defaulted. Styling whichever button Qt made the
     default painted Cancel blue in the scan editor and Add in the source editor."""
