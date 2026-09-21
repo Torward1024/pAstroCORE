@@ -93,11 +93,6 @@ class Ui_IFEditorDialog(object):
 
         self.formLayout.setWidget(3, QFormLayout.FieldRole, self.coverageDisplay)
 
-        self.labelIsActive = QLabel(IFEditorDialog)
-        self.labelIsActive.setObjectName(u"labelIsActive")
-
-        self.formLayout.setWidget(4, QFormLayout.LabelRole, self.labelIsActive)
-
         self.isActiveCheckBox = QCheckBox(IFEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
@@ -211,8 +206,8 @@ class Ui_IFEditorDialog(object):
         self.coverageDisplay.setToolTip(QCoreApplication.translate("IFEditorDialog", u"The spectrum this setting actually records. Two bands that cover the same span are the same spectrum written two ways, and the project will refuse the second", None))
 #endif // QT_CONFIG(tooltip)
         self.coverageDisplay.setText(QCoreApplication.translate("IFEditorDialog", u"1000.000 - 1016.000", None))
-        self.labelIsActive.setText(QCoreApplication.translate("IFEditorDialog", u"Active:", None))
-        self.labelPolarizations.setText(QCoreApplication.translate("IFEditorDialog", u"<html><head/><body><p>Polarizations:</p></body></html>", None))
+        self.isActiveCheckBox.setText(QCoreApplication.translate("IFEditorDialog", u"Active in this observation", None))
+        self.labelPolarizations.setText(QCoreApplication.translate("IFEditorDialog", u"Polarizations:", None))
 
         __sortingEnabled = self.polarizationsList.isSortingEnabled()
         self.polarizationsList.setSortingEnabled(False)
@@ -229,7 +224,7 @@ class Ui_IFEditorDialog(object):
 #if QT_CONFIG(tooltip)
         self.polarizationsList.setToolTip(QCoreApplication.translate("IFEditorDialog", u"Circular or linear, not both. Each one recorded in each sideband is a channel", None))
 #endif // QT_CONFIG(tooltip)
-        self.labelSidebands.setText(QCoreApplication.translate("IFEditorDialog", u"<html><head/><body><p>Sidebands:</p></body></html>", None))
+        self.labelSidebands.setText(QCoreApplication.translate("IFEditorDialog", u"Sidebands:", None))
 
         __sortingEnabled1 = self.sidebandsList.isSortingEnabled()
         self.sidebandsList.setSortingEnabled(False)
@@ -246,6 +241,7 @@ class Ui_IFEditorDialog(object):
         self.clearPolarizationsButton.setToolTip(QCoreApplication.translate("IFEditorDialog", u"Unselect every polarization and sideband", None))
 #endif // QT_CONFIG(tooltip)
         self.clearPolarizationsButton.setText(QCoreApplication.translate("IFEditorDialog", u"Clear", None))
+        self.saveButton.setProperty(u"role", QCoreApplication.translate("IFEditorDialog", u"primary", None))
         self.saveButton.setText(QCoreApplication.translate("IFEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("IFEditorDialog", u"Cancel", None))
     # retranslateUi

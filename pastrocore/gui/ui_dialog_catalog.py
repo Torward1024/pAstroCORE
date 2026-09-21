@@ -143,6 +143,7 @@ class Ui_CatalogDialog(object):
 #endif // QT_CONFIG(tooltip)
         self.removeButton.setText(QCoreApplication.translate("CatalogDialog", u"Remove", None))
         self.lbl_search.setText(QCoreApplication.translate("CatalogDialog", u"Search:", None))
+        self.saveButton.setProperty(u"role", QCoreApplication.translate("CatalogDialog", u"primary", None))
 #if QT_CONFIG(tooltip)
         self.saveButton.setToolTip(QCoreApplication.translate("CatalogDialog", u"Write the catalogue to its file. One that came with the application, or was read from a .dat file, is saved as JSON under a name you choose", None))
 #endif // QT_CONFIG(tooltip)

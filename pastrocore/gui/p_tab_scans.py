@@ -11,7 +11,7 @@ from msb_arch import ValidationError
 from pastrocore.gui.p_tab_telescopes import TelescopesTab
 from pastrocore.gui.p_tab_frequencies import FrequenciesTab
 from pastrocore.gui.p_tab_sources import SourcesTab
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
 
 class ScansTab(QWidget):
     """Widget for displaying and managing scans in an observation."""
@@ -45,7 +45,7 @@ class ScansTab(QWidget):
         self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.table.verticalHeader().setVisible(False)
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
-        self.ui.table.setColumnWidth(1, 24)
+        fit_narrow_columns(self.ui.table)
         self.ui.table.setColumnWidth(0, 50)
         self.ui.table.setColumnHidden(2, True)  
         
@@ -429,7 +429,7 @@ class ScansTab(QWidget):
                     logger.error("Exception while processing scan '%s': %s", name, str(e))
                     continue
 
-            self.ui.table.resizeColumnsToContents()
+            fit_columns(self.ui.table)
             logger.debug("Updated scans table with %s scans for observation '%s'", self.model.rowCount(), self.observation.code)
         except Exception as e:
             logger.error("Exception while updating scans table: %s", str(e))

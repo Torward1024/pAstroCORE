@@ -299,6 +299,7 @@ class Ui_CalculationDialog(object):
         self.clearAllObsButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear", None))
         self.labelParameters.setText(QCoreApplication.translate("CalculationDialog", u"Parameters:", None))
         self.clrButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear Data", None))
+        self.calcButton.setProperty(u"role", QCoreApplication.translate("CalculationDialog", u"primary", None))
         self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
         self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
         self.labelTimestep.setText(QCoreApplication.translate("CalculationDialog", u"Time step (s):", None))

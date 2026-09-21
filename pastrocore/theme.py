@@ -374,15 +374,18 @@ QPushButton:pressed {{ background-color: {accent_soft}; border-color: {accent}; 
 QPushButton:focus {{ border-color: {accent}; }}
 QPushButton:disabled {{ background-color: {input_disabled}; color: {text_disabled};
                         border-color: {line_soft}; }}
-QPushButton[role="primary"], QPushButton:default {{
+/* **Named, not defaulted.** Styling `:default` as the main action painted whichever button Qt
+   happened to make the default one: Cancel in the scan editor, Add in the source editor. A
+   form says which button does the thing. */
+QPushButton[role="primary"] {{
     background-color: {accent};
     color: {accent_text};
     border-color: {accent};
     font-weight: 600;
 }}
-QPushButton[role="primary"]:hover, QPushButton:default:hover {{ background-color: {accent_hover};
-                                                                border-color: {accent_hover}; }}
-QPushButton[role="primary"]:pressed, QPushButton:default:pressed {{
+QPushButton[role="primary"]:hover {{ background-color: {accent_hover};
+                                     border-color: {accent_hover}; }}
+QPushButton[role="primary"]:pressed {{
     background-color: {accent_pressed}; border-color: {accent_pressed}; }}
 QPushButton[role="primary"]:disabled {{ background-color: {line}; border-color: {line};
                                         color: {text_disabled}; }}

@@ -632,6 +632,44 @@ def test_styling_lives_in_the_stylesheet_and_nowhere_else():
     assert not typed_in, f"the stylesheet template holds colours of its own: {typed_in}"
 
 
+def test_no_form_says_anything_in_a_lookalike_alphabet():
+    """The scan editor's OK button read `OK` and was spelled with a Cyrillic О and К.
+
+    It looks right, and nothing that searches, sorts or translates the interface can see it.
+    The application speaks English; a letter that is not one is a typo that hides.
+    """
+    forms = ROOT / "pastrocore" / "gui_pyside"
+    offenders = {}
+    for form in sorted(forms.glob("*.ui")):
+        said = re.findall(r"<string[^>]*>([^<]*)</string>", form.read_text(encoding="utf-8"))
+        wrong = sorted({text for text in said if re.search(r"[Ѐ-ӿ]", text)})
+        if wrong:
+            offenders[form.name] = wrong
+
+    assert not offenders, f"these forms say something in another alphabet: {offenders}"
+
+
+def test_a_form_names_the_button_that_does_the_thing():
+    """U1: a dialog's main action is named, not defaulted. Styling whichever button Qt made the
+    default painted Cancel blue in the scan editor and Add in the source editor."""
+    forms = ROOT / "pastrocore" / "gui_pyside"
+    #: Forms with nothing to accept: a report, a progress bar, a window.
+    READ_ONLY = {"dialog_about.ui", "dialog_calc_progress.ui", "dialog_run_report.ui",
+                 "main_window.ui", "tab_analysis.ui", "tab_observation.ui",
+                 "tab_observation_any.ui", "tab_project.ui", "tab_vis_beam_pattern.ui",
+                 "tab_vis_default.ui", "tab_vis_mollweide.ui", "tab_vis_sensitivity.ui",
+                 "tab_vis_uv_coverage.ui", "dialog_session.ui", "dialog_visualize.ui",
+                 "dialog_schedule_export.ui"}
+
+    missing = [form.name for form in sorted(forms.glob("*.ui"))
+               if form.name not in READ_ONLY
+               and "<string>primary</string>" not in form.read_text(encoding="utf-8")]
+
+    assert not missing, (
+        f"these dialogs do not say which button is the main one: {missing}\n"
+        f"Give it <property name=\"role\" stdset=\"0\"><string>primary</string></property>.")
+
+
 def test_no_form_styles_itself():
     """The forms are authored in Designer, and a `styleSheet` property there is a rule nobody
     outside that form can see. They are regenerated from the `.ui` sources, so this checks the

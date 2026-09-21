@@ -153,11 +153,6 @@ class Ui_SourceEditorDialog(object):
 
         self.formLayout.setWidget(5, QFormLayout.FieldRole, self.spectralIndexEdit)
 
-        self.labelIsActive = QLabel(SourceEditorDialog)
-        self.labelIsActive.setObjectName(u"labelIsActive")
-
-        self.formLayout.setWidget(6, QFormLayout.LabelRole, self.labelIsActive)
-
         self.isActiveCheckBox = QCheckBox(SourceEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
@@ -275,11 +270,12 @@ class Ui_SourceEditorDialog(object):
         self.deSEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"s", None))
         self.labelSpectralIndex.setText(QCoreApplication.translate("SourceEditorDialog", u"Spectral Index:", None))
         self.spectralIndexEdit.setProperty(u"placeholderText", QCoreApplication.translate("SourceEditorDialog", u"Enter spectral index (optional)", None))
-        self.labelIsActive.setText(QCoreApplication.translate("SourceEditorDialog", u"Active:", None))
+        self.isActiveCheckBox.setText(QCoreApplication.translate("SourceEditorDialog", u"Active in this observation", None))
         self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add", None))
         self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove", None))
         self.clearFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Clear", None))
         self.labelFluxTable.setText(QCoreApplication.translate("SourceEditorDialog", u"Flux Table (MHz, Jy):", None))
+        self.saveButton.setProperty(u"role", QCoreApplication.translate("SourceEditorDialog", u"primary", None))
         self.saveButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Cancel", None))
     # retranslateUi
