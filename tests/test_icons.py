@@ -8,8 +8,8 @@ carrying a generator comment, a CSS block and a Cyrillic layer id.
 So the style is written down here rather than in a note nobody reads:
 
 - the canvas is 24x24, and the drawing is strokes, not fills;
-- one colour, `#005BB5`, stated on the root and nowhere else, so a redesign recolours the set by
-  changing the root of each file rather than redrawing it (U1);
+- one colour, the palette's `icon` token, stated on the root and nowhere else -- which is what
+  lets a theme draw the whole set in another ink rather than ship it twice (U1);
 - stroke width 2, round caps and joins;
 - nothing an editor left behind: no generator comment, no `<style>`, no class attributes.
 
@@ -25,7 +25,10 @@ FORMS = pathlib.Path(__file__).parent.parent / "pastrocore" / "gui_pyside"
 ICONS = pathlib.Path(__file__).parent.parent / "pastrocore" / "gui" / "icons"
 RESOURCE = ICONS / "icons.qrc"
 
-STROKE = "#005BB5"
+from pastrocore import theme
+
+#: The set is drawn in the light theme's ink; the dark one is painted from it at runtime.
+STROKE = theme.PALETTES["light"]["icon"]
 
 
 def forms():
@@ -90,8 +93,9 @@ def test_an_icon_a_form_uses_is_drawn_in_the_style(icon):
 
     assert "Illustrator" not in text and "<style" not in text, f"{icon} carries an editor's leftovers"
     assert 'class="' not in text, f"{icon} styles itself through classes rather than the root"
-    colours = {found.upper() for found in re.findall(r"#[0-9a-fA-F]{3,6}", text)}
-    assert colours <= {STROKE}, f"{icon} draws in {sorted(colours - {STROKE})}, not one colour"
+    colours = {found.lower() for found in re.findall(r"#[0-9a-fA-F]{3,6}", text)}
+    ink = STROKE.lower()
+    assert colours <= {ink}, f"{icon} draws in {sorted(colours - {ink})}, not one colour"
     assert not re.search(r'\bstroke="(?!none)', text[text.index(">"):]), (
         f"{icon} states a stroke on a shape; the root states it once, so U1 can recolour the set")
 

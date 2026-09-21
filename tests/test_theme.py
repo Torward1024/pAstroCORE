@@ -162,6 +162,67 @@ def test_the_glyphs_are_written_where_the_sheet_looks_for_them(tmp_path, monkeyp
         assert pathlib.Path(name).is_file(), f"the sheet points at {name}, which is not there"
 
 
+# --- the icons ------------------------------------------------------------------------------
+
+def drawn_in(icon, colour: str, size: int = 24) -> bool:
+    """Whether every solid pixel of an icon is the given colour.
+
+    Notes:
+        - To a channel or two, because a rendered edge is blended and the blend is rounded:
+          `#80b4ff` where `#7fb4ff` was asked for is antialiasing, not another ink.
+    """
+    wanted = [int(colour[index:index + 2], 16) for index in (1, 3, 5)]
+    image = icon.pixmap(size, size).toImage()
+    solid = [image.pixelColor(x, y) for x in range(image.width()) for y in range(image.height())
+             if image.pixelColor(x, y).alpha() > 200]
+    return bool(solid) and all(
+        max(abs(pixel.red() - wanted[0]), abs(pixel.green() - wanted[1]),
+            abs(pixel.blue() - wanted[2])) <= 2 for pixel in solid)
+
+def test_an_icon_is_redrawn_in_the_theme_s_ink(qt_application):
+    """The set is monochrome and states its colour once, which is what lets a theme repaint it
+    rather than carry a second copy."""
+    from PySide6.QtCore import QSize
+    from PySide6.QtGui import QIcon
+
+    from pastrocore.gui import icon_theme, rc_icons  # noqa: F401 - the resource registers itself
+
+    original = QIcon(":/icons/calculate.svg")
+    assert not original.isNull(), "the icon resource is not loaded"
+
+    painted = icon_theme.retint(original, theme.PALETTES["dark"]["icon"])
+
+    assert drawn_in(painted, theme.PALETTES["dark"]["icon"]), "the icon came out in another ink"
+    assert not drawn_in(original, theme.PALETTES["dark"]["icon"]), "and it was not that already"
+    assert painted.availableSizes(), "and at the sizes a toolbar and a menu ask for"
+
+
+def test_a_window_opened_after_the_theme_changed_gets_the_new_ink(qt_application):
+    """A dialog built later would otherwise carry whatever was current when it was generated,
+    and there are twenty of them -- so the application paints each window as it is shown."""
+    from PySide6.QtGui import QAction, QIcon
+    from PySide6.QtWidgets import QPushButton, QWidget
+
+    from pastrocore.gui import icon_theme, rc_icons  # noqa: F401
+
+    icon_theme.apply(theme.PALETTES["dark"]["icon"])
+
+    window = QWidget()
+    button = QPushButton(QIcon(":/icons/calculate.svg"), "Calculate", window)
+    action = QAction(QIcon(":/icons/session.svg"), "Session", window)
+    window.addAction(action)
+    window.show()
+    qt_application.processEvents()
+
+    try:
+        assert window.property(icon_theme.MARK) == theme.PALETTES["dark"]["icon"]
+        for held in (button.icon(), action.icon()):
+            assert drawn_in(held, theme.PALETTES["dark"]["icon"])
+    finally:
+        window.close()
+        window.deleteLater()
+
+
 def test_a_user_s_own_stylesheet_still_wins(tmp_path, monkeypatch):
     from pastrocore.gui import styling
 
