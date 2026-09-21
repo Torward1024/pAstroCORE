@@ -3,7 +3,7 @@ from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
@@ -45,7 +45,7 @@ class FrequenciesTab(QWidget):
         self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.table.verticalHeader().setVisible(False)
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
-        self.ui.table.setColumnWidth(1, 24)
+        fit_narrow_columns(self.ui.table)
         self.ui.table.setColumnHidden(2, True)  
         self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
@@ -421,7 +421,7 @@ class FrequenciesTab(QWidget):
                     logger.error("Exception while processing frequency '%s': %s", name, str(e))
                     continue
 
-            self.ui.table.resizeColumnsToContents()
+            fit_columns(self.ui.table)
         except Exception as e:
             logger.error("Exception while updating frequencies table: %s", str(e))
     

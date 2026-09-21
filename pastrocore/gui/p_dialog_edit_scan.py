@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QDialog, QMessageBox, QHeaderView
 from PySide6.QtCore import Slot, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QDoubleValidator, QIcon
 from .ui_dialog_edit_scan import Ui_ScanEditorDialog
+from .p_custom_model import fit_narrow_columns
 from pastrocore.base.observation import Observation
 from pastrocore.base.scans import Scan
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -49,7 +50,7 @@ class ScanEditorDialog(QDialog):
         self.ui.tab_telescopes.setSortingEnabled(False)
         self.ui.tab_telescopes.verticalHeader().setVisible(False)
         self.ui.tab_telescopes.setColumnWidth(0, 24)
-        self.ui.tab_telescopes.setColumnWidth(1, 24)  # Check column
+        fit_narrow_columns(self.ui.tab_telescopes, narrow=3)
         self.ui.tab_telescopes.setColumnWidth(2, 24)  # Active column
         self.ui.tab_telescopes.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
 
@@ -59,7 +60,7 @@ class ScanEditorDialog(QDialog):
         self.ui.tab_frequencies.setSortingEnabled(False)
         self.ui.tab_frequencies.verticalHeader().setVisible(False)
         self.ui.tab_frequencies.setColumnWidth(0, 24)
-        self.ui.tab_frequencies.setColumnWidth(1, 24)  # Check column
+        fit_narrow_columns(self.ui.tab_frequencies, narrow=3)
         self.ui.tab_frequencies.setColumnWidth(2, 24)  # Active column
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)

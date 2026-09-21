@@ -5,7 +5,7 @@ from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.spacetelescope import SpaceTelescope
@@ -43,7 +43,7 @@ class TelescopesTab(QWidget):
         self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.table.verticalHeader().setVisible(False)
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
-        self.ui.table.setColumnWidth(1, 24)
+        fit_narrow_columns(self.ui.table)
 
         # Connect signals
         self.ui.search.textChanged.connect(self.search_changed)
@@ -467,7 +467,7 @@ class TelescopesTab(QWidget):
                 self.model.appendRow(row)
                 idx += 1
 
-            self.ui.table.resizeColumnsToContents()
+            fit_columns(self.ui.table)
         except Exception as e:
             logger.error("Exception while updating telescopes table: %s", str(e))
 

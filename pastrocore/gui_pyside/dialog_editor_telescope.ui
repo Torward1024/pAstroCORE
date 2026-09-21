@@ -39,338 +39,375 @@
       <attribute name="title">
        <string>Main Parameters</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout">
-       <item row="1" column="0">
-        <widget class="Line" name="line_4">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
+      <layout class="QVBoxLayout" name="mainParametersLayout">
+       <item>
+        <widget class="QGroupBox" name="groupIdentity">
+         <property name="title">
+          <string>What it is</string>
+         </property>
+         <layout class="QGridLayout" name="gridIdentity">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelCode">
+            <property name="text">
+             <string>Code:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="codeEdit">
+            <property name="placeholderText">
+             <string>Enter telescope code</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QLabel" name="labelMountType">
+            <property name="text">
+             <string>Mount:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QComboBox" name="mountTypeCombo">
+            <item>
+             <property name="text">
+              <string>EQUA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>AZIM</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelName">
+            <property name="text">
+             <string>Name:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" colspan="3">
+           <widget class="QLineEdit" name="nameEdit">
+            <property name="placeholderText">
+             <string>Enter telescope name</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupPosition">
+         <property name="title">
+          <string>Where it stands, and how it moves</string>
+         </property>
+         <layout class="QGridLayout" name="gridPosition">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelX">
+            <property name="text">
+             <string>X (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QDoubleSpinBox" name="xEdit">
+            <property name="decimals">
+             <number>5</number>
+            </property>
+            <property name="minimum">
+             <double>-100000000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100000000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QLabel" name="labelVx">
+            <property name="text">
+             <string>Vx (m/yr):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QDoubleSpinBox" name="vxEdit">
+            <property name="decimals">
+             <number>6</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelY">
+            <property name="text">
+             <string>Y (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QDoubleSpinBox" name="yEdit">
+            <property name="decimals">
+             <number>5</number>
+            </property>
+            <property name="minimum">
+             <double>-100000000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100000000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QLabel" name="labelVy">
+            <property name="text">
+             <string>Vy (m/yr):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="3">
+           <widget class="QDoubleSpinBox" name="vyEdit">
+            <property name="decimals">
+             <number>6</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelZ">
+            <property name="text">
+             <string>Z (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="zEdit">
+            <property name="decimals">
+             <number>5</number>
+            </property>
+            <property name="minimum">
+             <double>-100000000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100000000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="2">
+           <widget class="QLabel" name="labelVz">
+            <property name="text">
+             <string>Vz (m/yr):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="3">
+           <widget class="QDoubleSpinBox" name="vzEdit">
+            <property name="decimals">
+             <number>6</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupDish">
+         <property name="title">
+          <string>The dish</string>
+         </property>
+         <layout class="QGridLayout" name="gridDish">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelDiameter">
+            <property name="text">
+             <string>Diameter (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QDoubleSpinBox" name="diameterEdit">
+            <property name="decimals">
+             <number>2</number>
+            </property>
+            <property name="minimum">
+             <double>0.010000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>20.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QLabel" name="labelSurfaceAccuracy">
+            <property name="text">
+             <string>Surface accuracy (um):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QDoubleSpinBox" name="surfaceAccuracyEdit">
+            <property name="toolTip">
+             <string>The RMS error of the surface, which is what Ruze's formula takes. Leave it at None when it is not known.</string>
+            </property>
+            <property name="specialValueText">
+             <string>None</string>
+            </property>
+            <property name="decimals">
+             <number>2</number>
+            </property>
+            <property name="minimum">
+             <double>0.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>10000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupPointing">
+         <property name="title">
+          <string>Where it can point</string>
+         </property>
+         <layout class="QGridLayout" name="gridPointing">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelElevationRange">
+            <property name="text">
+             <string>Elevation (deg):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <layout class="QHBoxLayout" name="elevationRangeLayout">
+            <item>
+             <widget class="QDoubleSpinBox" name="elevationMinEdit">
+              <property name="suffix">
+               <string> deg</string>
+              </property>
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>90.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QDoubleSpinBox" name="elevationMaxEdit">
+              <property name="suffix">
+               <string> deg</string>
+              </property>
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>90.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>90.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelAzimuthRange">
+            <property name="text">
+             <string>Azimuth (deg):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <layout class="QHBoxLayout" name="azimuthRangeLayout">
+            <item>
+             <widget class="QDoubleSpinBox" name="azimuthMinEdit">
+              <property name="suffix">
+               <string> deg</string>
+              </property>
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>360.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QDoubleSpinBox" name="azimuthMaxEdit">
+              <property name="suffix">
+               <string> deg</string>
+              </property>
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>360.000000000000000</double>
+              </property>
+              <property name="value">
+               <double>360.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="isActiveCheckBox">
+         <property name="text">
+          <string>Active in this observation</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <layout class="QFormLayout" name="formLayout">
-         <item row="0" column="0">
-          <widget class="QLabel" name="labelCode">
-           <property name="text">
-            <string>Code:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="codeEdit">
-           <property name="placeholderText">
-            <string>Enter telescope code</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QLineEdit" name="nameEdit">
-           <property name="placeholderText">
-            <string>Enter telescope name</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="labelX">
-           <property name="text">
-            <string>X (m):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QDoubleSpinBox" name="xEdit">
-           <property name="decimals">
-            <number>5</number>
-           </property>
-           <property name="minimum">
-            <double>-10000000.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>10000000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="labelY">
-           <property name="text">
-            <string>Y (m):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="QDoubleSpinBox" name="yEdit">
-           <property name="decimals">
-            <number>5</number>
-           </property>
-           <property name="minimum">
-            <double>-10000000.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>10000000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="labelZ">
-           <property name="text">
-            <string>Z (m):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="1">
-          <widget class="QDoubleSpinBox" name="zEdit">
-           <property name="decimals">
-            <number>5</number>
-           </property>
-           <property name="minimum">
-            <double>-10000000.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>10000000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="0">
-          <widget class="QLabel" name="labelVx">
-           <property name="text">
-            <string>Vx (m/s):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="1">
-          <widget class="QDoubleSpinBox" name="vxEdit">
-           <property name="decimals">
-            <number>6</number>
-           </property>
-           <property name="minimum">
-            <double>-1000.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="0">
-          <widget class="QLabel" name="labelVy">
-           <property name="text">
-            <string>Vy (m/s):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="1">
-          <widget class="QDoubleSpinBox" name="vyEdit">
-           <property name="decimals">
-            <number>6</number>
-           </property>
-           <property name="minimum">
-            <double>-1000.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="0">
-          <widget class="QLabel" name="labelVz">
-           <property name="text">
-            <string>Vz (m/s):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="1">
-          <widget class="QDoubleSpinBox" name="vzEdit">
-           <property name="decimals">
-            <number>6</number>
-           </property>
-           <property name="minimum">
-            <double>-1000.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="0">
-          <widget class="QLabel" name="labelDiameter">
-           <property name="text">
-            <string>Diameter (m):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="1">
-          <widget class="QDoubleSpinBox" name="diameterEdit">
-           <property name="decimals">
-            <number>2</number>
-           </property>
-           <property name="minimum">
-            <double>1.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1000.000000000000000</double>
-           </property>
-           <property name="value">
-            <double>20.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="9" column="0">
-          <widget class="QLabel" name="labelSurfaceAccuracy">
-           <property name="text">
-            <string>Surface Accuracy (µm):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="9" column="1">
-          <widget class="QDoubleSpinBox" name="surfaceAccuracyEdit">
-           <property name="specialValueText">
-            <string>None</string>
-           </property>
-           <property name="decimals">
-            <number>2</number>
-           </property>
-           <property name="minimum">
-            <double>0.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>10000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="0">
-          <widget class="QLabel" name="labelElevationRange">
-           <property name="text">
-            <string>Elevation Range (deg):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="1">
-          <layout class="QHBoxLayout" name="elevationRangeLayout">
-           <item>
-            <widget class="QDoubleSpinBox" name="elevationMinEdit">
-             <property name="suffix">
-              <string> deg</string>
-             </property>
-             <property name="decimals">
-              <number>2</number>
-             </property>
-             <property name="minimum">
-              <double>0.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>90.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="elevationMaxEdit">
-             <property name="suffix">
-              <string> deg</string>
-             </property>
-             <property name="decimals">
-              <number>2</number>
-             </property>
-             <property name="minimum">
-              <double>0.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>90.000000000000000</double>
-             </property>
-             <property name="value">
-              <double>90.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item row="11" column="0">
-          <widget class="QLabel" name="labelAzimuthRange">
-           <property name="text">
-            <string>Azimuth Range (deg):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="11" column="1">
-          <layout class="QHBoxLayout" name="azimuthRangeLayout">
-           <item>
-            <widget class="QDoubleSpinBox" name="azimuthMinEdit">
-             <property name="suffix">
-              <string> deg</string>
-             </property>
-             <property name="decimals">
-              <number>2</number>
-             </property>
-             <property name="minimum">
-              <double>0.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>360.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="azimuthMaxEdit">
-             <property name="suffix">
-              <string> deg</string>
-             </property>
-             <property name="decimals">
-              <number>2</number>
-             </property>
-             <property name="minimum">
-              <double>0.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>360.000000000000000</double>
-             </property>
-             <property name="value">
-              <double>360.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item row="12" column="0">
-          <widget class="QLabel" name="labelMountType">
-           <property name="text">
-            <string>Mount Type:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="12" column="1">
-          <widget class="QComboBox" name="mountTypeCombo">
-           <item>
-            <property name="text">
-             <string>EQUA</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>AZIM</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item row="13" column="0">
-          <widget class="QLabel" name="labelIsActive">
-           <property name="text">
-            <string>Active:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="13" column="1">
-          <widget class="QCheckBox" name="isActiveCheckBox">
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="labelName">
-           <property name="text">
-            <string>Name:</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
+       <item>
+        <spacer name="mainParametersSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>10</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -671,6 +708,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="saveButton">
+       <property name="role" stdset="0">
+        <string>primary</string>
+       </property>
        <property name="text">
         <string>Save</string>
        </property>

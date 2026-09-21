@@ -127,6 +127,9 @@
     <layout class="QHBoxLayout" name="buttonLayout">
      <item>
       <widget class="QPushButton" name="saveButton">
+       <property name="role" stdset="0">
+        <string>primary</string>
+       </property>
        <property name="toolTip">
         <string>Write the catalogue to its file. One that came with the application, or was read from a .dat file, is saved as JSON under a name you choose</string>
        </property>

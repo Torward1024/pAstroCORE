@@ -199,21 +199,11 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.formLayout.setLayout(7, QFormLayout.FieldRole, self.yawRangeLayout)
 
-        self.labelUseKep = QLabel(self.tab)
-        self.labelUseKep.setObjectName(u"labelUseKep")
-
-        self.formLayout.setWidget(8, QFormLayout.LabelRole, self.labelUseKep)
-
         self.useKepCheckBox = QCheckBox(self.tab)
         self.useKepCheckBox.setObjectName(u"useKepCheckBox")
         self.useKepCheckBox.setChecked(True)
 
         self.formLayout.setWidget(8, QFormLayout.FieldRole, self.useKepCheckBox)
-
-        self.labelIsActive = QLabel(self.tab)
-        self.labelIsActive.setObjectName(u"labelIsActive")
-
-        self.formLayout.setWidget(9, QFormLayout.LabelRole, self.labelIsActive)
 
         self.isActiveCheckBox = QCheckBox(self.tab)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
@@ -534,6 +524,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
     def retranslateUi(self, SpaceTelescopeEditorDialog):
         SpaceTelescopeEditorDialog.setWindowTitle(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Space Telescope Editor", None))
+        self.saveButton.setProperty(u"role", QCoreApplication.translate("SpaceTelescopeEditorDialog", u"primary", None))
         self.saveButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Cancel", None))
         self.labelCode.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Code:", None))
@@ -559,8 +550,8 @@ class Ui_SpaceTelescopeEditorDialog(object):
         self.labelYawRange.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Yaw Range (deg):", None))
         self.yawMinEdit.setSuffix(QCoreApplication.translate("SpaceTelescopeEditorDialog", u" deg", None))
         self.yawMaxEdit.setSuffix(QCoreApplication.translate("SpaceTelescopeEditorDialog", u" deg", None))
-        self.labelUseKep.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Use Keplerian Elements:", None))
-        self.labelIsActive.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Active:", None))
+        self.useKepCheckBox.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Orbit from Keplerian elements", None))
+        self.isActiveCheckBox.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Active in this observation", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Main Parameters", None))
         self.labelArgp.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Arg. of Perigee (deg):", None))
         self.labelRaan.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"RAAN (deg):", None))
@@ -583,7 +574,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
         self.removeEffectiveAreaButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Remove", None))
         self.clearEffectiveAreaButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Clear", None))
         self.labelEffectiveAreaTable.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Effective Area Table (from-to MHz, m\u00b2):", None))
-        self.labelSystemTemperatureTable.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"<html><head/><body><p>System Temperature Table (from-to MHz, K):</p></body></html>", None))
+        self.labelSystemTemperatureTable.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"System Temperature Table (from-to MHz, K):", None))
         self.addSefdButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Add", None))
         self.removeSefdButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Remove", None))
         self.clearSefdButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Clear", None))

@@ -30,13 +30,6 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="2" column="0">
-    <widget class="QLabel" name="lbl_offsource">
-     <property name="text">
-      <string>Off source scan:</string>
-     </property>
-    </widget>
-   </item>
    <item row="10" column="0" colspan="4">
     <widget class="Line" name="line">
      <property name="orientation">
@@ -60,17 +53,17 @@
      </property>
     </widget>
    </item>
-   <item row="9" column="1">
+   <item row="9" column="0" colspan="4">
     <widget class="QCheckBox" name="chk_active">
      <property name="text">
-      <string />
+      <string>Active in this observation</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="1">
+   <item row="2" column="0" colspan="4">
     <widget class="QCheckBox" name="chk_offsource">
      <property name="text">
-      <string />
+      <string>Off-source scan</string>
      </property>
     </widget>
    </item>
@@ -98,8 +91,11 @@
      </item>
      <item>
       <widget class="QPushButton" name="pushButton">
+       <property name="role" stdset="0">
+        <string>primary</string>
+       </property>
        <property name="text">
-        <string>ОК</string>
+        <string>OK</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -154,7 +150,7 @@
      <item row="0" column="0" colspan="2">
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Telescopes:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Telescopes:</string>
        </property>
       </widget>
      </item>
@@ -172,7 +168,7 @@
      <item row="0" column="3" colspan="2">
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Frequencies:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Frequencies:</string>
        </property>
       </widget>
      </item>
@@ -196,13 +192,6 @@
     <widget class="QLabel" name="labelSource">
      <property name="text">
       <string>Source:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="0">
-    <widget class="QLabel" name="lbl_active">
-     <property name="text">
-      <string>Active:</string>
      </property>
     </widget>
    </item>

@@ -5,7 +5,7 @@ from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from msb_arch.utils.logging_setup import logger
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
 
 class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
@@ -42,7 +42,7 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.setSortingEnabled(True)
         self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
-        self.ui.projectInfoTable.setColumnWidth(1, 24)
+        fit_narrow_columns(self.ui.projectInfoTable)
         self.ui.projectInfoTable.setColumnHidden(2, True)
 
     def setup_connections(self):
@@ -202,7 +202,7 @@ class ProjectInfoTab(QWidget):
                     logger.error("Exception while processing observation '%s': %s", obs_name, str(e))
                     continue
 
-            self.ui.projectInfoTable.resizeColumnsToContents()
+            fit_columns(self.ui.projectInfoTable)
         except Exception as e:
             logger.error("Exception while updating project info tab: %s", str(e))
 

@@ -370,6 +370,7 @@ class Ui_GenerateObservationsDialog(object):
         self.labelScanDuration.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Scan Duration (s):", None))
         self.labelNumScans.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Number of Scans:", None))
         self.chkParallel.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Observations Parallel in Time", None))
+        self.generateButton.setProperty(u"role", QCoreApplication.translate("GenerateObservationsDialog", u"primary", None))
         self.generateButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Generate", None))
         self.cancelButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Cancel", None))
     # retranslateUi

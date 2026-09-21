@@ -196,6 +196,7 @@ class Ui_PreferencesDialog(object):
         self.resultsMemorySpin.setSuffix(QCoreApplication.translate("PreferencesDialog", u" %", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("PreferencesDialog", u"Calculations", None))
         self.cancelButton.setText(QCoreApplication.translate("PreferencesDialog", u"Cancel", None))
+        self.okButton.setProperty(u"role", QCoreApplication.translate("PreferencesDialog", u"primary", None))
         self.okButton.setText(QCoreApplication.translate("PreferencesDialog", u"OK", None))
     # retranslateUi
 

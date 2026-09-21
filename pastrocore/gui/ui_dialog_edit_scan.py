@@ -37,11 +37,6 @@ class Ui_ScanEditorDialog(object):
         ScanEditorDialog.setModal(True)
         self.gridLayout = QGridLayout(ScanEditorDialog)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.lbl_offsource = QLabel(ScanEditorDialog)
-        self.lbl_offsource.setObjectName(u"lbl_offsource")
-
-        self.gridLayout.addWidget(self.lbl_offsource, 2, 0, 1, 1)
-
         self.line = QFrame(ScanEditorDialog)
         self.line.setObjectName(u"line")
         self.line.setFrameShape(QFrame.Shape.HLine)
@@ -61,12 +56,12 @@ class Ui_ScanEditorDialog(object):
         self.chk_active = QCheckBox(ScanEditorDialog)
         self.chk_active.setObjectName(u"chk_active")
 
-        self.gridLayout.addWidget(self.chk_active, 9, 1, 1, 1)
+        self.gridLayout.addWidget(self.chk_active, 9, 0, 1, 4)
 
         self.chk_offsource = QCheckBox(ScanEditorDialog)
         self.chk_offsource.setObjectName(u"chk_offsource")
 
-        self.gridLayout.addWidget(self.chk_offsource, 2, 1, 1, 1)
+        self.gridLayout.addWidget(self.chk_offsource, 2, 0, 1, 4)
 
         self.line_2 = QFrame(ScanEditorDialog)
         self.line_2.setObjectName(u"line_2")
@@ -160,11 +155,6 @@ class Ui_ScanEditorDialog(object):
 
         self.gridLayout.addWidget(self.labelSource, 1, 0, 1, 1)
 
-        self.lbl_active = QLabel(ScanEditorDialog)
-        self.lbl_active.setObjectName(u"lbl_active")
-
-        self.gridLayout.addWidget(self.lbl_active, 9, 0, 1, 1)
-
         self.sourceCombo = QComboBox(ScanEditorDialog)
         self.sourceCombo.setObjectName(u"sourceCombo")
 
@@ -204,20 +194,19 @@ class Ui_ScanEditorDialog(object):
 
     def retranslateUi(self, ScanEditorDialog):
         ScanEditorDialog.setWindowTitle(QCoreApplication.translate("ScanEditorDialog", u"Edit Scan", None))
-        self.lbl_offsource.setText(QCoreApplication.translate("ScanEditorDialog", u"Off source scan:", None))
-        self.chk_active.setText("")
-        self.chk_offsource.setText("")
-        self.pushButton.setText(QCoreApplication.translate("ScanEditorDialog", u"\u041e\u041a", None))
+        self.chk_active.setText(QCoreApplication.translate("ScanEditorDialog", u"Active in this observation", None))
+        self.chk_offsource.setText(QCoreApplication.translate("ScanEditorDialog", u"Off-source scan", None))
+        self.pushButton.setProperty(u"role", QCoreApplication.translate("ScanEditorDialog", u"primary", None))
+        self.pushButton.setText(QCoreApplication.translate("ScanEditorDialog", u"OK", None))
         self.pushButton_2.setText(QCoreApplication.translate("ScanEditorDialog", u"Cancel", None))
         self.btnClearAllTelescopes.setText(QCoreApplication.translate("ScanEditorDialog", u"Clear", None))
         self.btnSelectAllFrequencies.setText(QCoreApplication.translate("ScanEditorDialog", u"Select All", None))
         self.btnSelectAllTelescopes.setText(QCoreApplication.translate("ScanEditorDialog", u"Select All", None))
-        self.label.setText(QCoreApplication.translate("ScanEditorDialog", u"<html><head/><body><p>Telescopes:</p></body></html>", None))
+        self.label.setText(QCoreApplication.translate("ScanEditorDialog", u"Telescopes:", None))
         self.btnClearAllFrequencies.setText(QCoreApplication.translate("ScanEditorDialog", u"Clear", None))
-        self.label_2.setText(QCoreApplication.translate("ScanEditorDialog", u"<html><head/><body><p>Frequencies:</p></body></html>", None))
+        self.label_2.setText(QCoreApplication.translate("ScanEditorDialog", u"Frequencies:", None))
         self.labelDuration.setText(QCoreApplication.translate("ScanEditorDialog", u"Duration (s):", None))
         self.labelSource.setText(QCoreApplication.translate("ScanEditorDialog", u"Source:", None))
-        self.lbl_active.setText(QCoreApplication.translate("ScanEditorDialog", u"Active:", None))
         self.labelStartTime.setText(QCoreApplication.translate("ScanEditorDialog", u"Start Time:", None))
         self.labelEndTime.setText(QCoreApplication.translate("ScanEditorDialog", u"End Time:", None))
     # retranslateUi

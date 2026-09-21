@@ -99,6 +99,7 @@ class Ui_AddObservationDialog(object):
     def retranslateUi(self, AddObservationDialog):
         AddObservationDialog.setWindowTitle(QCoreApplication.translate("AddObservationDialog", u"Dialog", None))
         self.combo_obs_type.setCurrentText("")
+        self.okButton.setProperty(u"role", QCoreApplication.translate("AddObservationDialog", u"primary", None))
         self.okButton.setText(QCoreApplication.translate("AddObservationDialog", u"OK", None))
         self.label.setText(QCoreApplication.translate("AddObservationDialog", u"Observation type:", None))
         self.lbl_obs_code.setText(QCoreApplication.translate("AddObservationDialog", u"Observation code:", None))

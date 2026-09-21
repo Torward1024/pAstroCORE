@@ -70,6 +70,23 @@ def test_a_tab_shows_what_the_observation_holds(tab):
 
 
 @pytest.mark.parametrize("tab", TABS, indirect=True, ids=[entry[1] for entry in TABS])
+def test_the_number_column_is_wide_enough_for_its_own_heading(tab, qt_application):
+    """U1: the tables start with a row number and a dot, and both were sized to their contents
+    after every refill -- so the number column came out one digit wide and Qt drew the sort
+    arrow over the `#`. The heading read as a stray mark."""
+    from PySide6.QtWidgets import QHeaderView
+
+    widget, _observation, _container, _noun = tab
+    table = widget.ui.table
+    header = table.horizontalHeader()
+    needed = header.fontMetrics().horizontalAdvance("#") + 28   # the arrow and the padding
+
+    assert header.sectionSize(0) >= needed, "the sort arrow sits on top of the heading"
+    assert header.sectionSize(1) <= 32, "the state column is a dot, not a column"
+    assert header.sectionResizeMode(0) == QHeaderView.ResizeMode.Fixed
+
+
+@pytest.mark.parametrize("tab", TABS, indirect=True, ids=[entry[1] for entry in TABS])
 def test_deactivating_and_activating_everything_reaches_the_model(tab):
     """Two of the eight methods that are the same in all four files. What is checked is the
     model, not the table -- a tab that redrew without changing anything would pass otherwise."""

@@ -200,6 +200,7 @@ class Ui_ExportCalculatedDataDialog(object):
 
     def retranslateUi(self, ExportCalculatedDataDialog):
         ExportCalculatedDataDialog.setWindowTitle(QCoreApplication.translate("ExportCalculatedDataDialog", u"Export Calculated Data", None))
+        self.exportButton.setProperty(u"role", QCoreApplication.translate("ExportCalculatedDataDialog", u"primary", None))
         self.exportButton.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Export", None))
         self.cancelButton.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Cancel", None))
         self.lblPath.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Path:", None))

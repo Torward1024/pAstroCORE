@@ -16,10 +16,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDialog, QDoubleSpinBox, QFormLayout, QFrame,
-    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QDialog, QDoubleSpinBox, QFrame, QGridLayout,
+    QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
-    QTabWidget, QTableView, QWidget)
+    QTabWidget, QTableView, QVBoxLayout, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_TelescopeEditorDialog(object):
     def setupUi(self, TelescopeEditorDialog):
@@ -42,145 +42,178 @@ class Ui_TelescopeEditorDialog(object):
         self.tabWidget.setObjectName(u"tabWidget")
         self.tab = QWidget()
         self.tab.setObjectName(u"tab")
-        self.gridLayout = QGridLayout(self.tab)
-        self.gridLayout.setObjectName(u"gridLayout")
-        self.line_4 = QFrame(self.tab)
-        self.line_4.setObjectName(u"line_4")
-        self.line_4.setFrameShape(QFrame.Shape.HLine)
-        self.line_4.setFrameShadow(QFrame.Shadow.Sunken)
-
-        self.gridLayout.addWidget(self.line_4, 1, 0, 1, 1)
-
-        self.formLayout = QFormLayout()
-        self.formLayout.setObjectName(u"formLayout")
-        self.labelCode = QLabel(self.tab)
+        self.mainParametersLayout = QVBoxLayout(self.tab)
+        self.mainParametersLayout.setObjectName(u"mainParametersLayout")
+        self.groupIdentity = QGroupBox(self.tab)
+        self.groupIdentity.setObjectName(u"groupIdentity")
+        self.gridIdentity = QGridLayout(self.groupIdentity)
+        self.gridIdentity.setObjectName(u"gridIdentity")
+        self.labelCode = QLabel(self.groupIdentity)
         self.labelCode.setObjectName(u"labelCode")
 
-        self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelCode)
+        self.gridIdentity.addWidget(self.labelCode, 0, 0, 1, 1)
 
-        self.codeEdit = QLineEdit(self.tab)
+        self.codeEdit = QLineEdit(self.groupIdentity)
         self.codeEdit.setObjectName(u"codeEdit")
 
-        self.formLayout.setWidget(0, QFormLayout.FieldRole, self.codeEdit)
+        self.gridIdentity.addWidget(self.codeEdit, 0, 1, 1, 1)
 
-        self.nameEdit = QLineEdit(self.tab)
+        self.labelMountType = QLabel(self.groupIdentity)
+        self.labelMountType.setObjectName(u"labelMountType")
+
+        self.gridIdentity.addWidget(self.labelMountType, 0, 2, 1, 1)
+
+        self.mountTypeCombo = QComboBox(self.groupIdentity)
+        self.mountTypeCombo.addItem("")
+        self.mountTypeCombo.addItem("")
+        self.mountTypeCombo.setObjectName(u"mountTypeCombo")
+
+        self.gridIdentity.addWidget(self.mountTypeCombo, 0, 3, 1, 1)
+
+        self.labelName = QLabel(self.groupIdentity)
+        self.labelName.setObjectName(u"labelName")
+
+        self.gridIdentity.addWidget(self.labelName, 1, 0, 1, 1)
+
+        self.nameEdit = QLineEdit(self.groupIdentity)
         self.nameEdit.setObjectName(u"nameEdit")
 
-        self.formLayout.setWidget(1, QFormLayout.FieldRole, self.nameEdit)
+        self.gridIdentity.addWidget(self.nameEdit, 1, 1, 1, 3)
 
-        self.labelX = QLabel(self.tab)
+
+        self.mainParametersLayout.addWidget(self.groupIdentity)
+
+        self.groupPosition = QGroupBox(self.tab)
+        self.groupPosition.setObjectName(u"groupPosition")
+        self.gridPosition = QGridLayout(self.groupPosition)
+        self.gridPosition.setObjectName(u"gridPosition")
+        self.labelX = QLabel(self.groupPosition)
         self.labelX.setObjectName(u"labelX")
 
-        self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelX)
+        self.gridPosition.addWidget(self.labelX, 0, 0, 1, 1)
 
-        self.xEdit = QDoubleSpinBox(self.tab)
+        self.xEdit = QDoubleSpinBox(self.groupPosition)
         self.xEdit.setObjectName(u"xEdit")
         self.xEdit.setDecimals(5)
-        self.xEdit.setMinimum(-10000000.000000000000000)
-        self.xEdit.setMaximum(10000000.000000000000000)
+        self.xEdit.setMinimum(-100000000.000000000000000)
+        self.xEdit.setMaximum(100000000.000000000000000)
 
-        self.formLayout.setWidget(2, QFormLayout.FieldRole, self.xEdit)
+        self.gridPosition.addWidget(self.xEdit, 0, 1, 1, 1)
 
-        self.labelY = QLabel(self.tab)
-        self.labelY.setObjectName(u"labelY")
-
-        self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelY)
-
-        self.yEdit = QDoubleSpinBox(self.tab)
-        self.yEdit.setObjectName(u"yEdit")
-        self.yEdit.setDecimals(5)
-        self.yEdit.setMinimum(-10000000.000000000000000)
-        self.yEdit.setMaximum(10000000.000000000000000)
-
-        self.formLayout.setWidget(3, QFormLayout.FieldRole, self.yEdit)
-
-        self.labelZ = QLabel(self.tab)
-        self.labelZ.setObjectName(u"labelZ")
-
-        self.formLayout.setWidget(4, QFormLayout.LabelRole, self.labelZ)
-
-        self.zEdit = QDoubleSpinBox(self.tab)
-        self.zEdit.setObjectName(u"zEdit")
-        self.zEdit.setDecimals(5)
-        self.zEdit.setMinimum(-10000000.000000000000000)
-        self.zEdit.setMaximum(10000000.000000000000000)
-
-        self.formLayout.setWidget(4, QFormLayout.FieldRole, self.zEdit)
-
-        self.labelVx = QLabel(self.tab)
+        self.labelVx = QLabel(self.groupPosition)
         self.labelVx.setObjectName(u"labelVx")
 
-        self.formLayout.setWidget(5, QFormLayout.LabelRole, self.labelVx)
+        self.gridPosition.addWidget(self.labelVx, 0, 2, 1, 1)
 
-        self.vxEdit = QDoubleSpinBox(self.tab)
+        self.vxEdit = QDoubleSpinBox(self.groupPosition)
         self.vxEdit.setObjectName(u"vxEdit")
         self.vxEdit.setDecimals(6)
         self.vxEdit.setMinimum(-1000.000000000000000)
         self.vxEdit.setMaximum(1000.000000000000000)
 
-        self.formLayout.setWidget(5, QFormLayout.FieldRole, self.vxEdit)
+        self.gridPosition.addWidget(self.vxEdit, 0, 3, 1, 1)
 
-        self.labelVy = QLabel(self.tab)
+        self.labelY = QLabel(self.groupPosition)
+        self.labelY.setObjectName(u"labelY")
+
+        self.gridPosition.addWidget(self.labelY, 1, 0, 1, 1)
+
+        self.yEdit = QDoubleSpinBox(self.groupPosition)
+        self.yEdit.setObjectName(u"yEdit")
+        self.yEdit.setDecimals(5)
+        self.yEdit.setMinimum(-100000000.000000000000000)
+        self.yEdit.setMaximum(100000000.000000000000000)
+
+        self.gridPosition.addWidget(self.yEdit, 1, 1, 1, 1)
+
+        self.labelVy = QLabel(self.groupPosition)
         self.labelVy.setObjectName(u"labelVy")
 
-        self.formLayout.setWidget(6, QFormLayout.LabelRole, self.labelVy)
+        self.gridPosition.addWidget(self.labelVy, 1, 2, 1, 1)
 
-        self.vyEdit = QDoubleSpinBox(self.tab)
+        self.vyEdit = QDoubleSpinBox(self.groupPosition)
         self.vyEdit.setObjectName(u"vyEdit")
         self.vyEdit.setDecimals(6)
         self.vyEdit.setMinimum(-1000.000000000000000)
         self.vyEdit.setMaximum(1000.000000000000000)
 
-        self.formLayout.setWidget(6, QFormLayout.FieldRole, self.vyEdit)
+        self.gridPosition.addWidget(self.vyEdit, 1, 3, 1, 1)
 
-        self.labelVz = QLabel(self.tab)
+        self.labelZ = QLabel(self.groupPosition)
+        self.labelZ.setObjectName(u"labelZ")
+
+        self.gridPosition.addWidget(self.labelZ, 2, 0, 1, 1)
+
+        self.zEdit = QDoubleSpinBox(self.groupPosition)
+        self.zEdit.setObjectName(u"zEdit")
+        self.zEdit.setDecimals(5)
+        self.zEdit.setMinimum(-100000000.000000000000000)
+        self.zEdit.setMaximum(100000000.000000000000000)
+
+        self.gridPosition.addWidget(self.zEdit, 2, 1, 1, 1)
+
+        self.labelVz = QLabel(self.groupPosition)
         self.labelVz.setObjectName(u"labelVz")
 
-        self.formLayout.setWidget(7, QFormLayout.LabelRole, self.labelVz)
+        self.gridPosition.addWidget(self.labelVz, 2, 2, 1, 1)
 
-        self.vzEdit = QDoubleSpinBox(self.tab)
+        self.vzEdit = QDoubleSpinBox(self.groupPosition)
         self.vzEdit.setObjectName(u"vzEdit")
         self.vzEdit.setDecimals(6)
         self.vzEdit.setMinimum(-1000.000000000000000)
         self.vzEdit.setMaximum(1000.000000000000000)
 
-        self.formLayout.setWidget(7, QFormLayout.FieldRole, self.vzEdit)
+        self.gridPosition.addWidget(self.vzEdit, 2, 3, 1, 1)
 
-        self.labelDiameter = QLabel(self.tab)
+
+        self.mainParametersLayout.addWidget(self.groupPosition)
+
+        self.groupDish = QGroupBox(self.tab)
+        self.groupDish.setObjectName(u"groupDish")
+        self.gridDish = QGridLayout(self.groupDish)
+        self.gridDish.setObjectName(u"gridDish")
+        self.labelDiameter = QLabel(self.groupDish)
         self.labelDiameter.setObjectName(u"labelDiameter")
 
-        self.formLayout.setWidget(8, QFormLayout.LabelRole, self.labelDiameter)
+        self.gridDish.addWidget(self.labelDiameter, 0, 0, 1, 1)
 
-        self.diameterEdit = QDoubleSpinBox(self.tab)
+        self.diameterEdit = QDoubleSpinBox(self.groupDish)
         self.diameterEdit.setObjectName(u"diameterEdit")
         self.diameterEdit.setDecimals(2)
-        self.diameterEdit.setMinimum(1.000000000000000)
+        self.diameterEdit.setMinimum(0.010000000000000)
         self.diameterEdit.setMaximum(1000.000000000000000)
         self.diameterEdit.setValue(20.000000000000000)
 
-        self.formLayout.setWidget(8, QFormLayout.FieldRole, self.diameterEdit)
+        self.gridDish.addWidget(self.diameterEdit, 0, 1, 1, 1)
 
-        self.labelSurfaceAccuracy = QLabel(self.tab)
+        self.labelSurfaceAccuracy = QLabel(self.groupDish)
         self.labelSurfaceAccuracy.setObjectName(u"labelSurfaceAccuracy")
 
-        self.formLayout.setWidget(9, QFormLayout.LabelRole, self.labelSurfaceAccuracy)
+        self.gridDish.addWidget(self.labelSurfaceAccuracy, 0, 2, 1, 1)
 
-        self.surfaceAccuracyEdit = QDoubleSpinBox(self.tab)
+        self.surfaceAccuracyEdit = QDoubleSpinBox(self.groupDish)
         self.surfaceAccuracyEdit.setObjectName(u"surfaceAccuracyEdit")
         self.surfaceAccuracyEdit.setDecimals(2)
         self.surfaceAccuracyEdit.setMinimum(0.000000000000000)
         self.surfaceAccuracyEdit.setMaximum(10000.000000000000000)
 
-        self.formLayout.setWidget(9, QFormLayout.FieldRole, self.surfaceAccuracyEdit)
+        self.gridDish.addWidget(self.surfaceAccuracyEdit, 0, 3, 1, 1)
 
-        self.labelElevationRange = QLabel(self.tab)
+
+        self.mainParametersLayout.addWidget(self.groupDish)
+
+        self.groupPointing = QGroupBox(self.tab)
+        self.groupPointing.setObjectName(u"groupPointing")
+        self.gridPointing = QGridLayout(self.groupPointing)
+        self.gridPointing.setObjectName(u"gridPointing")
+        self.labelElevationRange = QLabel(self.groupPointing)
         self.labelElevationRange.setObjectName(u"labelElevationRange")
 
-        self.formLayout.setWidget(10, QFormLayout.LabelRole, self.labelElevationRange)
+        self.gridPointing.addWidget(self.labelElevationRange, 0, 0, 1, 1)
 
         self.elevationRangeLayout = QHBoxLayout()
         self.elevationRangeLayout.setObjectName(u"elevationRangeLayout")
-        self.elevationMinEdit = QDoubleSpinBox(self.tab)
+        self.elevationMinEdit = QDoubleSpinBox(self.groupPointing)
         self.elevationMinEdit.setObjectName(u"elevationMinEdit")
         self.elevationMinEdit.setDecimals(2)
         self.elevationMinEdit.setMinimum(0.000000000000000)
@@ -188,7 +221,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.elevationRangeLayout.addWidget(self.elevationMinEdit)
 
-        self.elevationMaxEdit = QDoubleSpinBox(self.tab)
+        self.elevationMaxEdit = QDoubleSpinBox(self.groupPointing)
         self.elevationMaxEdit.setObjectName(u"elevationMaxEdit")
         self.elevationMaxEdit.setDecimals(2)
         self.elevationMaxEdit.setMinimum(0.000000000000000)
@@ -198,16 +231,16 @@ class Ui_TelescopeEditorDialog(object):
         self.elevationRangeLayout.addWidget(self.elevationMaxEdit)
 
 
-        self.formLayout.setLayout(10, QFormLayout.FieldRole, self.elevationRangeLayout)
+        self.gridPointing.addLayout(self.elevationRangeLayout, 0, 1, 1, 1)
 
-        self.labelAzimuthRange = QLabel(self.tab)
+        self.labelAzimuthRange = QLabel(self.groupPointing)
         self.labelAzimuthRange.setObjectName(u"labelAzimuthRange")
 
-        self.formLayout.setWidget(11, QFormLayout.LabelRole, self.labelAzimuthRange)
+        self.gridPointing.addWidget(self.labelAzimuthRange, 1, 0, 1, 1)
 
         self.azimuthRangeLayout = QHBoxLayout()
         self.azimuthRangeLayout.setObjectName(u"azimuthRangeLayout")
-        self.azimuthMinEdit = QDoubleSpinBox(self.tab)
+        self.azimuthMinEdit = QDoubleSpinBox(self.groupPointing)
         self.azimuthMinEdit.setObjectName(u"azimuthMinEdit")
         self.azimuthMinEdit.setDecimals(2)
         self.azimuthMinEdit.setMinimum(0.000000000000000)
@@ -215,7 +248,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.azimuthRangeLayout.addWidget(self.azimuthMinEdit)
 
-        self.azimuthMaxEdit = QDoubleSpinBox(self.tab)
+        self.azimuthMaxEdit = QDoubleSpinBox(self.groupPointing)
         self.azimuthMaxEdit.setObjectName(u"azimuthMaxEdit")
         self.azimuthMaxEdit.setDecimals(2)
         self.azimuthMaxEdit.setMinimum(0.000000000000000)
@@ -225,38 +258,20 @@ class Ui_TelescopeEditorDialog(object):
         self.azimuthRangeLayout.addWidget(self.azimuthMaxEdit)
 
 
-        self.formLayout.setLayout(11, QFormLayout.FieldRole, self.azimuthRangeLayout)
+        self.gridPointing.addLayout(self.azimuthRangeLayout, 1, 1, 1, 1)
 
-        self.labelMountType = QLabel(self.tab)
-        self.labelMountType.setObjectName(u"labelMountType")
 
-        self.formLayout.setWidget(12, QFormLayout.LabelRole, self.labelMountType)
-
-        self.mountTypeCombo = QComboBox(self.tab)
-        self.mountTypeCombo.addItem("")
-        self.mountTypeCombo.addItem("")
-        self.mountTypeCombo.setObjectName(u"mountTypeCombo")
-
-        self.formLayout.setWidget(12, QFormLayout.FieldRole, self.mountTypeCombo)
-
-        self.labelIsActive = QLabel(self.tab)
-        self.labelIsActive.setObjectName(u"labelIsActive")
-
-        self.formLayout.setWidget(13, QFormLayout.LabelRole, self.labelIsActive)
+        self.mainParametersLayout.addWidget(self.groupPointing)
 
         self.isActiveCheckBox = QCheckBox(self.tab)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
 
-        self.formLayout.setWidget(13, QFormLayout.FieldRole, self.isActiveCheckBox)
+        self.mainParametersLayout.addWidget(self.isActiveCheckBox)
 
-        self.labelName = QLabel(self.tab)
-        self.labelName.setObjectName(u"labelName")
+        self.mainParametersSpacer = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelName)
-
-
-        self.gridLayout.addLayout(self.formLayout, 0, 0, 1, 1)
+        self.mainParametersLayout.addItem(self.mainParametersSpacer)
 
         self.tabWidget.addTab(self.tab, "")
         self.tab_2 = QWidget()
@@ -474,30 +489,37 @@ class Ui_TelescopeEditorDialog(object):
 
     def retranslateUi(self, TelescopeEditorDialog):
         TelescopeEditorDialog.setWindowTitle(QCoreApplication.translate("TelescopeEditorDialog", u"Edit Telescope", None))
+        self.groupIdentity.setTitle(QCoreApplication.translate("TelescopeEditorDialog", u"What it is", None))
         self.labelCode.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Code:", None))
         self.codeEdit.setPlaceholderText(QCoreApplication.translate("TelescopeEditorDialog", u"Enter telescope code", None))
-        self.nameEdit.setPlaceholderText(QCoreApplication.translate("TelescopeEditorDialog", u"Enter telescope name", None))
-        self.labelX.setText(QCoreApplication.translate("TelescopeEditorDialog", u"X (m):", None))
-        self.labelY.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Y (m):", None))
-        self.labelZ.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Z (m):", None))
-        self.labelVx.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Vx (m/s):", None))
-        self.labelVy.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Vy (m/s):", None))
-        self.labelVz.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Vz (m/s):", None))
-        self.labelDiameter.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Diameter (m):", None))
-        self.labelSurfaceAccuracy.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Surface Accuracy (\u00b5m):", None))
-        self.surfaceAccuracyEdit.setSpecialValueText(QCoreApplication.translate("TelescopeEditorDialog", u"None", None))
-        self.labelElevationRange.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Elevation Range (deg):", None))
-        self.elevationMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
-        self.elevationMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
-        self.labelAzimuthRange.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Azimuth Range (deg):", None))
-        self.azimuthMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
-        self.azimuthMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
-        self.labelMountType.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Mount Type:", None))
+        self.labelMountType.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Mount:", None))
         self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUA", None))
         self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIM", None))
 
-        self.labelIsActive.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Active:", None))
         self.labelName.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Name:", None))
+        self.nameEdit.setPlaceholderText(QCoreApplication.translate("TelescopeEditorDialog", u"Enter telescope name", None))
+        self.groupPosition.setTitle(QCoreApplication.translate("TelescopeEditorDialog", u"Where it stands, and how it moves", None))
+        self.labelX.setText(QCoreApplication.translate("TelescopeEditorDialog", u"X (m):", None))
+        self.labelVx.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Vx (m/yr):", None))
+        self.labelY.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Y (m):", None))
+        self.labelVy.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Vy (m/yr):", None))
+        self.labelZ.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Z (m):", None))
+        self.labelVz.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Vz (m/yr):", None))
+        self.groupDish.setTitle(QCoreApplication.translate("TelescopeEditorDialog", u"The dish", None))
+        self.labelDiameter.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Diameter (m):", None))
+        self.labelSurfaceAccuracy.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Surface accuracy (um):", None))
+#if QT_CONFIG(tooltip)
+        self.surfaceAccuracyEdit.setToolTip(QCoreApplication.translate("TelescopeEditorDialog", u"The RMS error of the surface, which is what Ruze's formula takes. Leave it at None when it is not known.", None))
+#endif // QT_CONFIG(tooltip)
+        self.surfaceAccuracyEdit.setSpecialValueText(QCoreApplication.translate("TelescopeEditorDialog", u"None", None))
+        self.groupPointing.setTitle(QCoreApplication.translate("TelescopeEditorDialog", u"Where it can point", None))
+        self.labelElevationRange.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Elevation (deg):", None))
+        self.elevationMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
+        self.elevationMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
+        self.labelAzimuthRange.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Azimuth (deg):", None))
+        self.azimuthMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
+        self.azimuthMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
+        self.isActiveCheckBox.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Active in this observation", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("TelescopeEditorDialog", u"Main Parameters", None))
         self.labelSurfaceEfficiencyTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Surface Efficiency Table (from-to MHz, efficiency):", None))
         self.labelSefdTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"SEFD Table (from-to MHz, Jy):", None))
@@ -516,6 +538,7 @@ class Ui_TelescopeEditorDialog(object):
         self.removeSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
         self.clearSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("TelescopeEditorDialog", u"Sensitivity", None))
+        self.saveButton.setProperty(u"role", QCoreApplication.translate("TelescopeEditorDialog", u"primary", None))
         self.saveButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Cancel", None))
     # retranslateUi
