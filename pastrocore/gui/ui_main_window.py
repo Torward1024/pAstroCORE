@@ -17,10 +17,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDockWidget, QHBoxLayout,
-    QHeaderView, QLabel, QMainWindow, QMenu,
-    QMenuBar, QProgressBar, QSizePolicy, QStatusBar,
-    QTabWidget, QToolBar, QTreeView, QVBoxLayout,
-    QWidget)
+    QHeaderView, QLabel, QLineEdit, QMainWindow,
+    QMenu, QMenuBar, QProgressBar, QSizePolicy,
+    QStatusBar, QTabWidget, QToolBar, QTreeView,
+    QVBoxLayout, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -228,7 +228,7 @@ class Ui_MainWindow(object):
         self.mainToolBar.setObjectName(u"mainToolBar")
         self.mainToolBar.setMovable(False)
         self.mainToolBar.setIconSize(QSize(24, 24))
-        self.mainToolBar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.mainToolBar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         MainWindow.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.mainToolBar)
         self.dockWidget = QDockWidget(MainWindow)
         self.dockWidget.setObjectName(u"dockWidget")
@@ -236,16 +236,23 @@ class Ui_MainWindow(object):
         self.dockWidget.setFloating(False)
         self.dockWidgetContents = QWidget()
         self.dockWidgetContents.setObjectName(u"dockWidgetContents")
-        self.horizontalLayout = QHBoxLayout(self.dockWidgetContents)
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.explorerLayout = QVBoxLayout(self.dockWidgetContents)
+        self.explorerLayout.setSpacing(6)
+        self.explorerLayout.setObjectName(u"explorerLayout")
+        self.explorerFilter = QLineEdit(self.dockWidgetContents)
+        self.explorerFilter.setObjectName(u"explorerFilter")
+        self.explorerFilter.setClearButtonEnabled(True)
+
+        self.explorerLayout.addWidget(self.explorerFilter)
+
         self.projectExplorer = QTreeView(self.dockWidgetContents)
         self.projectExplorer.setObjectName(u"projectExplorer")
-        self.projectExplorer.setMinimumSize(QSize(300, 0))
+        self.projectExplorer.setMinimumSize(QSize(220, 0))
         self.projectExplorer.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.projectExplorer.setHeaderHidden(True)
         self.projectExplorer.header().setVisible(False)
 
-        self.horizontalLayout.addWidget(self.projectExplorer)
+        self.explorerLayout.addWidget(self.projectExplorer)
 
         self.dockWidget.setWidget(self.dockWidgetContents)
         MainWindow.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockWidget)
@@ -320,14 +327,17 @@ class Ui_MainWindow(object):
         self.actionNewProject.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+N", None))
 #endif // QT_CONFIG(shortcut)
         self.actionNewProject.setText(QCoreApplication.translate("MainWindow", u"New Project", None))
+        self.actionNewProject.setIconText(QCoreApplication.translate("MainWindow", u"New", None))
 #if QT_CONFIG(shortcut)
         self.actionOpenProject.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+O", None))
 #endif // QT_CONFIG(shortcut)
         self.actionOpenProject.setText(QCoreApplication.translate("MainWindow", u"Open Project", None))
+        self.actionOpenProject.setIconText(QCoreApplication.translate("MainWindow", u"Open", None))
 #if QT_CONFIG(shortcut)
         self.actionSaveProject.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+S", None))
 #endif // QT_CONFIG(shortcut)
         self.actionSaveProject.setText(QCoreApplication.translate("MainWindow", u"Save Project", None))
+        self.actionSaveProject.setIconText(QCoreApplication.translate("MainWindow", u"Save", None))
         self.actionOpen_Package.setText(QCoreApplication.translate("MainWindow", u"Import Project", None))
 #if QT_CONFIG(tooltip)
         self.actionOpen_Package.setToolTip(QCoreApplication.translate("MainWindow", u"Open a project someone sent as one file", None))
@@ -343,6 +353,7 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.actionExport_VEX.setToolTip(QCoreApplication.translate("MainWindow", u"Write this observation as a VEX file. Blocks describing station hardware are written empty, and named afterwards", None))
 #endif // QT_CONFIG(tooltip)
+        self.actionExport_VEX.setIconText(QCoreApplication.translate("MainWindow", u"Export VEX", None))
 #if QT_CONFIG(shortcut)
         self.actionImport_VEX.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+I", None))
 #endif // QT_CONFIG(shortcut)
@@ -350,6 +361,7 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.actionImport_VEX.setToolTip(QCoreApplication.translate("MainWindow", u"Read a VEX file into this project as a new observation", None))
 #endif // QT_CONFIG(tooltip)
+        self.actionImport_VEX.setIconText(QCoreApplication.translate("MainWindow", u"Import VEX", None))
         self.actionImport_CFX.setText(QCoreApplication.translate("MainWindow", u"CFX...", None))
 #if QT_CONFIG(tooltip)
         self.actionImport_CFX.setToolTip(QCoreApplication.translate("MainWindow", u"Read a CFX file into this project as a new observation", None))
@@ -365,6 +377,7 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.actionAnalysis.setToolTip(QCoreApplication.translate("MainWindow", u"Analyze", None))
 #endif // QT_CONFIG(tooltip)
+        self.actionAnalysis.setIconText(QCoreApplication.translate("MainWindow", u"Analysis", None))
 #if QT_CONFIG(shortcut)
         self.actionExit.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+Q", None))
 #endif // QT_CONFIG(shortcut)
@@ -373,6 +386,7 @@ class Ui_MainWindow(object):
         self.actionPreferences.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+,", None))
 #endif // QT_CONFIG(shortcut)
         self.actionPreferences.setText(QCoreApplication.translate("MainWindow", u"Preferences...", None))
+        self.actionPreferences.setIconText(QCoreApplication.translate("MainWindow", u"Settings", None))
 #if QT_CONFIG(shortcut)
         self.actionAbout.setShortcut(QCoreApplication.translate("MainWindow", u"F1", None))
 #endif // QT_CONFIG(shortcut)
@@ -393,10 +407,12 @@ class Ui_MainWindow(object):
         self.actionCalculate.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+R", None))
 #endif // QT_CONFIG(shortcut)
         self.actionCalculate.setText(QCoreApplication.translate("MainWindow", u"Calculate", None))
+        self.actionCalculate.setIconText(QCoreApplication.translate("MainWindow", u"Calculate", None))
 #if QT_CONFIG(shortcut)
         self.actionVisualize.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+Shift+V", None))
 #endif // QT_CONFIG(shortcut)
         self.actionVisualize.setText(QCoreApplication.translate("MainWindow", u"Visualize", None))
+        self.actionVisualize.setIconText(QCoreApplication.translate("MainWindow", u"Plots", None))
 #if QT_CONFIG(shortcut)
         self.actionSession.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+J", None))
 #endif // QT_CONFIG(shortcut)
@@ -404,6 +420,7 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.actionSession.setToolTip(QCoreApplication.translate("MainWindow", u"Session Viewer", None))
 #endif // QT_CONFIG(tooltip)
+        self.actionSession.setIconText(QCoreApplication.translate("MainWindow", u"Session", None))
 #if QT_CONFIG(shortcut)
         self.actionLast_Run_Report.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+Shift+R", None))
 #endif // QT_CONFIG(shortcut)
@@ -415,10 +432,12 @@ class Ui_MainWindow(object):
         self.actionGenerate_Observations.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+G", None))
 #endif // QT_CONFIG(shortcut)
         self.actionGenerate_Observations.setText(QCoreApplication.translate("MainWindow", u"Generate Observations", None))
+        self.actionGenerate_Observations.setIconText(QCoreApplication.translate("MainWindow", u"Generate", None))
 #if QT_CONFIG(shortcut)
         self.actionExport_Calulcated_Data.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+E", None))
 #endif // QT_CONFIG(shortcut)
         self.actionExport_Calulcated_Data.setText(QCoreApplication.translate("MainWindow", u"Export Calculated Data", None))
+        self.actionExport_Calulcated_Data.setIconText(QCoreApplication.translate("MainWindow", u"Results", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Select item from Project Explorer.", None))
         self.tabContainer.setTabText(self.tabContainer.indexOf(self.tabWelcome), QCoreApplication.translate("MainWindow", u"Welcome", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
@@ -440,5 +459,9 @@ class Ui_MainWindow(object):
         self.menuTools.setTitle(QCoreApplication.translate("MainWindow", u"Tools", None))
         self.mainToolBar.setWindowTitle(QCoreApplication.translate("MainWindow", u"Main", None))
         self.dockWidget.setWindowTitle(QCoreApplication.translate("MainWindow", u"Project Explorer", None))
+        self.explorerFilter.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Filter observations...", None))
+#if QT_CONFIG(tooltip)
+        self.explorerFilter.setToolTip(QCoreApplication.translate("MainWindow", u"Show only the observations whose code contains this.", None))
+#endif // QT_CONFIG(tooltip)
     # retranslateUi
 

@@ -311,6 +311,7 @@ class PAstroCoreMainWindow(QMainWindow):
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             self._connect(project_explorer.clicked, self.handle_project_explorer_click)
+        self._connect(self.ui.explorerFilter.textChanged, self.filter_project_explorer)
         self._connect(self.ui.tabContainer.tabCloseRequested, self.handle_tab_close)
         self._connect(self.ui.actionProject_Explorer.toggled, self.ui.dockWidget.setVisible)
         self._connect(self.ui.dockWidget.visibilityChanged, self.sync_project_explorer_action)
@@ -611,6 +612,8 @@ class PAstroCoreMainWindow(QMainWindow):
         observations_item = QStandardItem("Observations")
         observations_item.setData("observations", Qt.UserRole)
         project_item.appendRow(observations_item)
+        # The count goes in the label once the observations are read, below: a tree that says
+        # how much is in it answers the first question somebody opens it with.
 
         try:
             observations = self.manipulator.inspect(self.project, get_observations=None)
@@ -638,7 +641,8 @@ class PAstroCoreMainWindow(QMainWindow):
                             logger.debug("Added observation '%s' to Project Explorer", obs_code)
                         except Exception as e:
                             logger.error("Failed to get code for observation '%s': %s", obs_name, str(e))
-                else:
+                observations_item.setText(f"Observations ({len(observations)})")
+                if not observations:
                     logger.debug("No observations found in project")
             else:
                 logger.error("Expected a list of observations, got %s: %s", type(observations), observations)
@@ -647,8 +651,41 @@ class PAstroCoreMainWindow(QMainWindow):
 
         project_explorer.setModel(model)
         project_explorer.expandAll()
+        # A filter typed before the tree was rebuilt still applies to it: a refresh that shows
+        # everything again is a refresh that undoes what the user asked for.
+        self.filter_project_explorer()
         project_explorer.viewport().update()
         logger.debug("Project explorer updated and expanded")
+
+    def filter_project_explorer(self, text: str = None) -> int:
+        """Show only the observations whose label contains what was typed.
+
+        Args:
+            text (str): What to look for. Read from the box when not given, which is what a
+                rebuilt tree needs.
+
+        Returns:
+            int: How many observations are shown.
+
+        Notes:
+            - Rows are hidden rather than a model filtered through a proxy: the tree is three
+              levels and a dozen rows, and a proxy would put a second model between the click
+              handler and the item it reads the observation's name off.
+        """
+        tree = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        model = tree.model() if tree is not None else None
+        if model is None:
+            return 0
+        wanted = (self.ui.explorerFilter.text() if text is None else text).strip().lower()
+        project = model.index(0, 0)
+        observations = model.index(0, 0, project)
+        shown = 0
+        for row in range(model.rowCount(observations)):
+            label = str(model.index(row, 0, observations).data() or "")
+            hidden = bool(wanted) and wanted not in label.lower()
+            tree.setRowHidden(row, observations, hidden)
+            shown += 0 if hidden else 1
+        return shown
 
     def _warm_manipulator(self) -> None:
         """Build the deferred operations and derive the catalogue, off the interface thread.
@@ -816,6 +853,9 @@ class PAstroCoreMainWindow(QMainWindow):
 
         self.clear_connections(is_initial_setup=False)
         self.setup_connections()
+        # A new orchestrator draws its plots in the palette it was built with, which is the
+        # light one -- so opening a project in the dark theme gave it white figures.
+        self.apply_theme()
 
         self.open_project_info_tab()
         self.update_project_explorer()
