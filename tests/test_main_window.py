@@ -72,6 +72,43 @@ def test_the_window_has_a_toolbar_of_the_actions_a_user_reaches_for(window):
         assert not action.icon().isNull(), f"{action.objectName()} is on the toolbar without an icon"
 
 
+def test_every_toolbar_button_says_what_it_does(window):
+    """U1: a row of thirteen unlabelled icons is a row of thirteen guesses. The toolbar shows
+    the text under the icon, and it is the short one -- a menu says "Export Calculated Data...",
+    a button under an icon has room for "Results"."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QToolBar
+
+    toolbar = window.findChild(QToolBar, "mainToolBar")
+
+    assert toolbar.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextUnderIcon
+    unlabelled = [action.objectName() for action in toolbar.actions()
+                  if not action.isSeparator() and not action.iconText().strip()]
+    assert not unlabelled, f"these toolbar buttons have no label: {unlabelled}"
+    long_ones = [action.iconText() for action in toolbar.actions()
+                 if not action.isSeparator() and len(action.iconText()) > 12]
+    assert not long_ones, f"these labels do not fit under an icon: {long_ones}"
+
+
+def test_the_explorer_filter_hides_what_does_not_match(window, qt_application):
+    """U1: a project of fifty observations is a tree nobody scrolls. What is typed narrows it,
+    and a rebuilt tree keeps the filter -- a refresh that shows everything again undoes what the
+    user asked for."""
+    from PySide6.QtWidgets import QTreeView
+
+    window.update_project_explorer()
+    tree = window.findChild(QTreeView, "projectExplorer")
+    code = window.project.get_observations()[0].get_observation_code()
+
+    assert window.filter_project_explorer(code[:3]) == 1, "the observation it names is shown"
+    assert window.filter_project_explorer("nothing_is_called_this") == 0
+
+    window.ui.explorerFilter.setText("nothing_is_called_this")
+    window.update_project_explorer()
+    observations = tree.model().index(0, 0, tree.model().index(0, 0))
+    assert tree.isRowHidden(0, observations), "a rebuilt tree forgot the filter"
+
+
 def test_a_toolbar_button_is_the_menu_action_itself(window):
     """Not a copy: an action the window disables has to be unreachable both ways, and a copy on the
     toolbar would go on offering work the menu has already refused."""

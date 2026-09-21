@@ -22,7 +22,6 @@ class ProjectInfoTab(QWidget):
         self.setup_connections()
         self.active_icon = QIcon(":/icons/active_icon.svg")
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
-        self.ui.search.setPlaceholderText("Search observations...")
 
     def setup_table(self):
         """Set up the observations table with appropriate columns."""
