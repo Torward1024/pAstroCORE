@@ -274,6 +274,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.scanDurationSpinBox = QDoubleSpinBox(GenerateObservationsDialog)
         self.scanDurationSpinBox.setObjectName(u"scanDurationSpinBox")
+        self.scanDurationSpinBox.setMaximumSize(QSize(160, 16777215))
         self.scanDurationSpinBox.setMinimum(1.000000000000000)
         self.scanDurationSpinBox.setMaximum(9999999999999.000000000000000)
         self.scanDurationSpinBox.setValue(300.000000000000000)
@@ -292,6 +293,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.numScansSpinBox = QSpinBox(GenerateObservationsDialog)
         self.numScansSpinBox.setObjectName(u"numScansSpinBox")
+        self.numScansSpinBox.setMaximumSize(QSize(160, 16777215))
         self.numScansSpinBox.setMinimum(1)
         self.numScansSpinBox.setMaximum(99999)
         self.numScansSpinBox.setValue(5)

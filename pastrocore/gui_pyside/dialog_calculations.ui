@@ -131,10 +131,67 @@
     </layout>
    </item>
    <item row="2" column="0">
-    <widget class="QLabel" name="labelParameters">
-     <property name="text">
-      <string>Parameters:</string>
+    <widget class="QGroupBox" name="groupRun">
+     <property name="title">
+      <string>Run</string>
      </property>
+     <layout class="QGridLayout" name="gridRun">
+      <item row="0" column="2">
+       <spacer name="runSpacer">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="labelTimestep">
+       <property name="text">
+        <string>Time step (s):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QDoubleSpinBox" name="timeStepSpin">
+       <property name="maximumSize">
+        <size>
+         <width>160</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="minimum">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>3600.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>600.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0" colspan="2">
+      <widget class="QCheckBox" name="recalculateCheck">
+       <property name="toolTip">
+        <string>A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.</string>
+       </property>
+       <property name="text">
+        <string>Recompute everything</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="tristate">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     </layout>
     </widget>
    </item>
    <item row="5" column="0">
@@ -192,42 +249,6 @@
    </item>
    <item row="3" column="0">
     <layout class="QGridLayout" name="gridLayout_2">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelTimestep">
-       <property name="text">
-        <string>Time step (s):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QDoubleSpinBox" name="timeStepSpin">
-       <property name="minimum">
-        <double>1.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>3600.000000000000000</double>
-       </property>
-       <property name="value">
-        <double>600.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0" colspan="2">
-      <widget class="QCheckBox" name="recalculateCheck">
-       <property name="toolTip">
-        <string>A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.</string>
-       </property>
-       <property name="text">
-        <string>Recompute everything</string>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <property name="tristate">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
      <item row="2" column="0" colspan="2">
       <widget class="QGroupBox" name="groupSensitivity">
        <property name="title">

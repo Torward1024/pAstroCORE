@@ -110,10 +110,37 @@ class Ui_CalculationDialog(object):
 
         self.gridLayout_3.addLayout(self.gridLayout, 0, 0, 1, 1)
 
-        self.labelParameters = QLabel(CalculationDialog)
-        self.labelParameters.setObjectName(u"labelParameters")
+        self.groupRun = QGroupBox(CalculationDialog)
+        self.groupRun.setObjectName(u"groupRun")
+        self.gridRun = QGridLayout(self.groupRun)
+        self.gridRun.setObjectName(u"gridRun")
+        self.runSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout_3.addWidget(self.labelParameters, 2, 0, 1, 1)
+        self.gridRun.addItem(self.runSpacer, 0, 2, 1, 1)
+
+        self.labelTimestep = QLabel(self.groupRun)
+        self.labelTimestep.setObjectName(u"labelTimestep")
+
+        self.gridRun.addWidget(self.labelTimestep, 0, 0, 1, 1)
+
+        self.timeStepSpin = QDoubleSpinBox(self.groupRun)
+        self.timeStepSpin.setObjectName(u"timeStepSpin")
+        self.timeStepSpin.setMaximumSize(QSize(160, 16777215))
+        self.timeStepSpin.setMinimum(1.000000000000000)
+        self.timeStepSpin.setMaximum(3600.000000000000000)
+        self.timeStepSpin.setValue(600.000000000000000)
+
+        self.gridRun.addWidget(self.timeStepSpin, 0, 1, 1, 1)
+
+        self.recalculateCheck = QCheckBox(self.groupRun)
+        self.recalculateCheck.setObjectName(u"recalculateCheck")
+        self.recalculateCheck.setChecked(False)
+        self.recalculateCheck.setTristate(False)
+
+        self.gridRun.addWidget(self.recalculateCheck, 1, 0, 1, 2)
+
+
+        self.gridLayout_3.addWidget(self.groupRun, 2, 0, 1, 1)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.setObjectName(u"buttonLayout")
@@ -145,26 +172,6 @@ class Ui_CalculationDialog(object):
 
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.labelTimestep = QLabel(CalculationDialog)
-        self.labelTimestep.setObjectName(u"labelTimestep")
-
-        self.gridLayout_2.addWidget(self.labelTimestep, 0, 0, 1, 1)
-
-        self.timeStepSpin = QDoubleSpinBox(CalculationDialog)
-        self.timeStepSpin.setObjectName(u"timeStepSpin")
-        self.timeStepSpin.setMinimum(1.000000000000000)
-        self.timeStepSpin.setMaximum(3600.000000000000000)
-        self.timeStepSpin.setValue(600.000000000000000)
-
-        self.gridLayout_2.addWidget(self.timeStepSpin, 0, 1, 1, 1)
-
-        self.recalculateCheck = QCheckBox(CalculationDialog)
-        self.recalculateCheck.setObjectName(u"recalculateCheck")
-        self.recalculateCheck.setChecked(False)
-        self.recalculateCheck.setTristate(False)
-
-        self.gridLayout_2.addWidget(self.recalculateCheck, 1, 0, 1, 2)
-
         self.groupSensitivity = QGroupBox(CalculationDialog)
         self.groupSensitivity.setObjectName(u"groupSensitivity")
         self.gridLayoutSensitivity = QGridLayout(self.groupSensitivity)
@@ -297,16 +304,16 @@ class Ui_CalculationDialog(object):
         self.labelCalc.setText(QCoreApplication.translate("CalculationDialog", u"Calculations:", None))
         self.selectAllObsButton.setText(QCoreApplication.translate("CalculationDialog", u"Select All", None))
         self.clearAllObsButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear", None))
-        self.labelParameters.setText(QCoreApplication.translate("CalculationDialog", u"Parameters:", None))
-        self.clrButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear Data", None))
-        self.calcButton.setProperty(u"role", QCoreApplication.translate("CalculationDialog", u"primary", None))
-        self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
-        self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
+        self.groupRun.setTitle(QCoreApplication.translate("CalculationDialog", u"Run", None))
         self.labelTimestep.setText(QCoreApplication.translate("CalculationDialog", u"Time step (s):", None))
 #if QT_CONFIG(tooltip)
         self.recalculateCheck.setToolTip(QCoreApplication.translate("CalculationDialog", u"A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.", None))
 #endif // QT_CONFIG(tooltip)
         self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recompute everything", None))
+        self.clrButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear Data", None))
+        self.calcButton.setProperty(u"role", QCoreApplication.translate("CalculationDialog", u"primary", None))
+        self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
+        self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
         self.groupSensitivity.setTitle(QCoreApplication.translate("CalculationDialog", u"Sensitivity", None))
         self.labelThreshold.setText(QCoreApplication.translate("CalculationDialog", u"Detection (sigma):", None))
 #if QT_CONFIG(tooltip)

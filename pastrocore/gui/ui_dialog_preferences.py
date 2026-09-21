@@ -121,6 +121,7 @@ class Ui_PreferencesDialog(object):
 
         self.timeStepSpin = QDoubleSpinBox(self.tab_2)
         self.timeStepSpin.setObjectName(u"timeStepSpin")
+        self.timeStepSpin.setMaximumSize(QSize(160, 16777215))
         self.timeStepSpin.setMinimum(1.000000000000000)
         self.timeStepSpin.setMaximum(99999999.000000000000000)
         self.timeStepSpin.setValue(600.000000000000000)
@@ -139,6 +140,7 @@ class Ui_PreferencesDialog(object):
 
         self.resultsMemorySpin = QSpinBox(self.tab_2)
         self.resultsMemorySpin.setObjectName(u"resultsMemorySpin")
+        self.resultsMemorySpin.setMaximumSize(QSize(160, 16777215))
         self.resultsMemorySpin.setMinimum(5)
         self.resultsMemorySpin.setMaximum(100)
         self.resultsMemorySpin.setValue(50)

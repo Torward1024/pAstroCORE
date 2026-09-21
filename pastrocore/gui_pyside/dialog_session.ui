@@ -27,7 +27,7 @@
    <item>
     <widget class="QLabel" name="labelSummary">
      <property name="text">
-      <string>lblSummary</string>
+      <string>No session loaded</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>

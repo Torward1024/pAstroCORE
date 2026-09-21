@@ -142,6 +142,12 @@
          </item>
          <item>
           <widget class="QDoubleSpinBox" name="timeStepSpin">
+           <property name="maximumSize">
+            <size>
+             <width>160</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="minimum">
             <double>1.000000000000000</double>
            </property>
@@ -166,6 +172,12 @@
          </item>
          <item>
           <widget class="QSpinBox" name="resultsMemorySpin">
+           <property name="maximumSize">
+            <size>
+             <width>160</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="toolTip">
             <string>Share of available memory the calculated results may occupy before the least recently used are dropped. They are read back from the project directory when needed again, so this costs a read rather than a recalculation.</string>
            </property>
