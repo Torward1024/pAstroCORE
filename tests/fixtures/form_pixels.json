@@ -1,6 +1,6 @@
 {
   "win32-pyside6": {
-    "ui_dialog_about.Ui_AboutDialog": "af6209b0962751fd5ecad0133b23a24f",
+    "ui_dialog_about.Ui_AboutDialog": "de9995d7dc4e33ce999a64eb440061bd",
     "ui_dialog_add_observation.Ui_AddObservationDialog": "14eb3ccc5a740d574ddcf417ff03aa3f",
     "ui_dialog_calc_progress.Ui_ProgressDialog": "c2e4079b00d6f693da23756de6aaeaed",
     "ui_dialog_calculations.Ui_CalculationDialog": "9e044bc34a1210e9a48af93447c74f9d",
@@ -18,8 +18,8 @@
     "ui_dialog_session.Ui_SessionDialog": "36e90e7cd7e5bb5e992206f5b8eb46be",
     "ui_dialog_visualize.Ui_VisualizationDialog": "64e7fa04e2ee6b014736894828195573",
     "ui_main_window.Ui_MainWindow": "8b9a8125c408064366759952723ae313",
-    "ui_tab_analysis.Ui_AnalysisTab": "0d37b40a4ca9a525688c0b1b7f1b3512",
-    "ui_tab_observation.Ui_ObservationInfoTab": "4b9cacca741a89cd95ae26e393b5fd6f",
+    "ui_tab_analysis.Ui_AnalysisTab": "1b31cfbdd6bd75f6414fe41006510644",
+    "ui_tab_observation.Ui_ObservationInfoTab": "c5d1eecac609aba3caddf2b66213279f",
     "ui_tab_observation_any.Ui_observation_tab": "197cab014192244220ff449082a9a85d",
     "ui_tab_project.Ui_ProjectInfoTab": "21c234a11291ec5a9286f98780f8d5bd",
     "ui_tab_vis_beam_pattern.Ui_VisBeamPatternTab": "d2343fe0efab7ec3b2a81e339be89c45",

@@ -137,7 +137,7 @@ class Ui_AboutDialog(object):
         self.label.setText(QCoreApplication.translate("AboutDialog", u"Alexey Rudnitskiy\n"
 "(E-mail: almax1024@gmail.com)", None))
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
-        self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
+        self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for radio astronomical observations\n"
 " planning and visualization.", None))
     # retranslateUi
 
