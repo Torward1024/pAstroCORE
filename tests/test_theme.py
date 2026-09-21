@@ -136,6 +136,28 @@ def test_the_plots_stand_on_the_same_palette_as_the_window(name):
     assert style["colors"][0] == theme.SERIES[name][0]
 
 
+def test_a_plot_is_drawn_in_the_palette_the_window_asked_for(project, qt_application):
+    """Not the configuration -- the figure. A dark window with a white rectangle in it is what
+    happens when the two are set apart from each other."""
+    from matplotlib.colors import to_rgba
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.get_observations()[0]
+    core = ScheduleManipulator(project)
+    telescopes = [t.get_code() for t in observation.get_telescopes().get_items()]
+    source = observation.get_sources().get_items()[0].name
+
+    for name in theme.THEMES:
+        assert core.set_plot_theme(name) == name
+        drawn = core.visualize(obj=observation, plot_type="time_on_source", return_figure=True,
+                               show=False, source_name=source, telescopes=telescopes)
+        figure = (drawn or {}).get("figure")
+        assert figure is not None, f"nothing was drawn in the '{name}' theme"
+        assert figure.get_facecolor() == to_rgba(theme.PALETTES[name]["plot_bg"])
+        assert figure.get_axes()[0].get_facecolor() == to_rgba(theme.PALETTES[name]["plot_panel"])
+
+
 def test_the_theme_asked_for_is_the_theme_used():
     assert theme.resolve("light", system_is_dark=True) == "light"
     assert theme.resolve("dark", system_is_dark=False) == "dark"
