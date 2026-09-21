@@ -658,8 +658,7 @@ def test_a_form_names_the_button_that_does_the_thing():
                  "main_window.ui", "tab_analysis.ui", "tab_observation.ui",
                  "tab_observation_any.ui", "tab_project.ui", "tab_vis_beam_pattern.ui",
                  "tab_vis_default.ui", "tab_vis_mollweide.ui", "tab_vis_sensitivity.ui",
-                 "tab_vis_uv_coverage.ui", "dialog_session.ui", "dialog_visualize.ui",
-                 "dialog_schedule_export.ui"}
+                 "tab_vis_uv_coverage.ui", "dialog_session.ui", "dialog_schedule_export.ui"}
 
     missing = [form.name for form in sorted(forms.glob("*.ui"))
                if form.name not in READ_ONLY

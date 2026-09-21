@@ -153,6 +153,7 @@ class Ui_VisualizationDialog(object):
         self.comboBoxVisualizationType.setItemText(7, QCoreApplication.translate("VisualizationDialog", u"Baseline Projections", None))
         self.comboBoxVisualizationType.setItemText(8, QCoreApplication.translate("VisualizationDialog", u"Mollweide Tracks", None))
 
+        self.pushButtonVisualize.setProperty(u"role", QCoreApplication.translate("VisualizationDialog", u"primary", None))
         self.pushButtonVisualize.setText(QCoreApplication.translate("VisualizationDialog", u"View", None))
         self.pushButton.setText(QCoreApplication.translate("VisualizationDialog", u"Export", None))
         self.closeButton.setText(QCoreApplication.translate("VisualizationDialog", u"Close", None))

@@ -107,7 +107,7 @@ class Ui_SessionDialog(object):
 
     def retranslateUi(self, SessionDialog):
         SessionDialog.setWindowTitle(QCoreApplication.translate("SessionDialog", u"Session", None))
-        self.labelSummary.setText(QCoreApplication.translate("SessionDialog", u"lblSummary", None))
+        self.labelSummary.setText(QCoreApplication.translate("SessionDialog", u"No session loaded", None))
 #if QT_CONFIG(tooltip)
         self.checkBoxChangesOnly.setToolTip(QCoreApplication.translate("SessionDialog", u"Hide the requests that only read -- inspecting, drawing, summarising. Everything is still recorded; this only changes what is shown and saved", None))
 #endif // QT_CONFIG(tooltip)

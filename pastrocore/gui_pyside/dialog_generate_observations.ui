@@ -353,6 +353,12 @@
      </item>
      <item>
       <widget class="QDoubleSpinBox" name="scanDurationSpinBox">
+       <property name="maximumSize">
+        <size>
+         <width>160</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <property name="minimum">
         <double>1.000000000000000</double>
        </property>
@@ -377,6 +383,12 @@
      </item>
      <item>
       <widget class="QSpinBox" name="numScansSpinBox">
+       <property name="maximumSize">
+        <size>
+         <width>160</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <property name="minimum">
         <number>1</number>
        </property>
