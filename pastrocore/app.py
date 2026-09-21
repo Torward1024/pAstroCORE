@@ -20,6 +20,7 @@ from pastrocore.utils.catalogmanager import CatalogManager
 # they pull in matplotlib and every visualization tab, which is 570 ms of a start-up that
 # happens whether or not anyone opens a dialog.
 from pastrocore import theme
+from pastrocore.gui import icon_theme
 from pastrocore.gui.styling import load_stylesheet
 from pastrocore.gui.ui_main_window import Ui_MainWindow
 from pastrocore.gui.p_tab_project import ProjectInfoTab
@@ -165,7 +166,10 @@ class PAstroCoreMainWindow(QMainWindow):
         if application is not None:
             application.setStyleSheet(load_stylesheet(choice, dark))
         name = self.manipulator.set_plot_theme(theme.resolve(choice, dark))
-        logger.info("Theme '%s' applied to the window and the plots", name)
+        # The icon set is monochrome, so it is drawn in the palette's ink rather than shipped
+        # twice -- and a window opened later is painted as it is shown.
+        icon_theme.apply(theme.PALETTES[name]["icon"])
+        logger.info("Theme '%s' applied to the window, its icons and the plots", name)
         return name
 
     def _connect(self, signal, slot):

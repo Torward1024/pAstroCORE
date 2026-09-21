@@ -72,6 +72,9 @@ PALETTES: Dict[str, Dict[str, str]] = {
         "accent_soft": "#e5efff",
         "accent_line": "#a9c9ff",
         "accent_text": "#ffffff",
+        # What the icon set is drawn in. Each icon states its colour once, on the root, so a
+        # theme recolours the whole set by rewriting one attribute per file.
+        "icon": "#1f6feb",
         "ok": "#1a7f37",
         "warn": "#8a5a00",
         "error": "#c0392b",
@@ -106,6 +109,7 @@ PALETTES: Dict[str, Dict[str, str]] = {
         "accent_soft": "#1b2b44",
         "accent_line": "#2f4e7d",
         "accent_text": "#0b1016",
+        "icon": "#7fb4ff",
         "ok": "#46c06a",
         "warn": "#d9a441",
         "error": "#f0715f",

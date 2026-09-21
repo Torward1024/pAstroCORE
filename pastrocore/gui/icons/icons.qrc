@@ -11,11 +11,7 @@
     <file>catalog_telescopes.svg</file>
     <file>cfx_export.svg</file>
     <file>cfx_import.svg</file>
-    <file>check_icon.svg</file>
-    <file>check_icon_disabled.svg</file>
-    <file>check_icon_hover.svg</file>
     <file>data_export.svg</file>
-    <file>down_arrow_icon.svg</file>
     <file>edit_icon.svg</file>
     <file>edit_observation_icon.svg</file>
     <file>exit_icon.svg</file>
@@ -39,7 +35,6 @@
     <file>save_project_as_icon.svg</file>
     <file>save_project_icon.svg</file>
     <file>session.svg</file>
-    <file>up_arrow_icon.svg</file>
     <file>visualize.svg</file>
   </qresource>
 </RCC>
