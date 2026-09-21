@@ -8,6 +8,65 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.16.0] - 2026-09-21
+
+U1: one palette, two themes, and no element left in the platform's default.
+
+### Added
+
+- **`pastrocore/theme.py`: the look, as tokens.** A palette per theme, one type scale, one set
+  of spacings and radii. The window's stylesheet and the visualizer's colours are both generated
+  from them, so a colour is changed in one place and everything follows.
+- **A dark theme, and a light one**, chosen in Preferences -- `System`, `Light` or `Dark`.
+  `System` follows the desktop. The plots follow the window: a dark window no longer holds a
+  white rectangle where a figure is.
+- **Everything is styled**, including what no form mentions and everybody sees: scrollbars, the
+  buttons of a spin box, the calendar a date editor drops down, progress bars, tooltips, menus,
+  a tree's branches, the corner of a table. The glyphs Qt draws itself -- a green arrow on the
+  calendar, a grey square where a spin box's arrow belongs -- are generated from the same tokens.
+- **The icon set takes its ink from the palette.** Each icon states its stroke once, so a theme
+  repaints the whole set rather than shipping it twice; windows opened after a theme change are
+  painted as they are shown.
+- **A filter over the project explorer**, which survives a rebuild of the tree, and a count
+  beside `Observations`.
+
+### Changed
+
+- **The toolbar says what its buttons do.** Thirteen unlabelled icons were thirteen guesses; the
+  labels are short ones, so a menu still says "Export Calculated Data..." where a button says
+  "Results".
+- **The telescope editor is four groups** -- what it is, where it stands, the dish, where it can
+  point -- with the coordinates and the velocities side by side. It was fourteen rows in one
+  column, taller than a laptop screen.
+- **Every dialog names the button that does the thing.** Styling whichever button Qt made the
+  default had painted Cancel blue in the scan editor and Add in the source editor.
+- `Active:` beside an empty tick became a tick that says what it is, here and in three editors.
+- The project tab's search moved from under its table to beside it; the calculation dialog's
+  parameters read as two groups, `Run` and `Sensitivity`.
+
+### Fixed
+
+- **The number column showed no `#`.** It was sized to its contents after every refill, so it
+  came out one digit wide and Qt drew the sort arrow over the heading. All six tables size it in
+  one place now.
+- **Opening a project drew its plots in the light palette**, because a project comes with a new
+  orchestrator and the theme had been applied to the old one.
+- **The telescope editor labelled velocities m/s**; the model holds metres per year, which is
+  what VEX writes -- reading them as m/s once put stations 9 500 km out.
+- **The scan editor's OK button was spelled with a Cyrillic O and K.** It looks right, and
+  nothing that searches or translates the interface can see it.
+- **Three forms shipped showing their own scaffolding**: `lblSummary` and
+  `[get_start_time_date]`. Something fills those at run time; until it does, that is what a user
+  reads.
+
+### Upgrading from 1.15.0
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| The window looks different | U1: one generated palette, in place of a stylesheet assembled out of 224 inline properties | Nothing. **Preferences -> Theme** chooses `System`, `Light` or `Dark` |
+| `pastrocore.qss` is no longer in the package | The sheet is generated from the tokens | A `pastrocore.qss` of your own, beside your settings, still replaces ours whole |
+| A plot saved before this is lighter than one saved now | Figures follow the theme | Redraw, or set the theme to `Light` |
+
 ## [1.15.0] - 2026-09-18
 
 E1: how well a schedule would be heard, and whether it would detect anything.
