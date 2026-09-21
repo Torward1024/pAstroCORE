@@ -1,3 +1,4 @@
+from pastrocore import theme
 from pastrocore.super.schedule_project import ScheduleProject
 from msb_arch.utils.logging_setup import logger
 from msb_arch import RequestJournal
@@ -135,6 +136,10 @@ class ScheduleManipulator(Manipulator):
         self.register_deferred("vex", self._make_vex)
         self.register_deferred("cfx", self._make_cfx)
 
+        # The palette the plots are drawn in, until the interface says which one the window is
+        # wearing. Light, because that is what a plot saved to a file for a paper wants.
+        self._plot_theme = "light"
+
         # Every request that reaches this orchestrator is recorded. It costs one interceptor
         # and answers the question a bug report never can: what was actually asked for.
         # Bounded, because a session that runs for a day should not accumulate without end.
@@ -154,7 +159,32 @@ class ScheduleManipulator(Manipulator):
         """Build the visualizer. Called once, by MSB, when `visualize` is first needed."""
         from pastrocore.super.schedule_visualizer import ScheduleVisualizer
 
-        return ScheduleVisualizer(self)
+        visualizer = ScheduleVisualizer(self)
+        visualizer.set_style_config(theme.plot_style(self._plot_theme), partial=True)
+        return visualizer
+
+    def set_plot_theme(self, name: str) -> str:
+        """Draw the plots in the palette the window is drawn in (U1).
+
+        Args:
+            name (str): `light` or `dark`; anything else is taken as the light one, since a
+                settings file is a file a person may edit.
+
+        Returns:
+            str: The theme now in force.
+
+        Notes:
+            - **Asked of the orchestrator rather than of the visualizer**, which the interface
+              has no handle on -- and which does not exist yet at start-up, being deferred. The
+              choice is remembered and applied when it is built.
+            - A plot already on screen keeps the palette it was drawn in until it is redrawn.
+              Nothing repaints a figure behind the back of the tab that owns it.
+        """
+        self._plot_theme = theme.resolve(name)
+        visualizer = self._operations.get("visualize")
+        if visualizer is not None:
+            visualizer.set_style_config(theme.plot_style(self._plot_theme), partial=True)
+        return self._plot_theme
 
     def _make_analyzer(self):
         """Build the analyzer. Called once, by MSB, when `analyze` is first needed."""

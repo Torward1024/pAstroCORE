@@ -91,9 +91,11 @@ def render(stem: str, class_name: str) -> str:
 
     from pastrocore.gui.styling import load_stylesheet
 
+    # The light theme by name, not whatever the desktop running the suite is set to: a
+    # reference recorded on a light desktop and compared on a dark one is every form failing.
     application = QApplication.instance()
     if application is not None and not application.styleSheet():
-        application.setStyleSheet(load_stylesheet())
+        application.setStyleSheet(load_stylesheet("light"))
 
     for host_type in (QDialog, QWidget, QMainWindow):
         host = host_type()

@@ -94,6 +94,16 @@ class Ui_PreferencesDialog(object):
 
         self.gridLayout_2.addWidget(self.chkClearLog, 3, 0, 1, 3)
 
+        self.labelTheme = QLabel(self.tab)
+        self.labelTheme.setObjectName(u"labelTheme")
+
+        self.gridLayout_2.addWidget(self.labelTheme, 4, 0, 1, 1)
+
+        self.comboTheme = QComboBox(self.tab)
+        self.comboTheme.setObjectName(u"comboTheme")
+
+        self.gridLayout_2.addWidget(self.comboTheme, 4, 1, 1, 1)
+
 
         self.gridLayout_3.addLayout(self.gridLayout_2, 0, 0, 1, 2)
 
@@ -173,6 +183,10 @@ class Ui_PreferencesDialog(object):
         self.openTelescopesCatalogButton.setText(QCoreApplication.translate("PreferencesDialog", u"Open...", None))
         self.labelLogging.setText(QCoreApplication.translate("PreferencesDialog", u"Logging level:", None))
         self.chkClearLog.setText(QCoreApplication.translate("PreferencesDialog", u"Clear log-file on start", None))
+        self.labelTheme.setText(QCoreApplication.translate("PreferencesDialog", u"Theme:", None))
+#if QT_CONFIG(tooltip)
+        self.comboTheme.setToolTip(QCoreApplication.translate("PreferencesDialog", u"The palette the window and the plots are drawn in. \"System\" follows the desktop.", None))
+#endif // QT_CONFIG(tooltip)
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("PreferencesDialog", u"Common", None))
         self.labelTimestep.setText(QCoreApplication.translate("PreferencesDialog", u"Time step (s):", None))
         self.labelResultsMemory.setText(QCoreApplication.translate("PreferencesDialog", u"Results in memory, share of available:", None))
