@@ -438,27 +438,23 @@ class CalculatedDataStructure:
 
     @classmethod
     def get_columns(cls, key: str) -> Optional[List[str]]:
-        """Return expected columns for a given calculated data key."""
-        schema = cls.SCHEMAS.get(key)
-        return schema["columns"] if schema else None
+        """Return expected columns for a given calculated data key, or for its handler's name."""
+        return cls.entry_for(key).get("columns")
 
     @classmethod
     def get_metadata_types(cls, key: str) -> Optional[Dict[str, Type]]:
         """Return expected metadata types for a given calculated data key."""
-        schema = cls.SCHEMAS.get(key)
-        return schema["metadata"] if schema else None
+        return cls.entry_for(key).get("metadata")
 
     @classmethod
     def get_converters(cls, key: str) -> Optional[Dict[str, callable]]:
         """Return converters for specific columns or metadata for serialization."""
-        schema = cls.SCHEMAS.get(key)
-        return schema["converters"] if schema else None
+        return cls.entry_for(key).get("converters")
 
     @classmethod
     def get_deserialization_converters(cls, key: str) -> Optional[Dict[str, callable]]:
         """Return converters for specific columns or metadata for deserialization."""
-        schema = cls.SCHEMAS.get(key)
-        return schema["deserialization_converters"] if schema else None
+        return cls.entry_for(key).get("deserialization_converters")
 
     @classmethod
     def is_intermediate(cls, key: str) -> bool:
@@ -536,9 +532,30 @@ class CalculatedDataStructure:
               computes with. `fill` writes an SEFD into the station it was worked out for, and
               nothing about the result differs, so nothing records it.
         """
-        entry = cls.entry_for(key)
-        recorded = tuple(name for name in PARAMETERS if name in (entry.get("metadata") or {}))
-        return recorded + tuple(entry.get("asks", ()))
+        return cls.recorded_parameters(key) + tuple(cls.entry_for(key).get("asks", ()))
+
+    @classmethod
+    def recorded_parameters(cls, key: str) -> tuple:
+        """Return the parameters a result records -- what it was worked out with.
+
+        Args:
+            key (str): The result's store key or its handler's name.
+
+        Returns:
+            tuple: Parameter names, in the order `PARAMETERS` declares them.
+
+        Notes:
+            - **What makes a stored result an answer to another question.** The cache compares
+              these, so a result worked out for another weather or another detection threshold
+              is not handed back as this one's. It used to compare `time_step` by name and leave
+              two calculations to compare the rest themselves, which is one rule written three
+              times and none at all for the next calculation that takes a parameter.
+            - Read from the metadata the schema declares, because a parameter that changes the
+              answer has to be recorded with the result anyway -- otherwise nothing could tell
+              one answer from another afterwards.
+        """
+        return tuple(name for name in PARAMETERS
+                     if name in (cls.entry_for(key).get("metadata") or {}))
 
     @classmethod
     def store_key_for(cls, key: str) -> str:
@@ -605,14 +622,16 @@ class CalculatedDataStructure:
               fails quietly by making a result look permanently fresh or permanently stale.
             - The granularity of staleness is exactly this: editing a scan does not make a beam
               pattern stale, and changing a frequency does not move azimuth and elevation.
+            - Found by its handler's name as well as by its store key. `time_arrays` files its
+              result under `times`, and asked by the handler's name this answered "everything",
+              which is the coarseness the declaration exists to avoid.
         """
-        schema = cls.SCHEMAS.get(key)
-        if not schema or "depends_on" not in schema:
+        schema = cls.entry_for(key)
+        if "depends_on" not in schema:
             return ("telescopes", "sources", "scans", "frequencies")
         return tuple(schema["depends_on"])
 
     @classmethod
     def get_dtypes(cls, key: str) -> Optional[Dict[str, pl.DataType]]:
         """Return expected data types for columns in a given calculated data key."""
-        schema = cls.SCHEMAS.get(key)
-        return schema["dtypes"] if schema else None
+        return cls.entry_for(key).get("dtypes")

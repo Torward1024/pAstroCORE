@@ -659,6 +659,39 @@ def test_a_new_flux_makes_the_sensitivity_stale_and_leaves_the_sefd_alone(observ
     assert freshness.is_stale(observation, "sefd") is False
 
 
+def test_asking_for_another_threshold_is_asking_another_question(observed):
+    """The weather, the recording and the threshold are not the model, so the fingerprint that
+    watches the model cannot see them move.
+
+    A run that reused the stored result would answer a question about seven sigma with the
+    numbers worked out for five: the detections would be the old ones and the duration needed
+    to reach the threshold would be the old one too, silently. The rule lives in the cache and
+    is driven by what each result records, so it holds for every parameter of every calculation.
+    """
+    project, observation, core = observed
+    run(core, observation, "baseline_sensitivity", threshold=5.0)
+    at_five = frame(observation, "baseline_sensitivity").filter(pl.col("if_name") != "all").row(0, named=True)
+
+    run(core, observation, "baseline_sensitivity", threshold=7.0, force=False)
+    at_seven = frame(observation, "baseline_sensitivity").filter(pl.col("if_name") != "all").row(0, named=True)
+
+    assert observation.get_calculated_metadata("baseline_sensitivity")["threshold"] == 7.0
+    # The time needed to reach the threshold goes as its square: (7/5)^2 of what five needed.
+    assert at_seven["min_duration"] == pytest.approx(at_five["min_duration"] * (7.0 / 5.0) ** 2)
+
+
+def test_the_same_question_twice_is_not_worked_out_twice(observed):
+    """The half that keeps the rule above from being "recompute everything, always"."""
+    project, observation, core = observed
+    run(core, observation, "baseline_sensitivity", threshold=5.0)
+    first = frame(observation, "baseline_sensitivity")
+
+    run(core, observation, "baseline_sensitivity", threshold=5.0, force=False)
+
+    assert frame(observation, "baseline_sensitivity") is first, (
+        "the same question was worked out again rather than answered from what is stored")
+
+
 def test_the_new_results_export_like_any_other(observed, tmp_path):
     """Nothing lists what can be exported: the dialog asks the catalogue and the columns come
     from the schema, so a calculation that exists is one that can be written out."""

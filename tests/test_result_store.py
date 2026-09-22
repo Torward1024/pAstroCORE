@@ -570,6 +570,30 @@ def test_without_a_budget_nothing_is_evicted(tmp_path):
     assert sum(len(results._resident) for results in holders) == 20
 
 
+def test_the_budget_lets_go_of_an_observation_the_project_has_let_go(tmp_path):
+    """The budget is told who holds what, and it held on to them.
+
+    Deleting an observation, or closing a project that shares one machine's ceiling, left its
+    results in memory with nothing referring to them: the budget's own bookkeeping was the last
+    reference. A result nobody can reach is exactly what the ceiling exists to release.
+    """
+    import gc
+    import weakref
+
+    from pastrocore.base.result_store import CalculatedData, ResidencyBudget, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    budget = ResidencyBudget(limit_bytes=10 ** 9)
+    results = CalculatedData("obs", store=store, budget=budget)
+    results["uv_coverage"] = {"data": pl.DataFrame({"u": [1.0] * 20000}), "metadata": {}}
+
+    gone = weakref.ref(results)
+    del results
+    gc.collect()
+
+    assert gone() is None, "the budget kept alive the results of an observation nothing holds"
+
+
 # --- the scratch directory ------------------------------------------------------------------
 
 @pytest.fixture
@@ -1121,3 +1145,78 @@ def test_a_directory_that_really_cannot_be_removed_still_says_so(tmp_path, monke
 
     with pytest.raises(OSError):
         result_store.remove_tree(tmp_path)
+
+
+def test_results_that_could_not_be_deleted_are_not_reported_as_cleared(tmp_path, monkeypatch):
+    """Clearing swallowed the failure and the results came back.
+
+    Dropping a whole owner ignored every error, so a file the machine had not let go of stayed
+    on disk while the interface reported the results gone -- and keys are answered from the
+    filenames, so the next listing showed them again, fingerprints and all.
+    """
+    from pastrocore.base import result_store
+
+    store = ResultStore(tmp_path)
+    store.write("obs", "uv_coverage", pl.DataFrame({"u": [1.0]}), {})
+
+    def never(path, *args, ignore_errors=False, **kwargs):
+        if ignore_errors:
+            return                      # what shutil does: the tree stays, nothing is raised
+        raise OSError(5, "Access is denied")
+
+    monkeypatch.setattr(result_store.shutil, "rmtree", never)
+    monkeypatch.setattr(result_store.time, "sleep", lambda seconds: None)
+
+    with pytest.raises(OSError):
+        store.drop("obs")
+    assert store.keys("obs") == ["uv_coverage"], "and the result is indeed still there"
+
+
+def test_dropping_one_result_waits_out_a_file_the_machine_has_not_let_go_of(tmp_path, monkeypatch):
+    """The same moment `remove_tree` was written for, on the path that deletes one result.
+
+    A file written a moment ago is often still open in someone else's hands -- the search
+    indexer, the antivirus -- and its deletion is only pending. Failing at the first attempt
+    turned that into an error report on a Clear that would have worked 50 ms later.
+    """
+    from pathlib import Path
+
+    from pastrocore.base import result_store
+
+    store = ResultStore(tmp_path)
+    store.write("obs", "uv_coverage", pl.DataFrame({"u": [1.0]}), {})
+
+    real_unlink, attempts = Path.unlink, []
+
+    def not_yet(self, *args, **kwargs):
+        attempts.append(self)
+        if len(attempts) < 3:
+            raise PermissionError(32, "The file is being used by another process")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", not_yet)
+    monkeypatch.setattr(result_store.time, "sleep", lambda seconds: None)
+
+    store.drop("obs", "uv_coverage")
+
+    assert len(attempts) > 2, "it must wait out a pending delete rather than report it"
+    assert not store.has("obs", "uv_coverage")
+
+
+def test_a_result_whose_times_are_all_missing_is_still_stored(tmp_path):
+    """`min()` over a column of nulls is None, and `float(None)` raises.
+
+    That is not a metadata problem: the write happens inside the calculator's broad handler, so
+    a frame whose times could not be worked out cost the whole result and a line in the log.
+    """
+    store = ResultStore(tmp_path)
+    frame = pl.DataFrame({"time": [None, None], "scan_name": ["s1", "s1"]},
+                         schema={"time": pl.Float64, "scan_name": pl.String})
+
+    store.write("obs", "sefd_track", frame, {"time_step": 600.0})
+
+    metadata = store.metadata("obs", "sefd_track")
+    assert "start_time" not in metadata and "end_time" not in metadata, (
+        "a span that could not be determined is absent, not null")
+    assert metadata["scan_count"] == 1
+    assert store.read("obs", "sefd_track")["data"].height == 2

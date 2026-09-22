@@ -158,6 +158,97 @@ def test_a_different_time_step_is_a_different_result(computed):
     assert freshness.digest(observation, "uv_coverage", different) != stored[freshness.DIGEST_FIELD]
 
 
+# --- a stored answer to another question -----------------------------------------------------
+
+#: A value of each kind a parameter is declared as, and another one of the same kind. A
+#: parameter is only ever one of these: the schema says so, and a test below checks that it does.
+A_VALUE = {float: 1.0, int: 1, str: "one", list: [[1.0, 2.0, 0.1]], dict: {"AA": [[1.0, 2.0, [1.0]]]}}
+ANOTHER = {float: 2.0, int: 2, str: "two", list: [[1.0, 2.0, 0.9]], dict: {"AA": [[1.0, 2.0, [0.5]]]}}
+
+
+def _a_row(key: str) -> pl.DataFrame:
+    """One row of a result, built from the columns its schema declares."""
+    samples = {pl.String: "x", pl.Float64: 1.0, pl.Int64: 1, pl.Int32: 1, pl.Boolean: True}
+    dtypes = CalculatedDataStructure.get_dtypes(key)
+    return pl.DataFrame({name: [samples.get(dtype, None)] for name, dtype in dtypes.items()},
+                        schema=dtypes)
+
+
+def _metadata(key: str, parameter: str, value) -> dict:
+    """Metadata a result of this kind carries, with one parameter set to a given value."""
+    declared = CalculatedDataStructure.get_metadata_types(key) or {}
+    recorded = {name: A_VALUE[kind] for name, kind in declared.items()}
+    recorded[parameter] = value
+    return recorded
+
+
+PARAMETERISED = [(key, parameter)
+                 for key in CalculatedDataStructure.SCHEMAS
+                 for parameter in CalculatedDataStructure.recorded_parameters(key)]
+
+
+@pytest.mark.parametrize("key,parameter", PARAMETERISED, ids=[f"{k}:{p}" for k, p in PARAMETERISED])
+def test_a_result_worked_out_with_another_parameter_is_not_handed_back(key, parameter, observation,
+                                                                       manipulator):
+    """A parameter that changes the answer is part of the question, so a stored answer to another
+    one is not this one's.
+
+    This was true of `time_step` because the cache compared it by name, and of the weather and the
+    detection threshold because two calculations compared those themselves. Three hand-written
+    copies of one rule, and the fourth calculation to record a parameter would have had none:
+    it would have handed back the previous numbers, which is what freshness exists to prevent.
+    """
+    from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+    kind = (CalculatedDataStructure.get_metadata_types(key) or {})[parameter]
+    stored, asked = A_VALUE[kind], ANOTHER[kind]
+    frame = _a_row(key)
+    observation.set_calculated_data_by_key(key, frame, _metadata(key, parameter, stored))
+
+    # Everything else the question is made of stays as it was, so the one difference is the one
+    # under test -- otherwise `time_step` alone would account for every recalculation here.
+    wanted = _metadata(key, parameter, asked)
+    ran = []
+    ScheduleCalculator(manipulator)._get_cached_or_calculate(
+        observation, key, lambda obj, attrs: (ran.append(parameter), frame)[1],
+        {"recalculate": False, "store_key": key,
+         **{name: value for name, value in wanted.items() if name in freshness.PARAMETERS}},
+        wanted)
+
+    assert ran, (f"'{key}' was handed back although it was worked out with {parameter}={stored!r} "
+                 f"and {asked!r} was asked for")
+
+
+@pytest.mark.parametrize("key,parameter", PARAMETERISED, ids=[f"{k}:{p}" for k, p in PARAMETERISED])
+def test_the_same_parameter_is_the_same_question(key, parameter, observation, manipulator):
+    """The half that keeps the test above from being satisfied by recomputing everything."""
+    from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+    kind = (CalculatedDataStructure.get_metadata_types(key) or {})[parameter]
+    frame = _a_row(key)
+    metadata = _metadata(key, parameter, A_VALUE[kind])
+    observation.set_calculated_data_by_key(key, frame, metadata)
+
+    ran = []
+    ScheduleCalculator(manipulator)._get_cached_or_calculate(
+        observation, key, lambda obj, attrs: (ran.append(parameter), frame)[1],
+        {"recalculate": False, "store_key": key, **{name: value for name, value in metadata.items()
+                                                    if name in freshness.PARAMETERS}},
+        dict(metadata))
+
+    assert not ran, f"'{key}' was worked out again although nothing about the question changed"
+
+
+def test_every_parameter_is_declared_as_a_kind_a_result_can_record():
+    """The two tests above are driven by the schema, so a parameter of an undeclared kind would
+    quietly drop out of them rather than fail."""
+    for key in CalculatedDataStructure.SCHEMAS:
+        declared = CalculatedDataStructure.get_metadata_types(key) or {}
+        for parameter in CalculatedDataStructure.recorded_parameters(key):
+            assert declared[parameter] in A_VALUE, (
+                f"'{key}' records {parameter} as {declared[parameter]}, which no test can vary")
+
+
 # --- the ratchet ---------------------------------------------------------------------------
 
 def test_every_result_declares_what_it_depends_on():
@@ -182,6 +273,24 @@ def test_declared_dependencies_are_parts_that_exist():
     for key, schema in CalculatedDataStructure.SCHEMAS.items():
         declared = set(schema.get("depends_on", ()))
         assert declared <= known, f"'{key}' declares unknown parts: {sorted(declared - known)}"
+
+
+def test_a_calculation_answers_to_its_handler_s_name_as_well_as_to_its_key():
+    """One calculation files its result under another name than its handler's, and the schema is
+    read by both spellings -- the catalogue speaks handlers, results are filed under store keys.
+
+    Asked by the handler's name, the dependencies came back as "everything", which is the
+    coarseness the declaration exists to avoid: every edit would stale it.
+    """
+    assert CalculatedDataStructure.SCHEMAS["times"]["handler"] == "time_arrays"
+
+    for reader in (CalculatedDataStructure.get_dependencies, CalculatedDataStructure.get_columns,
+                   CalculatedDataStructure.get_dtypes, CalculatedDataStructure.get_metadata_types):
+        assert reader("time_arrays") == reader("times"), (
+            f"{reader.__name__} answers differently to a handler's name than to its store key")
+
+    assert CalculatedDataStructure.get_dependencies("time_arrays") != (
+        "telescopes", "sources", "scans", "frequencies")
 
 
 def test_something_that_depends_on_nothing_would_be_caught():
