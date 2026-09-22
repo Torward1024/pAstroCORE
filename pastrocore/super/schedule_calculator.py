@@ -402,6 +402,42 @@ class ScheduleCalculator(Super):
         
         return scans, telescopes, sources
 
+    @staticmethod
+    def _parameters_asked_for(store_key: str, attributes: Dict[str, Any],
+                              metadata: Dict[str, Any],
+                              stored: Dict[str, Any]) -> List[Tuple[str, Any]]:
+        """Return the parameters this call would work with that a stored result did not.
+
+        Args:
+            store_key (str): What the result is filed under.
+            attributes (Dict[str, Any]): What the caller asked with.
+            metadata (Dict[str, Any]): What this call would record -- the parameters as the
+                handler resolved them, which is what the stored ones are comparable with.
+            stored (Dict[str, Any]): The metadata of the result already held.
+
+        Returns:
+            List[Tuple[str, Any]]: `(name, wanted)` for each parameter that differs, empty when
+                the stored result answers the question being asked.
+
+        Notes:
+            - **The one place the rule lives.** It was written three times -- the cache compared
+              `time_step` by name, and two calculations compared the weather, the threshold and
+              the recording themselves -- so the next calculation to take a parameter would have
+              had none of it and would have handed back the previous numbers.
+            - Resolved values rather than what was passed: a caller that omits a parameter gets
+              the handler's default, and a default that matches what the result was worked out
+              with is the same question. `attributes` is the fallback for a parameter a handler
+              does not record.
+            - Compared with `same_metadata`, so a list read back from JSON compares equal to the
+              tuples it was written from rather than looking like a change on every open.
+        """
+        differing = []
+        for name in CalculatedDataStructure.recorded_parameters(store_key):
+            wanted = metadata.get(name, attributes.get(name))
+            if not freshness.same_metadata(wanted, stored.get(name)):
+                differing.append((name, wanted))
+        return differing
+
     def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> pl.DataFrame:
         """Retrieve cached data or perform calculation and cache the result.
 
@@ -419,25 +455,32 @@ class ScheduleCalculator(Super):
             - Returns cached result if "recalculate" is False and valid cache exists.
             - Uses thread-safe caching with a lock.
             - Logs warnings for empty or invalid results.
+            - **A stored result worked out with other parameters is another answer**, and is
+              recomputed rather than handed back. Which parameters those are comes from the
+              schema, so a calculation that takes a new one is covered by writing it down where
+              it is recorded anyway.
         """
         if not store_key:
             logger.error("Empty store_key provided for caching")
             return pl.DataFrame()
 
         recalculate = attributes.get("recalculate", False)
-        time_step = attributes.get("time_step")
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
 
         existing_data = obj.get_calculated_data_by_key(store_key)
+        another_question = []
         if existing_data and not recalculate:
-            stored_step = existing_data["metadata"].get("time_step")
-            if stored_step != time_step:
-                # A different step is a different calculation, not a stale cache, so
-                # recomputing is right. Said out loud because the alternative is a caller
-                # who omitted `time_step` wondering why the call took 300 ms instead of one.
-                logger.info("Cached '%s' for '%s' was computed with time_step=%s, not %s; "
-                            "recalculating", store_key, obj_name, stored_step, time_step)
-        if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
+            another_question = self._parameters_asked_for(store_key, attributes, metadata,
+                                                          existing_data["metadata"])
+            if another_question:
+                # A different parameter is a different calculation, not a stale cache, so
+                # recomputing is right. Said out loud because the alternative is a caller who
+                # omitted one wondering why the call took 300 ms instead of one.
+                logger.info("Stored '%s' for '%s' was worked out with %s; recalculating",
+                            store_key, obj_name,
+                            ", ".join(f"{name}={existing_data['metadata'].get(name)!r}, not "
+                                      f"{wanted!r}" for name, wanted in another_question))
+        if existing_data and not recalculate and not another_question:
             df = existing_data.get("data")
             if df is not None and not df.is_empty():
                 logger.debug("Retrieved cached data for '%s' in '%s'", store_key, obj_name)
@@ -3071,11 +3114,6 @@ class ScheduleCalculator(Super):
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "sefd_track")
             opacity, t_atm, gain_curve = self._elevation_parameters(attributes)
-            # The weather and the curves are not the model's, so freshness cannot see them change;
-            # a stored answer for other ones is another answer.
-            if self._parameters_differ(obj, store_key, {"opacity": opacity, "t_atm": t_atm,
-                                                        "gain_curve": gain_curve}):
-                attributes = {**attributes, "recalculate": True}
 
             sefd_attrs = {"store_key": "sefd", "recalculate": False}
             time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
@@ -3395,11 +3433,6 @@ class ScheduleCalculator(Super):
             asked = {"threshold": threshold, "bits": bits, "recording_efficiency": efficiency,
                      "opacity": opacity, "t_atm": t_atm, "gain_curve": gain_curve}
 
-            # A result worked out for another threshold, another recording or other weather is
-            # another answer, and a stored one would otherwise be handed back as this one.
-            if self._parameters_differ(obj, store_key, asked):
-                attributes = {**attributes, "recalculate": True}
-
             track_attrs = {"time_step": time_step, "store_key": "sefd_track", "recalculate": False,
                            "opacity": opacity, "t_atm": t_atm, "gain_curve": gain_curve}
             on_source_attrs = {"time_step": time_step, "store_key": "time_on_source",
@@ -3457,16 +3490,6 @@ class ScheduleCalculator(Super):
                          obj.get_observation_code() if isinstance(obj, Observation) else obj.name,
                          str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_sensitivity"))
-
-    @staticmethod
-    def _parameters_differ(obj: Any, store_key: str, wanted: Dict[str, Any]) -> bool:
-        """Report whether a stored result was worked out with other parameters than these."""
-        holders = obj.get_observations() if isinstance(obj, ScheduleProject) else [obj]
-        for holder in holders:
-            stored = holder.get_calculated_metadata(store_key) if hasattr(holder, "get_calculated_metadata") else None
-            if stored and any(stored.get(name) != value for name, value in wanted.items()):
-                return True
-        return False
 
     @staticmethod
     def _blocks_by_station(blocks: pl.DataFrame, scan_name: str) -> Dict[str, List[Tuple[float, float]]]:

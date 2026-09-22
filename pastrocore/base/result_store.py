@@ -28,6 +28,7 @@ import math
 import os
 import shutil
 import time
+import weakref
 from collections import OrderedDict
 from pathlib import Path
 from threading import RLock
@@ -72,6 +73,34 @@ def remove_tree(path: Path, attempts: int = 5) -> None:
     for attempt in range(attempts):
         try:
             shutil.rmtree(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * 2 ** attempt)
+
+
+def remove_file(path: Path, attempts: int = 5) -> None:
+    """Delete a file, allowing the machine the moment it takes to let go of a fresh one.
+
+    Args:
+        path (Path): What to delete. A path that is already gone is not an error.
+        attempts (int): How many times to try before the error is real.
+
+    Raises:
+        OSError: If it still cannot be removed.
+
+    Notes:
+        - The same pending delete `remove_tree` waits out, on the path that removes one result:
+          a parquet written or read a moment ago is often still open in someone else's hands,
+          and clearing it failed at the first attempt on a Clear that would have worked 50 ms
+          later.
+    """
+    for attempt in range(attempts):
+        try:
+            path.unlink(missing_ok=True)
             return
         except FileNotFoundError:
             return
@@ -307,12 +336,27 @@ class ResultStore:
         logger.debug("Wrote result '%s' for '%s': %s rows", key, owner, frame.height)
 
     def drop(self, owner: str, key: Optional[str] = None) -> None:
-        """Remove one stored result, or every result of an owner."""
+        """Remove one stored result, or every result of an owner.
+
+        Args:
+            owner (str): The observation whose results to remove.
+            key (Optional[str]): One result, or all of them when None.
+
+        Raises:
+            OSError: If they could not be removed, after waiting out a pending delete.
+
+        Notes:
+            - **It said it had cleared them and it had not.** This ignored every error, so a
+              file the machine had not let go of stayed on disk while the interface reported
+              the results gone -- and keys are answered from the filenames, so the next listing
+              showed them again, fingerprints and all. A clear that could not happen is worth
+              saying out loud; what is on disk and what is reported must not disagree.
+        """
         if key is None:
-            shutil.rmtree(self.root / owner, ignore_errors=True)
+            remove_tree(self.root / owner)
             return
         for path in self._paths(owner, key):
-            path.unlink(missing_ok=True)
+            remove_file(path)
 
 
 def derived_metadata(frame: "pl.DataFrame") -> Dict[str, Any]:
@@ -345,8 +389,15 @@ def derived_metadata(frame: "pl.DataFrame") -> Dict[str, Any]:
 
     moment = next((column for column in ("time", "start") if column in frame.columns), None)
     if moment is not None:
-        derived["start_time"] = float(frame[moment].min())
-        derived["end_time"] = float(frame["end" if "end" in frame.columns else moment].max())
+        # `min()` over a column of nulls is None, and `float(None)` raises -- inside the
+        # calculator's broad handler, so a frame whose times could not be worked out cost the
+        # whole result rather than the two entries describing it. Absent, like a frame that
+        # records no moment at all.
+        first = frame[moment].min()
+        last = frame["end" if "end" in frame.columns else moment].max()
+        if first is not None and last is not None:
+            derived["start_time"] = float(first)
+            derived["end_time"] = float(last)
     return derived
 
 
@@ -380,7 +431,11 @@ class ResidencyBudget:
         self._explicit_limit = limit_bytes
         # (owner, key) in least-recently-used order.
         self._sizes: "OrderedDict[tuple, int]" = OrderedDict()
-        self._holders: Dict[str, Any] = {}
+        # Weakly, so that bookkeeping about a result is never the last thing holding it. An
+        # observation the project has let go of kept its results in memory for the rest of the
+        # session, which is what the ceiling exists to prevent rather than to cause; the
+        # eviction below already handles a holder that is gone.
+        self._holders: "weakref.WeakValueDictionary[str, Any]" = weakref.WeakValueDictionary()
         self._lock = RLock()
 
     def __deepcopy__(self, memo: Dict) -> "ResidencyBudget":
@@ -635,11 +690,16 @@ class CalculatedData:
         raise KeyError(key)
 
     def clear(self) -> None:
-        """Forget every result, in memory and on disk."""
-        self._resident.clear()
-        self._unwritten.clear()
+        """Forget every result, in memory and on disk.
+
+        Raises:
+            OSError: If what is on disk could not be removed. Nothing is forgotten then, so
+                what is held and what is stored still describe the same thing.
+        """
         if self._store:
             self._store.drop(self._owner)
+        self._resident.clear()
+        self._unwritten.clear()
 
     def release(self, key: Optional[str] = None) -> None:
         """Drop what is held in memory, keeping what is on disk.
