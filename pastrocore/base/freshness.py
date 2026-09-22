@@ -81,6 +81,26 @@ def dependencies_of(key: str) -> Tuple[str, ...]:
     return CalculatedDataStructure.get_dependencies(key)
 
 
+#: What a serialized part carries about *itself* rather than about what it holds. A calculation
+#: reads the stations, not what the collection of them is called -- so a fingerprint that covers
+#: the name reports a result as stale when nothing it was computed from has changed.
+NOT_READ = ("name", "type")
+
+
+def _what_is_read(part: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a serialized part without the fields that say what the collection is, not what is in it.
+
+    Notes:
+        - Found by the audit: copying an observation marked every one of its results stale,
+          including a beam pattern, which depends on the telescopes and nothing else. Two of the
+          four collections invented a new name when copied, the name was in `to_dict`, and the
+          fingerprint covered it.
+        - The items keep their names. A scan's name is what its result is filed under, and a
+          station's code is what a row of a result names -- those *are* read.
+    """
+    return {key: value for key, value in part.items() if key not in NOT_READ}
+
+
 def digest(observation: Any, key: str, metadata: Optional[Dict[str, Any]] = None,
            parts_cache: Optional[Dict[str, Any]] = None) -> Optional[str]:
     """Fingerprint the inputs one calculation depends on.
@@ -111,7 +131,7 @@ def digest(observation: Any, key: str, metadata: Optional[Dict[str, Any]] = None
             if accessor is None:
                 continue
             if name not in cache:
-                cache[name] = accessor().to_dict()
+                cache[name] = _what_is_read(accessor().to_dict())
             parts[name] = cache[name]
         for name in PARAMETERS:
             if metadata and metadata.get(name) is not None:

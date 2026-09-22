@@ -185,7 +185,12 @@ class Telescope(BaseEntity):
         return True
 
     def set(self, params: Dict[str, Any]) -> None:
-        """Set entity attributes from a dictionary with type validation, handling mount_type."""
+        """Set entity attributes from a dictionary with type validation, handling mount_type.
+
+        Notes:
+            - A name is given at creation and kept: msb_arch refuses to rename an entity a
+              container holds, because a container is keyed by the names of what it holds.
+        """
         processed_params = params.copy()
         if "mount_type" in processed_params:
             mount_type = processed_params["mount_type"]

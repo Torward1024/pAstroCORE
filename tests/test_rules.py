@@ -669,3 +669,25 @@ def test_linear_feeds_are_a_group_of_their_own(group, allowed):
     else:
         with pytest.raises(InvariantError):
             frequencies.create_if(name="a", frequency=1000.0, bandwidth=16.0, polarizations=group)
+
+
+def test_a_ground_dish_can_be_given_what_a_dish_is_made_of():
+    """Found by the audit: `set_telescope` refused the four sensitivity fields for a ground
+    station -- "can only be set for SpaceTelescope" -- although `Telescope` has carried all four
+    since E1 and every sensitivity calculation reads them."""
+    from pastrocore.base.telescopes import Telescopes
+
+    telescopes = Telescopes(name="telescopes")
+    telescopes.create_telescope(code="EF", name="Effelsberg", diameter=100.0)
+
+    telescopes.set_telescope(
+        "EF", surface_accuracy=500.0,
+        surface_efficiency_table=[(4500.0, 5500.0, 0.55)],
+        effective_area_table=[(4500.0, 5500.0, 4300.0)],
+        system_temperature_table=[(4500.0, 5500.0, 25.0)])
+
+    dish = telescopes.get_all()["Effelsberg"]
+    assert dish.surface_accuracy == 500.0
+    assert dish.get_system_temperature(5000.0) == 25.0
+    assert dish.get_surface_efficiency(5000.0) == 0.55
+    assert dish.get_effective_area(5000.0) == 4300.0

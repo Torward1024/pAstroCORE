@@ -11,20 +11,21 @@ import uuid
 class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
     """Class representing a collection of Telescope and SpaceTelescope objects.
 
-    Manages a dictionary of telescopes, indexed by their code, ensuring no duplicates.
+    Manages a dictionary of telescopes, held under their names, with codes unique too.
     Inherits from BaseContainer for collection management, activation/deactivation,
     and serialization. Supports synchronization with a parent Observation object.
 
     Attributes:
-        _items (Dict[str, Telescope | SpaceTelescope]): Dictionary of telescope objects, keyed by code.
+        _items (Dict[str, Telescope | SpaceTelescope]): Dictionary of telescope objects, keyed by name.
         isactive (bool): Whether the Telescopes object itself is active.
 
     Notes:
-        - Telescopes are identified by their unique code (`get_code()`), used as the dictionary key.
-        - Activation/deactivation triggers synchronization with a parent Observation via `_parent._sync_scans_with_activation`.
+        - A telescope is held under its name, and its code is unique too: `set_telescope` and the
+          exporters find one by code.
+        - Deactivating a telescope reaches the scans through the observation, which watches its
+          containers; this collection does not call back into it.
         - Both `name` and `code` must be unique and valid strings (no spaces or special characters).
-        - Transition from index-based to code-based access requires updating dependent code to use telescope codes.
-
+        
     Examples:
         >>> tels = Telescopes()
         >>> tels.create_telescope(code="RT32", name="Zelenchukskaya_RT32", diameter=32.0)
@@ -40,7 +41,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         """Initialize a Telescopes object with an optional dictionary of telescopes.
 
         Args:
-            items (Dict[str, Telescope | SpaceTelescope], optional): Initial dictionary of telescopes, keyed by code.
+            items (Dict[str, Telescope | SpaceTelescope], optional): Initial dictionary of telescopes, keyed by name.
             name (str, optional): Identifier for the collection. Defaults to None.
             isactive (bool): Initial activation status. Defaults to True.
             use_cache (bool): Enable caching for `to_dict` results. Defaults to False.
@@ -157,7 +158,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         Args:
             code (str): Unique short name. Defaults to "TEMP".
-            name (str): Full name. Defaults to "Temporary Telescope".
+            name (str): Full name. Defaults to the code.
             x (float): X-coordinate in ITRF (meters). Defaults to 0.0.
             y (float): Y-coordinate in ITRF (meters). Defaults to 0.0.
             z (float): Z-coordinate in ITRF (meters). Defaults to 0.0.
@@ -216,7 +217,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             use_kep (bool): Use Keplerian elements for orbit calculation. Defaults to True.
             kepler_elements (Optional[dict]): Keplerian elements for orbit calculation. Defaults to None.
             interpolation_method (str): Interpolation method for orbit data ('linear', 'chebyshev', 'cubic_spline'). Defaults to "chebyshev".
-            surface_accuracy (Optional[float]): Surface accuracy in meters. Defaults to None.
+            surface_accuracy (Optional[float]): RMS surface error in micrometres. Defaults to None.
             surface_efficiency_table (Optional[List[Tuple[float, float, float]]]): Surface efficiency table (rows of f_min MHz, f_max MHz, efficiency). Defaults to None.
             effective_area_table (Optional[List[Tuple[float, float, float]]]): Effective area table (rows of f_min MHz, f_max MHz, area). Defaults to None.
             system_temperature_table (Optional[List[Tuple[float, float, float]]]): System temperature table (rows of f_min MHz, f_max MHz, Kelvin). Defaults to None.
@@ -268,7 +269,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         Args:
             code (str): The code of the telescope to update.
-            name (str, optional): New full name for the telescope.
+            name (str, optional): The name it already has. A telescope cannot be renamed.
             x (float, optional): New X-coordinate in ITRF (meters).
             y (float, optional): New Y-coordinate in ITRF (meters).
             z (float, optional): New Z-coordinate in ITRF (meters).
@@ -287,9 +288,9 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             kepler_elements (dict, optional): New Keplerian elements for orbit calculation (for SpaceTelescope).
             interpolation_method (str, optional): New interpolation method for orbit data (for SpaceTelescope).
             surface_accuracy (float, optional): New surface accuracy in meters (for SpaceTelescope).
-            surface_efficiency_table (List[Tuple[float, float, float]], optional): New surface efficiency table (for SpaceTelescope).
-            effective_area_table (List[Tuple[float, float, float]], optional): New effective area table (for SpaceTelescope).
-            system_temperature_table (List[Tuple[float, float, float]], optional): New system temperature table (for SpaceTelescope).
+            surface_efficiency_table (List[Tuple[float, float, float]], optional): New surface efficiency table.
+            effective_area_table (List[Tuple[float, float, float]], optional): New effective area table.
+            system_temperature_table (List[Tuple[float, float, float]], optional): New system temperature table.
             isactive (bool, optional): New active status.
 
         Raises:
@@ -304,10 +305,13 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             raise KeyError(f"Telescope with code '{code}' not found in Telescopes")
 
         params = {}
-        if name is not None:
-            if not re.match(r'^[a-zA-Z0-9_-]+$', name):
-                raise ValueError(f"Invalid telescope name '{name}' (use alphanumeric, underscore, or hyphen)")
-            params["name"] = name
+        if name is not None and name != telescope.name:
+            # A name identifies a telescope: the collection is keyed by it, and every result,
+            # session and exported file refers to it. msb_arch refuses the rename itself; this
+            # says which telescope and what to do instead.
+            raise ValueError(
+                f"Telescope '{telescope.name}' cannot be renamed to '{name}': a name is given "
+                f"when a telescope is created. Add another and remove this one.")
         if x is not None:
             params["x"] = x
         if y is not None:
@@ -356,21 +360,16 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             if not isinstance(telescope, SpaceTelescope):
                 raise ValueError("Interpolation method can only be set for SpaceTelescope")
             params["interpolation_method"] = interpolation_method
+        # What a dish is made of belongs to every dish. These four were refused for a ground
+        # station -- "can only be set for SpaceTelescope" -- although `Telescope` has carried
+        # all four since E1, and every sensitivity calculation reads them.
         if surface_accuracy is not None:
-            if not isinstance(telescope, SpaceTelescope):
-                raise ValueError("Surface accuracy can only be set for SpaceTelescope")
             params["surface_accuracy"] = surface_accuracy
         if surface_efficiency_table is not None:
-            if not isinstance(telescope, SpaceTelescope):
-                raise ValueError("Surface efficiency table can only be set for SpaceTelescope")
             params["surface_efficiency_table"] = surface_efficiency_table
         if effective_area_table is not None:
-            if not isinstance(telescope, SpaceTelescope):
-                raise ValueError("Effective area table can only be set for SpaceTelescope")
             params["effective_area_table"] = effective_area_table
         if system_temperature_table is not None:
-            if not isinstance(telescope, SpaceTelescope):
-                raise ValueError("System temperature table can only be set for SpaceTelescope")
             params["system_temperature_table"] = system_temperature_table
         if isactive is not None:
             params["isactive"] = isactive
@@ -380,22 +379,28 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             temp_telescope.set(params)
             self._validate_item(temp_telescope, exclude_name=telescope.name)
 
-            old_name = telescope.name
             telescope.set(params)
             logger.info("Updated telescope '%s' with params: %s", code, params)
-
-            if name is not None and name != old_name:
-                self._items.pop(old_name)
-                self._items[name] = telescope
-                logger.debug("Updated telescope dictionary key from '%s' to '%s'", old_name, name)
-
-            if self._parent is not None and hasattr(self._parent, '_sync_scans_with_activation'):
-                self._parent._sync_scans_with_activation()
+            # What stood here reached `self._parent._sync_scans_with_activation()`. Neither
+            # exists: a container has no `_parent`, and nothing in the model has ever had that
+            # method -- so every update that changed anything ended in AttributeError *after*
+            # applying the change. Activation is synchronised by the observation, which watches
+            # its containers; there is nothing for this to do.
         else:
             logger.debug("No parameters to update for telescope '%s'", code)
     
     def copy(self) -> 'Telescopes':
-        """Create a deep copy of the Telescopes object."""
+        """Create a deep copy of the Telescopes object.
+
+        Notes:
+            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
+              UUID that appears twice in a project is a name that no longer identifies anything.
+              What a collection is called is not part of what a calculation reads, so a copy
+              being freshly named does not make a result stale -- `freshness._what_is_read`
+              leaves it out, which is the other half of the audit finding this comes from.
+            - The items keep their names: a scan's name is the key its results are filed under,
+              and a source's name is the source.
+        """
         return Telescopes(
             items={name: item.copy() for name, item in self._items.items()},
             isactive=self.isactive,

@@ -9,6 +9,7 @@ format rather than one invented here.
 """
 import copy
 import json
+import pathlib
 
 import pytest
 
@@ -194,6 +195,90 @@ def test_a_space_telescope_survives_a_round_trip():
     assert isinstance(restored, SpaceTelescope)
     assert restored.pitch_range == (-90.0, 90.0)
     assert restored.yaw_range == (-180.0, 180.0)
+
+
+def test_a_spacecraft_placed_by_keplerian_elements_comes_back(tmp_path):
+    """Found by the audit: it went out and did not come back.
+
+    `to_dict` writes the epoch as an ISO string -- which is what a file holds -- and the
+    constructor refuses anything that is not an astropy `Time`, so a project holding a
+    spacecraft on Keplerian elements could not be opened: `Epoch must be an astropy Time
+    object`. Every round-trip test used the other branch, a spacecraft following an orbit file.
+    """
+    from astropy.time import Time
+
+    from pastrocore.base.observation import Observation
+    from pastrocore.base.spacetelescope import SpaceTelescope
+
+    epoch = Time("2026-08-10T05:00:00")
+    telescope = SpaceTelescope(code="RADIO", name="RadioAstron", use_kep=True, kepler_elements={
+        "a": 3.0e7, "e": 0.01, "i": 51.0, "raan": 10.0, "argp": 90.0, "nu": 0.0,
+        "epoch": epoch, "mu": 3.986004418e14})
+
+    restored = SpaceTelescope.from_dict(telescope.to_dict())
+
+    assert restored.use_kep is True
+    assert isinstance(restored.kepler_elements["epoch"], Time)
+    assert restored.kepler_elements["epoch"].isot == epoch.isot
+    assert restored.kepler_elements["a"] == 3.0e7
+
+    # And through a whole project, which is the path a user takes.
+    project = ScheduleProject(name="Space")
+    observation = Observation(name="obs_space", code="SPACE")
+    observation.get_telescopes().add(telescope)
+    project.add_item(observation)
+    project.to_directory(str(tmp_path / "space.pastro"))
+    reopened = ScheduleProject.open(str(tmp_path / "space.pastro"))
+
+    held = reopened.get_observations()[0].get_telescopes().get_items()[0]
+    assert isinstance(held.kepler_elements["epoch"], Time)
+
+
+def test_a_copied_observation_is_not_stale_on_the_spot():
+    """Found by the audit: copying an observation marked every result stale.
+
+    Two of the four collections invented a new name when copied, the name is part of what a
+    collection serializes, and a result's fingerprint covered it -- so even a beam pattern, which
+    depends on the telescopes and nothing else, came back stale. The copies keep their names, and
+    a fingerprint covers what a calculation *reads* rather than what the collection is called.
+    """
+    from pastrocore.base import freshness
+
+    project = ScheduleProject.from_dict(copy.deepcopy(json.loads(
+        (pathlib.Path(__file__).parent / "fixtures" / "test_project.pastro").read_text(encoding="utf-8"))))
+    observation = project.get_observations()[0]
+    twin = observation.copy()
+
+    # A copy is another object, so it is named as one -- a name is an identity here.
+    assert twin.name != observation.name
+    for part in ("get_telescopes", "get_sources", "get_scans", "get_frequencies"):
+        assert getattr(twin, part)().name != getattr(observation, part)().name, (
+            f"{part} came back under the original's name")
+
+    for key in observation.calculated_data:
+        was = freshness.digest(observation, key, observation.get_calculated_metadata(key))
+        now = freshness.digest(twin, key, twin.get_calculated_metadata(key))
+        assert was == now, f"copying the observation made '{key}' stale"
+
+
+def test_what_a_collection_is_called_is_not_what_a_result_was_computed_from():
+    """The other half of the same finding: renaming a collection is not a change to the numbers,
+    and moving a station is."""
+    from pastrocore.base import freshness
+
+    project = ScheduleProject.from_dict(copy.deepcopy(json.loads(
+        (pathlib.Path(__file__).parent / "fixtures" / "test_project.pastro").read_text(encoding="utf-8"))))
+    observation = project.get_observations()[0]
+    before = freshness.digest(observation, "beam_pattern",
+                              observation.get_calculated_metadata("beam_pattern"))
+
+    observation.get_telescopes().name = "telescopes_under_another_name"
+    assert freshness.digest(observation, "beam_pattern",
+                            observation.get_calculated_metadata("beam_pattern")) == before
+
+    observation.get_telescopes().get_items()[0].set({"diameter": 12.5})
+    assert freshness.digest(observation, "beam_pattern",
+                            observation.get_calculated_metadata("beam_pattern")) != before
 
 
 def test_a_space_telescope_saved_by_an_older_version_still_opens():

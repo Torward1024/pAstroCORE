@@ -7,7 +7,7 @@ from msb_arch.utils.logging_setup import logger
 from .frequencies import IF, Frequencies
 from .sources import Source
 from .telescopes import Telescope, SpaceTelescope, Telescopes
-from typing import Annotated, Optional, List, Dict, Union
+from typing import Annotated, Any, Optional, List, Dict, Union
 from astropy.time import Time
 import astropy.units as u
 import uuid
@@ -708,9 +708,18 @@ class Scans(BaseContainer[Scan]):
         return inactive
     
     def copy(self) -> 'Scans':
-        """Create a deep copy of the Scans object."""
+        """Create a deep copy of the Scans object.
+
+        Notes:
+            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
+              UUID that appears twice in a project is a name that no longer identifies anything.
+              What a collection is called is not part of what a calculation reads, so a copy
+              being freshly named does not make a result stale -- `freshness._what_is_read`
+              leaves it out, which is the other half of the audit finding this comes from.
+            - The items keep their names: a scan's name is the key its results are filed under,
+              and a source's name is the source.
+        """
         return Scans(
-            name=self.name,
             items={name: item.copy() for name, item in self._items.items()},
             isactive=self.isactive,
             use_cache=self._use_cache
