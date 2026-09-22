@@ -945,6 +945,45 @@ def test_the_table_grid_refuses_what_the_telescope_would_refuse(attribute, qt_ap
         Telescope(code="T", name="T", **{attribute: [(2000.0, 1000.0, 0.5)]})
 
 
+def test_no_call_in_the_backend_reaches_a_method_nobody_defines():
+    """A3 found one: `Telescopes.set_telescope` ended with
+    `self._parent._sync_scans_with_activation()`.
+
+    Neither exists -- a container has no `_parent`, and nothing in the model has ever had that
+    method -- so every update that changed anything raised `AttributeError` after applying the
+    change. It is a `self.` call, so no request-level check could see it, and nothing in the
+    suite called that method at all.
+    """
+    import ast
+
+    import msb_arch
+
+    defined = set()
+    called = {}
+    for root in (ROOT / "pastrocore", pathlib.Path(msb_arch.__file__).parent):
+        for path in sorted(root.rglob("*.py")):
+            if path.name.startswith(("ui_", "rc_")):
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except SyntaxError:                         # not ours to parse
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    defined.add(node.name)
+                elif isinstance(node, (ast.Attribute, ast.Name)) and isinstance(node.ctx, ast.Store):
+                    defined.add(getattr(node, "attr", None) or node.id)
+            if root.name == "pastrocore":
+                for node in ast.walk(tree):
+                    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                            and node.func.attr.startswith("_")
+                            and not node.func.attr.startswith("__")):
+                        called.setdefault(node.func.attr, set()).add(path.name)
+
+    missing = {name: sorted(where) for name, where in called.items() if name not in defined}
+    assert not missing, f"these calls reach nothing: {missing}"
+
+
 def test_the_interface_never_asks_for_a_method_the_model_does_not_have():
     """`configure(container, clear=None)` in four tabs and the window, and MSB 2.0.0 had
     removed `clear`. Every Clear in the application put up "Failed to clear frequencies", and

@@ -225,10 +225,19 @@ class SpaceTelescope(Telescope):
             - Without this, a project containing a space telescope could not be opened at all.
               The failure named `elevation_range`, which pointed at the field rather than at
               the rule.
+            - **The epoch comes back as a time.** `to_dict` writes it as an ISO string, which is
+              what a file can hold, and the constructor refuses anything that is not an astropy
+              `Time` -- so a spacecraft placed by Keplerian elements was written correctly and
+              could not be read back at all: `TypeError: Epoch must be an astropy Time object`.
+              Every round-trip test used a spacecraft that follows an orbit file, which is the
+              other branch.
         """
         derived = ("x", "y", "z", "vx", "vy", "vz",
                    "elevation_range", "azimuth_range", "mount_type")
         remaining = {key: value for key, value in data.items() if key not in derived}
+        elements = remaining.get("kepler_elements")
+        if isinstance(elements, dict) and isinstance(elements.get("epoch"), str):
+            remaining["kepler_elements"] = {**elements, "epoch": Time(elements["epoch"])}
         dropped = [key for key in data if key in derived]
         if dropped:
             logger.debug("Ignoring %s in saved SpaceTelescope '%s'; the constructor derives them",

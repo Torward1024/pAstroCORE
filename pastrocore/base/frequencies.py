@@ -522,7 +522,17 @@ class Frequencies(BaseContainer[IF]):
         return [if_obj.get_frequency_wavelength() for if_obj in self.get_items()]
     
     def copy(self) -> 'Frequencies':
-        """Create a deep copy of the Frequencies object."""
+        """Create a deep copy of the Frequencies object.
+
+        Notes:
+            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
+              UUID that appears twice in a project is a name that no longer identifies anything.
+              What a collection is called is not part of what a calculation reads, so a copy
+              being freshly named does not make a result stale -- `freshness._what_is_read`
+              leaves it out, which is the other half of the audit finding this comes from.
+            - The items keep their names: a scan's name is the key its results are filed under,
+              and a source's name is the source.
+        """
         return Frequencies(
             items={name: item.copy() for name, item in self._items.items()},
             isactive=self.isactive,

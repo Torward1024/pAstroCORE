@@ -487,9 +487,15 @@ class Observation(BaseEntity):
         return int(total_duration)
 
     def copy(self) -> 'Observation':
-        """Create a deep copy of the Observation object."""
+        """Create a deep copy of the Observation object.
+
+        Notes:
+            - **Named as a new object.** A project holds its observations under their names, so
+              a copy carrying the original's could not be added beside it. The code is kept: it
+              is what a person calls the experiment, and the project checks that codes do not
+              collide when one is added.
+        """
         return Observation(
-            name=self.name,
             code=self.code,
             sources=self.sources.copy(),
             telescopes=self.telescopes.copy(),
