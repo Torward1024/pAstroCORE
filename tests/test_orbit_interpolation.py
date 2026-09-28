@@ -209,3 +209,50 @@ def test_an_orbit_edited_on_disk_is_read_again(calculator, orbit_file):
     again = calculator._load_orbit_data(str(path), start, end)
 
     assert len(again["times"]) < len(first["times"]), "answered from the parse of the old file"
+
+
+def test_an_ephemeris_that_also_gives_acceleration_is_read(calculator, orbit_file, tmp_path):
+    """A CCSDS OEM line is an epoch, a position and a velocity, and *may* carry an acceleration.
+
+    Every line was required to have exactly seven fields, so a file written with accelerations
+    had every line skipped and came back as "must contain at least 2 data points" -- a valid
+    ephemeris refused, and the message about the file's length rather than about its columns.
+    """
+    path, epoch = orbit_file
+    with_acceleration = tmp_path / "accelerated.oem"
+    with_acceleration.write_text(
+        "\n".join(line if line.startswith("CCSDS") or "=" in line or "META" in line
+                  else f"{line} 0.0 0.001 0.0"
+                  for line in path.read_text(encoding="utf-8").splitlines()), encoding="utf-8")
+
+    plain = calculator._load_orbit_data(str(path))
+    also = calculator._load_orbit_data(str(with_acceleration))
+
+    assert len(also["times"]) == len(plain["times"])
+    assert np.allclose(also["positions"], plain["positions"])
+    assert np.allclose(also["velocities"], plain["velocities"]), (
+        "the acceleration was read as a velocity")
+
+
+def test_the_parsed_orbits_kept_in_hand_are_bounded(calculator, tmp_path):
+    """A cache with no ceiling is the memory that climbs.
+
+    Every parse was kept for the life of the session, keyed by the file as it was then -- so a
+    file edited between runs left its old parse behind each time, and a project of many
+    spacecraft kept every ephemeris it had ever read. Measured on this machine: an hour of
+    editing one orbit is a parse retained per save.
+    """
+    epoch = Time("2026-01-01T00:00:00", format="isot", scale="utc")
+    calculator.ORBIT_CACHE_BYTES = 1
+
+    path = tmp_path / "edited.oem"
+    for edit in range(5):
+        lines = ["CCSDS_OEM_VERS = 2.0", "META_START", "OBJECT_NAME = TEST", "META_STOP"]
+        for sample in range(10 + edit):
+            when = (epoch + TimeDelta(sample * 60.0, format="sec")).isot
+            lines.append(f"{when} {7000.0 + sample} 0.0 0.0 0.0 7.5 0.0")
+        path.write_text("\n".join(lines), encoding="utf-8")
+        assert len(calculator._load_orbit_data(str(path))["times"]) == 10 + edit
+
+    held = [key for key in calculator._orbit_cache if key[0] == str(path.resolve())]
+    assert len(held) == 1, f"{len(held)} parses of one file are still in hand"

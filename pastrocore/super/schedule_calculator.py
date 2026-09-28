@@ -128,7 +128,8 @@ class ScheduleCalculator(Super):
         # the lock named after it was held across the whole interpolation -- so the cache did
         # nothing and the lock serialised work the pipeline runs in parallel. One scan of ten
         # against one spacecraft re-read and re-parsed the same file ten times.
-        self._orbit_cache: Dict[tuple, Dict[str, np.ndarray]] = {}
+        self._orbit_cache: "OrderedDict[tuple, Dict[str, np.ndarray]]" = OrderedDict()
+        self._orbit_bytes = 0
         self._orbit_cache_lock = threading.Lock()
         self._topocentric_cache: "OrderedDict[tuple, Tuple[np.ndarray, np.ndarray, np.ndarray]]" = OrderedDict()
         self._topocentric_bytes = 0
@@ -369,7 +370,8 @@ class ScheduleCalculator(Super):
         obj: Observation,
         require_scans: bool = True,
         require_telescopes: bool = False,
-        min_telescopes: int = 1
+        min_telescopes: int = 1,
+        require_sources: bool = True
     ) -> Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]:
         """Retrieve active scans, telescopes, and sources from an Observation.
 
@@ -378,17 +380,23 @@ class ScheduleCalculator(Super):
             require_scans: If True, requires at least one active scan.
             require_telescopes: If True, requires at least min_telescopes active telescopes.
             min_telescopes: Minimum number of active telescopes required.
+            require_sources: If True, requires at least one active source. A calculation that
+                does not read the sources says so, and is not refused for want of one.
 
         Returns:
             Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]: Active components.
 
         Notes:
             Logs warnings if required components are missing.
+            - **A beam pattern needs no source**, and this refused it when none was active --
+              then said "No active telescopes", because everything comes back empty together.
+              What each calculation reads is declared in its schema; what it requires here must
+              agree with that, or a result is withheld for want of something it never looks at.
         """
         scans = obj.get_scans().get_active_items() if require_scans else []
         telescopes = obj.get_telescopes().get_active_items()
         sources = obj.get_sources().get_active_items()
-        
+
         obj_code = obj.get_observation_code()
         if require_scans and not scans:
             logger.warning("No active scans in observation '%s'", obj_code)
@@ -396,10 +404,10 @@ class ScheduleCalculator(Super):
         if require_telescopes and len(telescopes) < min_telescopes:
             logger.warning("Insufficient active telescopes (%s < %s) in '%s'", len(telescopes), min_telescopes, obj_code)
             return [], [], []
-        if not sources:
+        if require_sources and not sources:
             logger.warning("No active sources in observation '%s'", obj_code)
             return [], [], []
-        
+
         return scans, telescopes, sources
 
     @staticmethod
@@ -954,6 +962,28 @@ class ScheduleCalculator(Super):
     #: method interpolates between samples, so the ends of a scan need samples beyond them.
     ORBIT_SAMPLE_MARGIN = 8
 
+    #: What the parsed orbit files may occupy. A day of a one-minute ephemeris is 100 kB, so this
+    #: holds every spacecraft a project is likely to have and no session's worth of edits.
+    ORBIT_CACHE_BYTES = 64 * 1024 ** 2
+
+    def _hold_orbit(self, key: tuple, parsed: Dict[str, np.ndarray]) -> None:
+        """Keep a parsed orbit file, dropping the least recently read once the ceiling is passed.
+
+        Notes:
+            - **A cache with no ceiling is the memory that climbs.** Every parse was kept for the
+              life of the session, keyed by the file as it was when it was read -- so each save
+              of an orbit being edited left its previous parse behind, and a project of many
+              spacecraft kept every ephemeris it had ever opened.
+        """
+        size = sum(values.nbytes for values in parsed.values())
+        with self._orbit_cache_lock:
+            self._orbit_cache[key] = parsed
+            self._orbit_cache.move_to_end(key)
+            self._orbit_bytes += size
+            while self._orbit_bytes > self.ORBIT_CACHE_BYTES and len(self._orbit_cache) > 1:
+                _, dropped = self._orbit_cache.popitem(last=False)
+                self._orbit_bytes -= sum(values.nbytes for values in dropped.values())
+
     #: Degree of each Chebyshev arc, and how many samples one arc spans. Twelve is what
     #: ephemeris systems use per segment; the orbit is smooth over a short arc, and raising the
     #: degree buys nothing while costing conditioning.
@@ -1095,6 +1125,8 @@ class ScheduleCalculator(Super):
         key = (os.path.abspath(orbit_file), stamp.st_mtime_ns, stamp.st_size)
         with self._orbit_cache_lock:
             cached = self._orbit_cache.get(key)
+            if cached is not None:
+                self._orbit_cache.move_to_end(key)
         if cached is not None:
             return self._orbit_within(cached, orbit_file, start_time_mjd, end_time_mjd)
 
@@ -1115,7 +1147,11 @@ class ScheduleCalculator(Super):
                 if "COVARIANCE_START" in line:
                     break
                 parts = re.split(r'\s+', line.strip())
-                if len(parts) == 7:
+                # An OEM line is an epoch, a position and a velocity, and **may** carry an
+                # acceleration after them. Exactly seven fields skipped every line of a file
+                # written with accelerations, and the file then failed as "at least 2 data
+                # points" -- a valid ephemeris refused, with the complaint about its length.
+                if len(parts) >= 7:
                     valid_lines.append(line)
 
             if len(valid_lines) < 2:
@@ -1144,8 +1180,7 @@ class ScheduleCalculator(Super):
                 "velocities": velocities
             }
 
-            with self._orbit_cache_lock:
-                self._orbit_cache[key] = orbit_data
+            self._hold_orbit(key, orbit_data)
             logger.info("Loaded orbit data from '%s' with %s points", orbit_file, len(orbit_data['times']))
             return self._orbit_within(orbit_data, orbit_file, start_time_mjd, end_time_mjd)
 
@@ -1438,8 +1473,18 @@ class ScheduleCalculator(Super):
                 mu = kepler["mu"]
                 n = np.sqrt(mu / a**3)
 
+                # **The element is a true anomaly and what advances linearly in time is the mean
+                # one.** This carried `nu` forward as if it were already a mean anomaly, which is
+                # the same number only on a circle: at e = 0.6 and nu = 90 degrees the spacecraft
+                # stood 32 960 km from where its own elements put it, at twice the radius the
+                # orbit allows -- at the epoch itself, before any time had passed. The one
+                # Keplerian test in the suite used e = 0.01, where the two agree to a degree.
+                E0 = 2.0 * np.arctan2(np.sqrt(1 - e) * np.sin(nu0 / 2),
+                                      np.sqrt(1 + e) * np.cos(nu0 / 2))
+                M0 = E0 - e * np.sin(E0)
+
                 dt = (times_mjd - epoch) * 86400.0
-                M = nu0 + n * dt
+                M = M0 + n * dt
 
                 E = self._solve_kepler(M, e)
 
@@ -1714,8 +1759,7 @@ class ScheduleCalculator(Super):
                     is_visible[valid_positions] = (
                         (float(el_range[0]) <= el[valid_positions]) &
                         (el[valid_positions] <= float(el_range[1])) &
-                        (float(az_range[0]) <= az[valid_positions]) &
-                        (az[valid_positions] <= float(az_range[1]))
+                        self._inside_the_turn(az[valid_positions], *az_range)
                     )
                 elif mount_type == "EQUA":
                     ha, dec, _ = self._topocentric(source, positions, times_mjd, "hadec")
@@ -1724,8 +1768,7 @@ class ScheduleCalculator(Super):
                     is_visible[valid_positions] = (
                         (float(dec_range[0]) <= dec[valid_positions]) &
                         (dec[valid_positions] <= float(dec_range[1])) &
-                        (float(ha_range[0]) <= ha[valid_positions]) &
-                        (ha[valid_positions] <= float(ha_range[1]))
+                        self._inside_the_turn(ha[valid_positions], *ha_range)
                     )
                 else:
                     logger.warning("Unsupported mount type '%s' for telescope '%s' in scan '%s'", mount_type, tel_code, scan_name)
@@ -2631,6 +2674,31 @@ class ScheduleCalculator(Super):
         return (np.concatenate(times_list), np.concatenate(target_codes), np.concatenate(scan_names),
                 np.concatenate(station_codes), np.concatenate(az_list), np.concatenate(el_list),
                 np.concatenate(range_list))
+
+    @staticmethod
+    def _inside_the_turn(values: np.ndarray, low: float, high: float) -> np.ndarray:
+        """Report where an angle lies on the arc from `low` to `high`, the positive way round.
+
+        Args:
+            values (np.ndarray): Angles in degrees.
+            low (float): Where the arc starts.
+            high (float): Where it ends. An arc of a full turn or more is no limit at all.
+
+        Returns:
+            np.ndarray: True where the angle is on the arc.
+
+        Notes:
+            - **An hour angle runs -180 to 180 and a mount is created with limits of 0 to 360.**
+              Compared as a straight interval, every sample before transit fell outside them: a
+              station switched to an equatorial mount lost the whole approach to transit, and one
+              observing entirely before it saw nothing, with nothing said. The limits are an arc
+              on a circle, and that is how they are read here -- for the azimuth too, where it
+              agrees with the straight comparison for every range that does not wrap.
+        """
+        span = float(high) - float(low)
+        if span >= 360.0:
+            return np.ones(np.shape(values), dtype=bool)
+        return ((np.asarray(values, dtype=float) - float(low)) % 360.0) <= span
 
     @staticmethod
     def _to_earth_fixed(positions: np.ndarray, obstime: Time) -> np.ndarray:
@@ -3665,7 +3733,11 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "beam_pattern")
 
             def calculate_beam_pattern(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
-                _, telescopes, _ = self._get_active_components(obs, require_scans=False, require_telescopes=True)
+                # Neither the scans nor the sources: a dish's beam is the dish and nothing else,
+                # which is what its schema declares it depends on.
+                _, telescopes, _ = self._get_active_components(obs, require_scans=False,
+                                                               require_telescopes=True,
+                                                               require_sources=False)
                 if not telescopes:
                     logger.warning("No active telescopes in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))

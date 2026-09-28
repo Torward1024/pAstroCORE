@@ -247,6 +247,75 @@ def test_the_drawn_beam_is_an_airy_pattern_at_the_chosen_frequency(recomputed, m
     assert checked == len(dishes)
 
 
+def test_an_equatorial_mount_can_see_the_sky_before_transit():
+    """An hour angle runs -180 to 180; a telescope is created with limits of 0 to 360.
+
+    Read as a straight interval, every sample before transit fell outside them -- so switching a
+    station to an equatorial mount silently cost it the whole approach to transit, and a station
+    observing entirely before transit saw nothing at all. Six of thirty-six samples here, and
+    nothing said. The limits are an arc on a circle.
+    """
+    from pastrocore.base.observation import Observation
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    observation = Observation(code="EQUATORIAL")
+    stations = observation.get_telescopes()
+    stations.create_telescope(code="Wb", name="WSTRBORK", x=3828445.659, y=445223.6,
+                              z=5064921.568, diameter=25.0)
+    # Two, because a VLBI scan with one station is not an active scan.
+    stations.create_telescope(code="Sv", name="SVETLOE", x=2730173.7626, y=1562442.7288,
+                              z=5529969.1054, diameter=32.0)
+    dish = stations.get_items()[0]
+    dish.set({"mount_type": "EQUA"})                    # and the limits it was created with
+    assert dish.get_azimuth_range() == (0.0, 360.0)
+
+    observation.get_sources().create_source(name="S", ra_h=12.0, de_d=40.0)
+    observation.get_frequencies().create_if(name="x", frequency=8400.0, bandwidth=16.0)
+    observation.get_scans().create_scan(
+        name="No0001", start=Time("2026-03-01T00:00:00"), duration=21600.0,
+        source=observation.get_sources().get_items()[0], telescopes=stations.get_items(),
+        frequencies=observation.get_frequencies().get_items(), observation=observation)
+    project = ScheduleProject(name="equatorial")
+    project.add_item(observation)
+    observation = project.get_observations()[0]
+
+    ScheduleManipulator(project).compute(obj=None, method="run", targets=[observation],
+                                         calculations=["source_visibility"], time_step=600.0,
+                                         force=True)
+    seen = stored(observation, "source_visibility").filter(pl.col("telescope_code") == "Wb")
+
+    # The declination limit is 15 to 90 and the source stands at 40, so nothing here is out of
+    # reach: an unlimited hour angle means every sample.
+    assert seen.height == 36
+    assert seen["visibility"].all(), (
+        f"{(~seen['visibility']).sum()} of {seen.height} samples were refused for the hour angle")
+
+
+def test_a_beam_is_the_dish_and_nothing_else(recomputed):
+    """A dish's beam is a function of its diameter. It does not read the sources, and its schema
+    says so -- yet with every source switched off the result came back empty, and the log said
+    "No active telescopes in observation", which is not what was wrong and not even true.
+
+    The components a calculation asks for and the parts it declares it depends on have to agree,
+    or a result is withheld for want of something it never looks at.
+    """
+    import copy
+
+    core, observation = recomputed
+    apart = copy.deepcopy(observation)
+    for source in apart.get_sources().get_items():
+        source.isactive = False
+    apart.clear_calculated_data()
+
+    core.calculate(obj=apart, method="beam_pattern", recalculate=True, raise_on_error=False)
+    drawn = apart.get_calculated_data_by_key("beam_pattern").get("data")
+
+    assert drawn is not None and not drawn.is_empty(), (
+        "a beam pattern was refused because no source was active")
+    assert drawn["telescope_code"].n_unique() == len(apart.get_telescopes().get_active_items())
+
+
 def test_a_moving_station_is_where_its_velocity_in_metres_per_year_puts_it():
     """Velocities are metres per year -- VEX `site_velocity`, CFX `TLSC_PAR`, the editor -- and
     the position multiplied them by seconds since J2000. Westerbork, Svetloe and Badary from a
@@ -290,6 +359,71 @@ def test_a_moving_station_is_where_its_velocity_in_metres_per_year_puts_it():
         ours = rows.select(["x", "y", "z"]).to_numpy()
         worst = np.max(np.linalg.norm(ours - expected.xyz.to_value(u.m).T, axis=1))
         assert worst < 0.01, f"{telescope.get_code()} is {worst:,.2f} m from where it is"
+
+
+# --- a spacecraft placed by its orbital elements ----------------------------------------------------
+
+def _kepler_position(a, e, i, raan, argp, nu0, mu, seconds):
+    """Where an orbit puts a body, written out here rather than read back from the code.
+
+    The true anomaly at the epoch is converted to an eccentric and then to a mean anomaly, which
+    is the one that advances linearly in time; it is carried forward, solved back, and turned
+    into the radius and the direction the geometry gives.
+    """
+    i, raan, argp, nu0 = np.radians([i, raan, argp, nu0])
+    eccentric = 2.0 * np.arctan2(np.sqrt(1 - e) * np.sin(nu0 / 2), np.sqrt(1 + e) * np.cos(nu0 / 2))
+    mean = eccentric - e * np.sin(eccentric) + np.sqrt(mu / a ** 3) * np.asarray(seconds, dtype=float)
+
+    anomaly = mean.copy()
+    for _ in range(200):                       # Newton, to well below a millimetre of arc
+        anomaly = anomaly - (anomaly - e * np.sin(anomaly) - mean) / (1 - e * np.cos(anomaly))
+    nu = 2.0 * np.arctan2(np.sqrt(1 + e) * np.sin(anomaly / 2), np.sqrt(1 - e) * np.cos(anomaly / 2))
+    radius = a * (1 - e ** 2) / (1 + e * np.cos(nu))
+
+    in_plane = np.stack([radius * np.cos(nu), radius * np.sin(nu), np.zeros_like(radius)], axis=-1)
+    rotation = (np.array([[np.cos(raan), -np.sin(raan), 0], [np.sin(raan), np.cos(raan), 0], [0, 0, 1]])
+                @ np.array([[1, 0, 0], [0, np.cos(i), -np.sin(i)], [0, np.sin(i), np.cos(i)]])
+                @ np.array([[np.cos(argp), -np.sin(argp), 0], [np.sin(argp), np.cos(argp), 0], [0, 0, 1]]))
+    return in_plane @ rotation.T
+
+
+@pytest.mark.parametrize("e", [0.0, 0.3, 0.6, 0.94])
+def test_a_spacecraft_stands_where_its_own_elements_say(e):
+    """The editor asks for a **true** anomaly and the propagation took it for a mean one.
+
+    They are the same number only on a circle. At e = 0.6 and nu = 90 degrees the spacecraft was
+    placed 32 960 km from where its own elements put it, at twice the radius the orbit allows --
+    at the epoch itself, before any time had passed. The one Keplerian test in the suite used
+    e = 0.01, where the two anomalies agree to a degree, so everything was green.
+    """
+    from astropy.time import TimeDelta
+
+    from pastrocore.base.telescopes import SpaceTelescope
+    from pastrocore.super.schedule_calculator import ScheduleCalculator
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    a, mu, nu0 = 3.0e7, 398600.4418e9, 90.0
+    epoch = Time("2026-01-01T00:00:00")
+    telescope = SpaceTelescope(code="RA", name="RADIOASTRON", use_kep=True, kepler_elements={
+        "a": a, "e": e, "i": 63.4, "raan": 30.0, "argp": 270.0, "nu": nu0,
+        "epoch": epoch, "mu": mu})
+
+    period = 2 * np.pi * np.sqrt(a ** 3 / mu)
+    seconds = np.array([0.0, period / 8, period / 4, period / 2, period])
+    times = (epoch + TimeDelta(seconds, format="sec")).mjd
+
+    calculator = ScheduleCalculator(ScheduleManipulator(ScheduleProject(name="orbit")))
+    ours = calculator._compute_telescope_position(telescope, times)
+    theirs = _kepler_position(a, e, 63.4, 30.0, 270.0, nu0, mu, seconds)
+
+    worst = np.max(np.linalg.norm(ours - theirs, axis=1))
+    assert worst < 1.0, f"e={e}: {worst / 1e3:,.1f} km from where the elements put it"
+
+    # And the radius at the epoch is the one the conic gives for that true anomaly, which is a
+    # statement about the elements alone -- no propagation, nothing to get subtly right.
+    assert np.linalg.norm(ours[0]) == pytest.approx(
+        a * (1 - e ** 2) / (1 + e * np.cos(np.radians(nu0))), rel=1e-9)
 
 
 # --- sensitivity (E1) ---------------------------------------------------------------------------------
