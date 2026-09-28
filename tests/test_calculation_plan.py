@@ -551,3 +551,23 @@ def test_a_run_of_ground_stations_says_nothing_about_orbits(project, caplog):
 
     about_orbits = [record.getMessage() for record in caplog.records if "orbit" in record.getMessage()]
     assert about_orbits == []
+
+
+def test_the_catalogue_says_what_an_observation_already_holds(bench):
+    """`available` marks the entries a dialog can offer to draw or export without calculating.
+
+    It compared the handler's name against the keys results are filed under. Those are the same
+    string for every calculation but one, and for that one the catalogue said an observation
+    did not hold a result it was holding.
+    """
+    manipulator, observation = bench
+    manipulator.compute(obj=None, method="run", targets=[observation],
+                        calculations=["time_arrays"], time_step=600.0, force=True)
+    held = set(observation.calculated_data.keys())
+    assert "times" in held and "time_arrays" not in held
+
+    catalogue = manipulator.inspect(obj=None, method="catalogue", available_for=observation)
+    available = {entry["key"]: entry["available"] for entry in catalogue}
+
+    assert available["time_arrays"] is True, "held, and the catalogue says otherwise"
+    assert available["beam_pattern"] is False, "not held, and it must not say it is"

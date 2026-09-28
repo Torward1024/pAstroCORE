@@ -310,7 +310,13 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                     logger.info("Export cancelled during '%s'", obs_code)
                     return {"written": written, "cancelled": True}
 
-                key = calc_type.lower().replace(" ", "_").replace("/", "_")
+                # A calculation is named here by its label, and the key is that label spelled
+                # the way a key is -- which for one calculation is its *handler's* name rather
+                # than the key its result is filed under. `Time Arrays` is `time_arrays` and
+                # files under `times`, so ticking it in the dialog wrote nothing and said so at
+                # debug level. Resolved through the schema, which knows both spellings.
+                key = CalculatedDataStructure.store_key_for(
+                    calc_type.lower().replace(" ", "_").replace("/", "_"))
                 data = target.get_calculated_data_by_key(key).get("data", {})
                 if not isinstance(data, pl.DataFrame):
                     logger.debug("No data for %s in %s, skipping", calc_type, obs_code)
@@ -550,7 +556,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         """
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            key = calc_type.lower().replace(" ", "_").replace("/", "_")
+            key = CalculatedDataStructure.store_key_for(
+                calc_type.lower().replace(" ", "_").replace("/", "_"))
 
             expected_columns = CalculatedDataStructure.get_columns(key)
             if expected_columns is None:
@@ -656,10 +663,20 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         steps = (self._manipulator.history(attributes.get("about")) if given is None
                  else [{key: value for key, value in step.items() if key not in SHOWN_ONLY}
                        for step in given])
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-        Path(path).write_text(
-            json.dumps({"steps": json_safe(steps)}, indent=4, allow_nan=False),
-            encoding="utf-8")
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Beside the old one and moved over it, as every other file this application writes is
+        # -- a session is what a bug report carries, and a write interrupted part way left a
+        # truncated one that reads as a session with a few steps rather than as a failure.
+        partial = target.with_name(target.name + ".partial")
+        try:
+            partial.write_text(
+                json.dumps({"steps": json_safe(steps)}, indent=4, allow_nan=False),
+                encoding="utf-8")
+            os.replace(partial, target)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
         logger.info("Wrote a session of %s request(s) to '%s'", len(steps), path)
         return {"path": str(path), "steps": len(steps)}
 
@@ -783,7 +800,14 @@ class ScheduleData(DataQuestions, Persistence, Loader):
 
         with_results = attributes.get("results", True)
         source = Path(tempfile.mkdtemp(prefix="pastrocore_package_")) / "project.pastro"
-        obj.save(str(source))
+        # A copy, not a move: this directory is deleted a few lines below, and an ordinary save
+        # would leave the project pointing at it and clear the scratch that was holding its
+        # results. Packing a project took its results away from the person packing it.
+        #
+        # And without the results when they are not wanted, rather than copying every parquet
+        # into a temporary directory to leave it out of the zip afterwards -- which is the whole
+        # project's worth of writing for a package of a few kilobytes.
+        obj.to_directory(str(source), as_copy=True, with_results=with_results)
 
         target.parent.mkdir(parents=True, exist_ok=True)
         written = 0

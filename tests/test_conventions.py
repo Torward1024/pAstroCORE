@@ -984,6 +984,50 @@ def test_no_call_in_the_backend_reaches_a_method_nobody_defines():
     assert not missing, f"these calls reach nothing: {missing}"
 
 
+def test_every_example_in_a_docstring_imports_something_that_exists():
+    """An example nobody runs is a claim nobody checks.
+
+    A3 found both of the ones in this package broken: the inspector's opens with
+    `from pastrocore.super.manipulator import ScheduleManipulator`, which is not where that
+    class lives, and the orchestrator's with `from unit_scheduling.super...`, which is what this
+    package was called before it was renamed. The first line of an example is the cheapest
+    thing in it to check, and it is the one that dates.
+    """
+    import ast
+    import importlib
+
+    wrong = {}
+    for path in sorted((ROOT / "pastrocore").rglob("*.py")):
+        if path.name.startswith(("ui_", "rc_")):
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for line in (ast.get_docstring(node) or "").splitlines():
+                line = line.strip()
+                if not line.startswith(">>> "):
+                    continue
+                shown = line[4:].strip()
+                if shown.startswith("from ") and " import " in shown:
+                    module, _, names = shown[5:].partition(" import ")
+                elif shown.startswith("import "):
+                    module, names = shown[7:].strip(), ""
+                else:
+                    continue
+                where = f"{path.relative_to(ROOT)}: {shown}"
+                try:
+                    imported = importlib.import_module(module.strip())
+                except ImportError as e:
+                    wrong[where] = str(e)
+                    continue
+                for name in (part.strip() for part in names.split(",") if part.strip()):
+                    if not hasattr(imported, name):
+                        wrong[where] = f"'{module.strip()}' has no '{name}'"
+
+    assert not wrong, f"examples that cannot even be imported: {wrong}"
+
+
 def test_the_interface_never_asks_for_a_method_the_model_does_not_have():
     """`configure(container, clear=None)` in four tabs and the window, and MSB 2.0.0 had
     removed `clear`. Every Clear in the application put up "Failed to clear frequencies", and

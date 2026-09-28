@@ -27,16 +27,19 @@ class ScheduleInspector(AddressQuestions, RunQuestions, DataQuestions, Inspector
         in a response dictionary with keys status, object, method, result, and error (if status=False).
 
     Examples:
-        >>> from pastrocore.super.manipulator import ScheduleManipulator
-        >>> manipulator = ScheduleManipulator()
-        >>> inspector = ScheduleInspector(manipulator)
-        >>> source = Source(name="3C 286")
-        >>> result = inspector.execute(source, {"get": "name"})
-        {'status': True, 'object': <Source>, 'method': '_inspect_source', 'result': {'name': '3C 286'}}
-        >>> project = ScheduleProject()
+        >>> from pastrocore.super.schedule_manipulator import ScheduleManipulator
+        >>> from pastrocore.base.sources import Source
+        >>> inspector = ScheduleInspector(ScheduleManipulator())
+        >>> inspector.execute(Source(name="3C286"), {"get": "name"})
+        {'status': True, 'object': '3C286', 'method': '_inspect',
+         'result': {'get': {'status': True, 'result': '3C286'}}}
+        >>> project = ScheduleProject(name="P")
         >>> project.create_item(item_code="OBS001")
-        >>> result = inspector.execute(project, {"name": "OBS001", "get": "code"})
-        {'status': True, 'object': <Observation>, 'method': '_inspect_observation', 'result': 'OBS001'}
+        >>> held = project.get_observations()[0].name    # a code is what a person calls it;
+        >>> inspector.execute(project, {"name": held,    # a name is what it is filed under
+        ...                             "get_observation_code": None})
+        {'status': True, 'object': 'P', 'method': '_inspect',
+         'result': {'get_observation_code': {'status': True, 'result': 'OBS001'}}}
     """
 
     def _nested_getter(self, obj):

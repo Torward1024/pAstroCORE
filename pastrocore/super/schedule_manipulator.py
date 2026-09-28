@@ -31,7 +31,7 @@ class ScheduleManipulator(Manipulator):
         operations (Dict[str, Any]): Registered operations (e.g., "configure", "inspect").
 
     Examples:
-        >>> from unit_scheduling.super.schedule_project import ScheduleProject
+        >>> from pastrocore.super.schedule_project import ScheduleProject
         >>> manipulator = ScheduleManipulator(project=ScheduleProject(name="TestProject"))
         >>> manipulator.operations["configure"]
         <ScheduleConfigurator object at ...>

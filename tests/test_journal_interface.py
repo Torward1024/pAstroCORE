@@ -70,6 +70,37 @@ def test_the_session_can_be_written_and_read_back(session, tmp_path):
     assert read["steps"], "a session written with no steps is a file that says nothing"
 
 
+def test_a_session_write_that_fails_leaves_the_last_one_whole(session, tmp_path, monkeypatch):
+    """Every other file this application writes goes beside the old one and is moved over it;
+    this one was written in place.
+
+    A session is what a bug report carries, and a write interrupted part way -- a full disk, an
+    application closed -- left a truncated file that reads as a session with a few steps rather
+    than as a failure.
+    """
+    import pathlib
+
+    manipulator, project, _ = session
+    path = tmp_path / "session.json"
+    assert manipulator.export(obj=project, method="journal", path=str(path))["steps"] > 0
+    kept = path.read_text(encoding="utf-8")
+
+    real = pathlib.Path.write_text
+
+    def cut_short(self, text, *args, **kwargs):
+        real(self, text[: len(text) // 3], *args, **kwargs)
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(pathlib.Path, "write_text", cut_short)
+    with pytest.raises(Exception):
+        manipulator.export(obj=project, method="journal", path=str(path), raise_on_error=True)
+
+    monkeypatch.undo()
+    assert path.read_text(encoding="utf-8") == kept, "the last session was destroyed"
+    assert json.loads(path.read_text(encoding="utf-8"))["steps"]
+    assert not list(tmp_path.glob("*.partial")), "a half-written file was left behind"
+
+
 def test_it_replays_against_another_project(session, tmp_path):
     """The criterion. A session recorded against one project runs against another, which is
     what makes it a reproduction rather than a souvenir."""

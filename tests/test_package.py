@@ -56,6 +56,52 @@ def test_the_results_travel_with_it(core, project, tmp_path):
     assert set(reopened.get_observations()[0].calculated_data.keys()) == here
 
 
+def test_packing_leaves_the_project_where_it_was(project, tmp_path):
+    """Sending a colleague a copy must not take the results away from the sender.
+
+    Packing saves the project into a temporary directory and deletes it afterwards, and a save
+    re-points every observation at where it was written -- so the project in hand came back
+    pointing at a directory that had just been removed. A project opened from disk with eleven
+    results had none the moment it was packed; they were still on disk, and nothing in the
+    session could reach them again until it was reopened.
+    """
+    root = tmp_path / "work.pastro"
+    project.save(str(root))
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observations()[0]
+    before = set(observation.calculated_data.keys())
+    assert len(before) > 1
+
+    answer = packed(ScheduleManipulator(reopened), reopened, tmp_path / "sent")
+    assert answer.ok, answer.error
+
+    assert set(observation.calculated_data.keys()) == before, "packing took the results away"
+    assert observation.get_calculated_data_by_key("uv_coverage")["data"].height > 0, (
+        "the results are named but no longer readable")
+
+
+def test_packing_an_unsaved_project_keeps_what_it_has_calculated(core, project, tmp_path):
+    """The same fault, where it costs the most.
+
+    A project that has never been saved keeps its results in this session's scratch, which is
+    what protects them from a crash. Packing saved into a temporary directory, which moved them
+    out of the scratch and then discarded it -- so both copies went, and the only thing left was
+    whatever happened to still be in memory.
+    """
+    observation = project.get_observations()[0]
+    core.compute(obj=observation, method="run", calculations=["uv_coverage"], time_step=600.0,
+                 raise_on_error=False)
+    project.hold_results_in_scratch()
+    observation.calculated_data.flush()
+    scratch = project.scratch.path
+    assert scratch is not None and list(scratch.rglob("*.parquet"))
+
+    assert packed(core, project, tmp_path / "unsaved").ok
+
+    assert scratch.exists() and list(scratch.rglob("*.parquet")), (
+        "packing threw away the results of a session that had never been saved")
+
+
 def test_a_bug_report_can_leave_the_results_behind(core, project, tmp_path):
     """The model alone: a few kilobytes that reproduce the configuration, without a gigabyte of
     frames nobody reading the report needs."""
@@ -69,6 +115,24 @@ def test_a_bug_report_can_leave_the_results_behind(core, project, tmp_path):
     assert lean["bytes"] < full["bytes"]
     with zipfile.ZipFile(lean["path"]) as package:
         assert package.namelist() == [ScheduleProject.MODEL_FILE]
+
+
+def test_a_model_only_package_writes_no_results_anywhere(core, project, tmp_path, monkeypatch):
+    """Not merely absent from the zip: never written.
+
+    Packing saved the whole project into a temporary directory and then left the results out of
+    the archive, so a package of a few kilobytes cost a copy of every parquet the project has.
+    """
+    from pastrocore.base.result_store import ResultStore
+
+    copied = []
+    monkeypatch.setattr(ResultStore, "write",
+                        lambda self, owner, key, frame, metadata: copied.append(key))
+
+    answer = packed(core, project, tmp_path / "report", results=False)
+
+    assert answer.ok, answer.error
+    assert not copied, f"{len(copied)} result(s) were written out only to be left out"
 
 
 def test_a_model_only_package_still_opens(core, project, tmp_path):

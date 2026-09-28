@@ -795,6 +795,30 @@ class CalculatedData:
             logger.info("Moved %s result(s) for '%s' out of scratch", copied, self._owner)
         return copied
 
+    def write_through_to(self, store: ResultStore,
+                         writing: Optional[Callable[[str], None]] = None) -> int:
+        """Write what is held but unstored into another store, staying attached to this one.
+
+        Args:
+            store (ResultStore): Where to write the copies.
+            writing (Optional[Callable[[str], None]]): Told each result's key before it is
+                written.
+
+        Returns:
+            int: How many results were written.
+
+        Notes:
+            - `flush` is the same write and moves in: it makes that store the one these results
+              live in from now on. This is for a copy of the project -- packing it to send --
+              where the results must appear in the copy and go on living where they were.
+        """
+        for key in sorted(self._unwritten):
+            if writing is not None:
+                writing(key)
+            entry = self._resident[key]
+            store.write(self._owner, key, entry["data"], entry.get("metadata") or {})
+        return len(self._unwritten)
+
     def flush(self, store: Optional[ResultStore] = None,
               writing: Optional[Callable[[str], None]] = None) -> int:
         """Write everything held but not yet stored.

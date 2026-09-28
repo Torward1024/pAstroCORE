@@ -1,4 +1,4 @@
-# unit_scheduling/super/schedule_project.py
+# pastrocore/super/schedule_project.py
 from typing import Any, Callable, Dict, List, Optional
 from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
@@ -270,7 +270,8 @@ class ScheduleProject(Project):
     MODEL_FILE = "project.json"
 
     def to_directory(self, path: str,
-                     progress: Optional[Callable[[int, str], None]] = None) -> None:
+                     progress: Optional[Callable[[int, str], None]] = None,
+                     as_copy: bool = False, with_results: bool = True) -> None:
         """Save the project as a directory: the model in one file, each result in its own.
 
         Args:
@@ -278,6 +279,11 @@ class ScheduleProject(Project):
             progress (Optional[Callable[[int, str], None]]): Called with a percentage and what
                 is being written -- each result file, then the model. The same shape a
                 calculation reports its progress in.
+            as_copy (bool): Write a copy and leave this project where it is -- still pointed at
+                the directory or the scratch it was using, and with its scratch intact. What
+                packing a project to send it needs.
+            with_results (bool): Write the results as well as the model. False writes the model
+                alone, which is what a bug report wants; only sensible for a copy.
 
         Notes:
             - The model is small -- under 7 KB for a project whose single-file form was 230 --
@@ -286,6 +292,12 @@ class ScheduleProject(Project):
             - Each result is a parquet file, which is what lets a consumer that filters push
               the filter into the read rather than loading a frame to discard most of it.
             - A result already on disk and never loaded is left alone rather than rewritten.
+            - **A save moves the project in.** It points every observation at the directory just
+              written and clears the scratch, because that directory is where the project lives
+              from now on. `as_copy` is for the other case, and packing had no way to say it:
+              it saved into a temporary directory, deleted it, and left the project pointing
+              there. A project opened from disk with eleven results had none the moment it was
+              packed -- and an unsaved one, whose only copy was the scratch, lost them.
         """
         check_non_empty_string(path, "Project directory")
         if self.__dict__.get("_released"):
@@ -301,7 +313,7 @@ class ScheduleProject(Project):
         store = ResultStore(root / self.RESULTS_DIRECTORY)
         report = progress or (lambda percent, message: None)
         holding = [observation for observation in self._items.get_items()
-                   if hasattr(observation.calculated_data, "attach")]
+                   if hasattr(observation.calculated_data, "attach")] if with_results else []
         # Counted before anything is written, in files: a result is what takes the time, and the
         # model -- one small file -- is the last step.
         steps = sum(len(observation.calculated_data.to_write(store)) for observation in holding) + 1
@@ -321,8 +333,11 @@ class ScheduleProject(Project):
             # Results calculated before the project had a directory are already on disk, in
             # this session's scratch. Saving moves them rather than asking for them again.
             written += results.migrate_to(store, writing=writing(observation))
-            results.attach(store, observation.name, budget=self.residency_budget)
-            written += results.flush(writing=writing(observation))
+            if as_copy:
+                written += results.write_through_to(store, writing=writing(observation))
+            else:
+                results.attach(store, observation.name, budget=self.residency_budget)
+                written += results.flush(writing=writing(observation))
         report(int(100 * done[0] / steps), "Writing the model")
 
         model = {"name": self.name, "items": {}}
@@ -365,11 +380,14 @@ class ScheduleProject(Project):
         # the rest of the session. `unsaved_results` counts what is in there, so a saved project
         # went on reporting the same results as unsaved: closing the window asked about them, and
         # answering "Save" left the count unchanged, so the window refused to close. Cleared here,
-        # after everything is written, and never before.
-        self.scratch.discard()
+        # after everything is written, and never before -- and never at all for a copy, whose
+        # scratch is still the project's only one.
+        if not as_copy:
+            self.scratch.discard()
 
         report(100, "Saved")
-        logger.info("Saved project '%s' to '%s': %s result(s) written", self.name, path, written)
+        logger.info("%s project '%s' to '%s': %s result(s) written",
+                    "Copied" if as_copy else "Saved", self.name, path, written)
 
     @classmethod
     def from_directory(cls, path: str) -> 'ScheduleProject':
@@ -575,19 +593,15 @@ class ScheduleProject(Project):
             - A window closing a project, a command line opening the next one and a server
               ending a session all want this, so it is here rather than in any of them. It was
               in the window, which is why the window reached into the model to do it.
-            - The back references go before the observations do. An observation still pointing
-              at the project, the orchestrator or its parent keeps all three alive, and the
-              next project then shares a graph with the one that was closed.
+            - **Nothing has to be unhooked.** This cleared `_project`, `_manipulator` and
+              `_parent` on each observation, each guarded by a `hasattr` that is true of none of
+              them -- as a `cleanup()` call here was before that, which nothing defines either.
+              The one back reference an observation has is msb_arch's `_parents`, and it is
+              weak, so letting go of the observations is the whole of letting go. The property
+              is held by a test rather than by a loop: after this, nothing the project held is
+              still reachable.
         """
-        released = 0
-        for observation in self.get_observations():
-            # There was a `cleanup()` call here, guarded by `hasattr`: nothing in the model or the
-            # framework defines one, so the guard was true of nothing and the call reached nothing.
-            for reference in ("_project", "_manipulator", "_parent"):
-                if hasattr(observation, reference):
-                    setattr(observation, reference, None)
-            released += 1
-
+        released = len(self.get_observations())
         self.remove_all()
         # Remembered, so a save of what is left is refused rather than emptying the directory.
         self.__dict__["_released"] = True

@@ -129,6 +129,32 @@ def test_the_journal_stops_at_the_size_it_was_given(project):
                for value in recorded["attributes"].values()), recorded["attributes"]
 
 
+def test_letting_go_of_a_project_lets_go_of_its_observations(project):
+    """`release` cleared three back references by name -- `_project`, `_manipulator`, `_parent` --
+    each guarded by a `hasattr` that is true of none of them.
+
+    An observation has one back reference and it is msb_arch's `_parents`, which is weak by
+    construction, so the clearing was a loop over nothing and the note above it described work
+    that was not being done. What matters is the property, not the loop: after a project lets
+    go, nothing it held is still reachable, or the next project shares a graph with the last one.
+    """
+    import gc
+    import weakref
+
+    core = ScheduleManipulator(project)
+    core.inspect(obj=project, get_observations=None)          # something touched it
+    observation = project.get_observations()[0]
+    gone = [weakref.ref(observation), weakref.ref(observation.get_scans()),
+            weakref.ref(observation.get_telescopes())]
+    del observation
+
+    assert project.release() > 0
+    gc.collect()
+
+    assert all(reference() is None for reference in gone), (
+        "a released project is still holding what it held")
+
+
 def test_a_plot_request_pins_nothing_it_was_given(qt_application, drawn):
     """The figure a tab draws into travels in the request. A journal that held it would keep every
     figure of the session -- the failure this whole recording design exists to avoid."""

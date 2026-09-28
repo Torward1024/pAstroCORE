@@ -15,6 +15,7 @@ import polars as pl
 import pytest
 
 import conftest
+from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.super.schedule_data import ScheduleData
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
@@ -22,9 +23,9 @@ from pastrocore.super.schedule_project import ScheduleProject
 TYPES = ["UV Coverage", "Time on Source", "Sun Angles", "Mollweide Tracks"]
 
 
-def export(manipulator, target, path, **extra):
+def export(manipulator, target, path, calc_types=None, **extra):
     """Run an export through the orchestrator and return what it reports."""
-    response = manipulator.export(obj=target, calc_types=TYPES, export_data=True,
+    response = manipulator.export(obj=target, calc_types=calc_types or TYPES, export_data=True,
                                   export_vis=False, export_path=str(path),
                                   units="wavelengths", raise_on_error=False, **extra)
     return response.value if response.ok else None
@@ -79,6 +80,35 @@ def test_a_project_exports_every_observation(project, tmp_path):
     """One observation or all of them, without the caller writing the loop."""
     result = export(ScheduleManipulator(project), project, tmp_path)
     assert len(result["written"]) == 4
+
+
+def test_everything_the_dialog_offers_to_export_can_be_exported(project, tmp_path):
+    """The export list is the catalogue, checked, including the steps other calculations need --
+    "the numbers are the numbers and somebody may want them".
+
+    One of them could not be exported and said nothing: a calculation is named to the exporter
+    by its label, the key is derived from that, and `time_arrays` files its result under
+    `times`. Ticking everything wrote every file but that one, with the reason at debug level.
+    """
+    core = ScheduleManipulator(project)
+    observation = project.get_observations()[0]
+    held = set(observation.calculated_data.keys())
+
+    offered = {entry["label"]: entry["key"] for entry in core.inspect(obj=None, method="catalogue")}
+    wanted = [label for label, key in offered.items()
+              if CalculatedDataStructure.store_key_for(key) in held]
+    assert len(wanted) > 5, "the fixture holds too little for this to say anything"
+
+    result = export(core, observation, tmp_path, calc_types=wanted)
+
+    from pastrocore.super.schedule_data import FILE_PREFIXES
+
+    produced = {pathlib.Path(path).stem for path in result["written"]}
+    missing = [label for label in wanted
+               if f"{observation.code}_"
+               f"{FILE_PREFIXES.get(label, label.replace(' ', '_').replace('/', '_'))}"
+               not in produced]
+    assert not missing, f"offered and then not written: {missing}"
 
 
 def test_writing_nowhere_is_refused_rather_than_guessed(project, tmp_path):

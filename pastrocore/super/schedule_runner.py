@@ -225,7 +225,10 @@ class RunQuestions:
                 "parameters": list(CalculatedDataStructure.parameters_of(key)),
             }
             if observation is not None:
-                entry["available"] = key in held
+                # By the key the result is filed under, not by the handler's name: they are the
+                # same string for every calculation but one, and for that one this said an
+                # observation did not hold a result it holds.
+                entry["available"] = CalculatedDataStructure.store_key_for(key) in held
             entries.append(entry)
         return entries
 
