@@ -10,6 +10,7 @@ up to, and what it means to read a file into a project.
 That part sat in both classes, identically, and this is where it lives instead. The formats
 keep their vocabulary; the door keeps its shape.
 """
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -70,11 +71,23 @@ class ScheduleFormat(Super):
 
         Raises:
             FileExistsError: If the file is there and `overwrite` is off.
+
+        Notes:
+            - Written beside the target and moved over it, as every other file this application
+              writes is. A schedule is a contract with a correlator: a write interrupted part
+              way -- a full disk, an application closed -- left half of one where the last
+              complete one had been, and half a VEX file is a file that parses until it stops.
         """
         if target.exists() and not overwrite:
             raise FileExistsError(f"'{target}' is already there")
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8", newline="\n")
+        partial = target.with_name(target.name + ".partial")
+        try:
+            partial.write_text(text, encoding="utf-8", newline="\n")
+            os.replace(partial, target)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
 
         report["path"] = str(target)
         logger.info("Wrote '%s'", target)
@@ -142,7 +155,7 @@ class ScheduleFormat(Super):
 
         source = Path(path)
         read = reader(source.read_text(encoding="utf-8", errors="replace"), source=str(source))
-        observation, refused = build_observation(read, code=attributes.get("code"))
+        observation, refused, reduced = build_observation(read, code=attributes.get("code"))
         obj.add_item(observation)
 
         report = {
@@ -152,7 +165,11 @@ class ScheduleFormat(Super):
             "scans": len(observation.get_scans().get_items()),
             "channels": sum(band.get_channel_count()
                             for band in observation.get_frequencies().get_items()),
-            "passed_over": read.get("passed_over", []),
+            # What the file says and this reading does not carry: whole blocks the model cannot
+            # hold, entries it could not read, and what a scan named that the file never
+            # defines. One list, because a person reading the report wants one answer to "what
+            # did I not get".
+            "passed_over": list(read.get("passed_over", [])) + reduced,
             "refused": refused,
         }
         logger.info("Read '%s' into observation '%s': %s scan(s), %s refused, %s passed over",

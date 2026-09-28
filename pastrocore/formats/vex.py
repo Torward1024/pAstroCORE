@@ -32,7 +32,7 @@ from pastrocore.base.sources import Source
 from pastrocore.base.telescope import MountType, Telescope
 from pastrocore.formats import (Mode as _Mode, Skeleton, bands_of,
                                 bare_name as vex_name, collect_modes, letter_for,
-                                polarization_for)
+                                polarization_for, seconds)
 
 #: The revision this writes. VEX 2 exists; the stations and correlators this file is for read 1.5.
 VEX_REV = "1.5"
@@ -546,7 +546,7 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
         sources.setdefault(scan.source.name, scan.source)
         entries.append({"scan_name": scan.name, "start": vex_epoch(scan.get_start()),
                         "mode": mode.name, "source": vex_name(scan.source.name),
-                        "duration": int(round(scan.get_duration())),
+                        "duration": seconds(scan.get_duration()),
                         "stations": on_it})
 
     if not entries:
@@ -727,7 +727,12 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
     if not blocks.get("$SCHED"):
         raise ValueError("The file holds no $SCHED, so there is no schedule in it")
 
+    # **Named, not merely dropped.** Blocks this model has no way to hold were reported and
+    # entries it could not *read* were not: a station whose site has no position, a source with
+    # no coordinates, a scan with no start were each passed over with a bare `continue`, so a
+    # file came in with fewer of them than it holds and the report called it a clean read.
     passed_over = sorted(name for name in blocks if name not in MODELLED)
+    unread: set = set()
 
     experiment = next(iter(blocks.get("$EXPER", {})), "IMPORTED")
     described = (_value(blocks.get("$EXPER", {}).get(experiment, []),
@@ -743,6 +748,7 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
         site = blocks.get("$SITE", {}).get(named.get("$SITE", ""), [])
         position = _value(site, "site_position")
         if not position:
+            unread.add(f"$STATION {key}: no site_position, so where it stands is not in the file")
             continue
         coordinates = (_metres(position) + [0.0, 0.0, 0.0])[:3]
         velocity = _value(site, "site_velocity")
@@ -768,10 +774,13 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
         right = _value(described_as, "ra")
         declination = _value(described_as, "dec")
         if right is None or declination is None:
+            unread.add(f"$SOURCE {name}: no ra or no dec")
             continue
         ra = _numbers(right)
         dec = _numbers(declination)
         if len(ra) < 3 or len(dec) < 3:
+            unread.add(f"$SOURCE {name}: a position this reader cannot read: "
+                       f"{right.strip()}, {declination.strip()}")
             continue
         sources[name] = {
             "name": vex_name(_value(described_as, "source_name") or name),
@@ -829,6 +838,7 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
         # one, wherever the line breaks are. Each is read as its own.
         start = _moment(_value(statements_of, "start") or "")
         if start is None:
+            unread.add(f"$SCHED {name}: no start this reader can read")
             continue
         mode = _value(statements_of, "mode")
         named_source = _value(statements_of, "source")
@@ -845,6 +855,11 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
                     seconds = max(seconds, float(fields[2].split()[0]))
                 except ValueError:
                     pass
+        if not seconds:
+            # A length the file does not state. One second is a number, and a number here reads
+            # as a measurement -- which is the one thing a reader must not invent.
+            unread.add(f"$SCHED {name}: no data_stop on any station line, so the scan's length "
+                       f"is not in the file")
         scans.append({"name": vex_name(name), "start": start, "duration": seconds or 1.0,
                       "source": named_source,
                       "telescopes": [codes.get(key, key) for key in on_it],
@@ -854,4 +869,4 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
                 "over", experiment, len(telescopes), len(sources), len(scans), len(passed_over))
     return {"code": vex_name(experiment), "description": described, "path": source,
             "telescopes": telescopes, "sources": sources, "bands": bands, "scans": scans,
-            "passed_over": passed_over + sorted(unheld)}
+            "passed_over": passed_over + sorted(unheld) + sorted(unread)}

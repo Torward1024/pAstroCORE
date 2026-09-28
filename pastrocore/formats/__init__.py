@@ -27,6 +27,19 @@ SIDEBAND_ORDER = ("L", "U")
 _NOT_IN_A_NAME = re.compile(r"[^A-Za-z0-9_.+-]")
 
 
+def seconds(length: float) -> str:
+    """Return a length of time as either format writes one: whole where it is whole.
+
+    Notes:
+        - `int(round(...))` was what both writers did, and a scan of four tenths of a second
+          went to a correlator as `0 sec` -- a scan that records nothing, written as a fact.
+          Both formats accept a real number of seconds; a length that is not whole is written
+          as what it is.
+    """
+    value = float(length)
+    return f"{int(round(value))}" if abs(value - round(value)) < 1e-9 else f"{value:g}"
+
+
 def bare_name(text: str) -> str:
     """Return a name either format will accept, from whatever the model was given.
 
@@ -182,7 +195,9 @@ def build_observation(read: dict, *, code: str = None):
         code (str): What to call the observation. The file's own experiment code by default.
 
     Returns:
-        Tuple[Observation, List[str]]: What was built, and the scans this model would not hold.
+        Tuple[Observation, List[str], List[str]]: What was built, the scans this model would not
+            hold, and what a scan named that the file does not define -- a station or a band
+            left out of a scan rather than out of the file.
 
     Raises:
         ValueError: If nothing usable was read.
@@ -197,6 +212,10 @@ def build_observation(read: dict, *, code: str = None):
         - **A scan this model refuses is named rather than forced in.** The ones that fit are
           imported and the rest are reported, so a partial reading is never mistaken for a
           whole one.
+        - And a scan that is *reduced* is named too. A scan naming five stations of which two
+          the file never defines came in with three, in silence; only the case where none of
+          them was defined was reported. The same for a band a scan names and the file's modes
+          do not describe.
     """
     from pastrocore.base.observation import Observation
 
@@ -239,7 +258,7 @@ def build_observation(read: dict, *, code: str = None):
 
     from msb_arch import InvariantError
 
-    scans, refused = observation.get_scans(), []
+    scans, refused, reduced = observation.get_scans(), [], []
 
     by_code = {telescope.get_code(): telescope for telescope in telescopes.get_items()}
     for entry in read.get("scans", []):
@@ -251,6 +270,17 @@ def build_observation(read: dict, *, code: str = None):
             refused.append(f"{entry['name']}: none of {entry.get('telescopes', [])} is a "
                            f"station this file defines")
             continue
+        missing = [code for code in entry.get("telescopes", []) if code not in by_code]
+        if missing:
+            reduced.append(f"{entry['name']}: {', '.join(missing)} -- named by the scan and not "
+                           f"defined in this file")
+        unknown = [name for name in entry.get("bands", []) if frequencies.get(name) is None]
+        if unknown:
+            reduced.append(f"{entry['name']}: band(s) {', '.join(unknown)} -- named by the scan "
+                           f"and not described in this file")
+        if entry.get("source") and source is None:
+            reduced.append(f"{entry['name']}: source {entry['source']} -- named by the scan and "
+                           f"not defined in this file")
         try:
             scans.create_scan(name=entry["name"], start=entry["start"],
                               duration=float(entry["duration"]), source=source,
@@ -260,4 +290,4 @@ def build_observation(read: dict, *, code: str = None):
 
     if not scans.get_items():
         raise ValueError("Nothing was read that this model can hold: no scan survived")
-    return observation, refused
+    return observation, refused, reduced

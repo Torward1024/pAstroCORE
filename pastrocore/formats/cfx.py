@@ -29,7 +29,7 @@ from pastrocore.base.sources import Source
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.telescope import MountType, Telescope
 from pastrocore.formats import (SIDEBAND_ORDER, Mode as _Mode, Skeleton, bare_name as vex_name,
-                                collect_modes, letter_for, polarization_for)
+                                collect_modes, letter_for, polarization_for, seconds)
 
 #: CFX's comment character, and how a line says "not stated". `#` at the start of a line, as
 #: the examples use it for the commented-out `IF` lines of a swapped-polarization receiver.
@@ -197,7 +197,7 @@ def _scan_section(scan, codes: Sequence[str]) -> List[str]:
     """Return one `[$skan]`: when it starts, how long it runs, what it looks at, and who is on it."""
     return ["[$skan]",
             f"{INDENT}start = {cfx_epoch(scan.get_start())} , "
-            f"{int(round(scan.get_duration()))}s",
+            f"{seconds(scan.get_duration())}s",
             f"{INDENT}source = {scan.source.name}",
             f"{INDENT}telescopes = {', '.join(codes)}",
             "[$end]",
@@ -472,6 +472,10 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
                     "mount_type": "EQUA" if (fields[-1].upper() if fields else "") == "EQUA"
                                   else "AZIM"})
             else:
+                # Neither a position nor an orbit file: there is nothing here that says where
+                # this station is. Named, like everything else this reader reads past.
+                seen.add(f"[$tlsc] {entry['code']}: neither TLSC_PAR nor ORB_FILE, so where it "
+                         f"stands is not in the file")
                 continue
             telescopes[entry["code"]] = entry
 
@@ -499,6 +503,7 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
             named = _first(pairs, "name")
             right, declination = _first(pairs, "RA"), _first(pairs, "DEC")
             if not named or right is None or declination is None:
+                seen.add(f"[$source] {named or 'unnamed'}: no name, no RA or no DEC")
                 continue
             sources[named] = {"name": vex_name(named),
                               "ra_degrees": float(right), "dec_degrees": float(declination)}
@@ -507,8 +512,13 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
             head = _first(pairs, "start") or ""
             start = _cfx_moment(head)
             if start is None:
+                seen.add(f"[$skan] scan{len(scans) + 1:04d}: no start this reader can read"
+                         f"{': ' + head.strip() if head.strip() else ''}")
                 continue
             duration = re.search(r",\s*(\d+(?:\.\d+)?)\s*s", head)
+            if not duration:
+                seen.add(f"[$skan] scan{len(scans) + 1:04d}: no length stated, and one second "
+                         f"would be a number where the file gives none")
             on_it = [code.strip() for code in (_first(pairs, "telescopes") or "").split(",")
                      if code.strip()]
             scans.append({"name": f"scan{len(scans) + 1:04d}", "start": start,

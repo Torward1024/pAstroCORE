@@ -398,7 +398,7 @@ def test_a_source_comes_back_where_it_was_written(position):
     observation = edge_observation(**position)
     written = observation.get_sources().get("S")
     text, _ = vex.write_vex(observation)
-    read, _ = build_observation(vex.read_vex(text))
+    read, _, _ = build_observation(vex.read_vex(text))
     back = read.get_sources().get_items()[0]
 
     assert back.dec_degrees == pytest.approx(written.dec_degrees, abs=1e-9)
@@ -429,8 +429,120 @@ def test_linear_feeds_come_in_as_themselves_and_an_unknown_letter_is_named():
                       .replace("if_def = &IF_A : A : L :", "if_def = &IF_A : A : Y :"))
 
     read = vex.read_vex(linear)
-    observation, _ = build_observation(read)
+    observation, _, _ = build_observation(read)
     assert set(observation.get_frequencies().get_items()[0].polarizations) == {"X", "Y"}
 
     unknown = vex.read_vex(original.replace("if_def = &IF_B : B : R :", "if_def = &IF_B : B : Q :"))
     assert "$IF polarization Q" in unknown["passed_over"]
+
+
+# --- what a reader drops --------------------------------------------------------------------
+
+def read_a_broken_reference(edit):
+    """Read the reference file with one thing in it made unreadable, and return the answer."""
+    text = REFERENCE.read_text(encoding="utf-8")
+    broken = edit(text)
+    assert broken != text, "the edit changed nothing, so the test checks nothing"
+    return vex.read_vex(broken)
+
+
+def test_an_entry_a_reader_cannot_read_is_named_like_a_block_it_passes_over():
+    """`passed_over` named whole blocks and said nothing about entries inside them.
+
+    A station whose site has no position, a source with no coordinates and a scan with no start
+    were each dropped with a bare `continue` -- so a file came in with fewer stations, fewer
+    sources or fewer scans than it holds, and the import report called it a clean read. What is
+    read past is named, and an entry is no different from a block.
+    """
+    no_position = read_a_broken_reference(
+        lambda text: text.replace("     site_position =   2225061.16400 m:  -5440057.37000 m:"
+                                  "  -2481681.15000 m;\n", ""))
+    assert "EHT_ALMA" not in str(no_position["telescopes"]), "the station was read after all"
+    assert any("ALMA" in name and "position" in name for name in no_position["passed_over"]), (
+        f"a station was dropped in silence: {no_position['passed_over']}")
+
+    no_coordinates = read_a_broken_reference(
+        lambda text: text.replace("     ra = 12h30m49.4235840s; dec = +12d23'28.044010\";"
+                                  " ref_coord_frame = J2000;\n", ""))
+    assert not no_coordinates["sources"]
+    assert any("1228+126" in name for name in no_coordinates["passed_over"]), (
+        f"a source was dropped in silence: {no_coordinates['passed_over']}")
+
+    no_start = read_a_broken_reference(
+        lambda text: text.replace("     start = 2026y222d05h00m00s;", "     mode = MODE01;"))
+    assert not no_start["scans"]
+    assert any("No0001" in name for name in no_start["passed_over"]), (
+        f"a scan was dropped in silence: {no_start['passed_over']}")
+
+
+def test_a_station_a_scan_names_and_the_file_does_not_define_is_named():
+    """The other half: the reader kept the scan, and the builder quietly left the station out.
+
+    A scan naming five stations of which two were never defined came in with three and nothing
+    said so -- and if none of them was defined the scan was refused, which is the same fault
+    reported only in the extreme case.
+    """
+    from pastrocore.formats import build_observation
+
+    text = REFERENCE.read_text(encoding="utf-8").replace(
+        "     station = APEX : 0 sec : 86400 sec;",
+        "     station = APEX : 0 sec : 86400 sec;\n     station = EF : 0 sec : 86400 sec;")
+    observation, refused, passed_over = build_observation(vex.read_vex(text))
+
+    assert [t.get_code() for t in observation.get_telescopes().get_items()] == ["ALMA", "APEX"]
+    assert refused == []
+    assert any("EF" in name for name in passed_over), (
+        f"a station was dropped from a scan in silence: {passed_over}")
+
+
+def test_a_schedule_write_that_fails_leaves_the_last_one_whole(project, tmp_path, monkeypatch):
+    """A schedule is a contract with a correlator, and it was written in place.
+
+    Half a VEX file is a file that parses until it stops, and it would sit where the last
+    complete one had been. Written beside it and moved over it, as every other file this
+    application writes is.
+    """
+    core = ScheduleManipulator(project)
+    observation = project.get_observations()[0]
+    target = tmp_path / "experiment.vex"
+
+    core.vex(obj=observation, method="export", path=str(target))
+    kept = target.read_text(encoding="utf-8")
+    assert "VEX_rev" in kept
+
+    real = pathlib.Path.write_text
+
+    def cut_short(self, text, *args, **kwargs):
+        real(self, text[: len(text) // 3], *args, **kwargs)
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(pathlib.Path, "write_text", cut_short)
+    with pytest.raises(Exception):
+        core.vex(obj=observation, method="export", path=str(target), raise_on_error=True)
+
+    monkeypatch.undo()
+    assert target.read_text(encoding="utf-8") == kept, "the last schedule was destroyed"
+    assert not list(tmp_path.glob("*.partial")), "a half-written file was left behind"
+
+
+def test_a_scan_shorter_than_a_second_is_not_written_as_no_scan_at_all(project):
+    """Both writers rounded a length to whole seconds, so four tenths of a second went to a
+    correlator as `0 sec` -- a scan that records nothing, stated as a fact.
+
+    Whole lengths are still written whole, which is every scan anyone here schedules and what
+    the agreed reference file holds.
+    """
+    from pastrocore.formats import cfx
+
+    core = ScheduleManipulator(project)
+    observation = project.get_observations()[0]
+    scan = observation.get_scans().get_items()[0]
+    core.configure(scan, set_duration=0.4)
+
+    text, _ = vex.write_vex(observation)
+    assert " : 0.4 sec;" in text and " : 0 sec;" not in text, (
+        "a scan of four tenths of a second was written as no scan at all")
+
+    files = cfx.write_cfx(observation)
+    assert any(", 0.4s" in text for _mode, text, _report in files), (
+        "and the same in CFX, which writes the same length its own way")
