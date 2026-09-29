@@ -260,7 +260,7 @@ def test_a_refused_scan_leaves_the_scan_as_it_was():
 
 # --- observation codes -------------------------------------------------------------------
 
-@pytest.mark.parametrize("path", ["add_item", "create_item", "set_item", "build"])
+@pytest.mark.parametrize("path", ["add_item", "create_item", "set_item", "build", "rename"])
 def test_two_observations_may_not_share_a_code(path):
     """`_validate_item` took a pair of exclusions at each call site to work out which item was
     being replaced. The rule reads the project as it would be, so there is nothing to exclude."""
@@ -277,6 +277,7 @@ def test_two_observations_may_not_share_a_code(path):
         "build": lambda: ScheduleProject(name="D", items={
             "a": Observation(name="a", code="SAME"),
             "b": Observation(name="b", code="SAME")}),
+        "rename": lambda: project.set_observation_code(first.name, "OBS2"),
     }
 
     with pytest.raises(InvariantError):
@@ -285,13 +286,33 @@ def test_two_observations_may_not_share_a_code(path):
     assert sorted(item.code for item in project.get_observations()) == ["OBS1", "OBS2"]
 
 
-def test_a_code_may_still_be_changed_to_a_free_one():
+def test_a_renamed_project_can_still_be_read_back():
+    """What a rename onto a taken code cost: the rule is checked when what the project holds
+    changes, and a rename changes nothing it holds, so nothing checked it. The project was
+    accepted, saved -- and then refused on the way back in, by the rule that had not run."""
+    project = ScheduleProject(name="P")
+    project.create_item(item_code="OBS1")
+    project.create_item(item_code="OBS2")
+    first = project.get_observations()[0]
+
+    with pytest.raises(InvariantError):
+        project.set_observation_code(first.name, "OBS2")
+
+    assert ScheduleProject.from_dict(project.to_dict()) == project
+
+
+@pytest.mark.parametrize("path", ["attribute", "rename"])
+def test_a_code_may_still_be_changed_to_a_free_one(path):
     """The rule must refuse a collision, not a rename."""
     project = ScheduleProject(name="P")
     project.create_item(item_code="OBS1")
     project.create_item(item_code="OBS2")
+    first = project.get_observations()[0]
 
-    project.get_observations()[0].code = "OBS9"
+    if path == "attribute":
+        first.code = "OBS9"
+    else:
+        project.set_observation_code(first.name, "OBS9")
 
     assert sorted(item.code for item in project.get_observations()) == ["OBS2", "OBS9"]
 

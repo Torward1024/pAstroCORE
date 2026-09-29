@@ -138,6 +138,45 @@ class ScheduleProject(Project):
         super().set_item(name, item)
         logger.info("Set observation with name='%s' and code='%s' in project '%s'", name, item.get_observation_code(), self.name)
 
+    def set_observation_code(self, name: str, code: str) -> None:
+        """Give one of the project's observations a code, refusing one already in use.
+
+        Args:
+            name (str): The observation's name, which is what it is known by here.
+            code (str): The code to give it.
+
+        Raises:
+            KeyError: If no observation of that name is in the project.
+            ValueError: If the code is not a non-empty string.
+            InvariantError: If another observation already carries it, naming both. The
+                observation keeps the code it had.
+
+        Notes:
+            - **The rename belongs to the project, because the rule does.** `_codes_are_unique`
+              is checked whenever what the project *holds* changes -- an observation added,
+              replaced, removed -- and a rename changes none of those, so nothing ever checked
+              it. Renaming one observation onto another's code was accepted in the window,
+              written to the file, and then refused on the way back in by the rule that had
+              not run: the project could not be opened again.
+            - A container that re-checks its rules when a *held item* is written to is a thing
+              msb_arch does not offer, and this is the one field in this application where it
+              matters. G15 on the roadmap is the general case.
+        """
+        check_non_empty_string(code, "Observation code")
+        observation = self.get_observation(name)
+        was = observation.get_observation_code()
+        if code == was:
+            return
+
+        observation.set({"code": code})
+        try:
+            self.check_invariants()
+        except InvariantError:
+            observation.set({"code": was})
+            raise
+        logger.info("Observation '%s' in project '%s' carries the code '%s', was '%s'",
+                    name, self.name, code, was)
+
     def unsaved_results(self) -> int:
         """Return how many results live in this session's scratch rather than in the project.
 

@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog, QFileDialog
-from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QPoint
+from PySide6.QtGui import QStandardItem, QStandardItemModel, QIcon
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
+from pastrocore.gui.p_custom_model import (CustomSortFilterProxyModel,
+                                           fit_narrow_columns, fit_columns, listening)
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
@@ -27,7 +28,7 @@ class FrequenciesTab(QWidget):
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search frequencies...")
 
-        self.model = CustomStandardItemModel()
+        self.model = QStandardItemModel()
         # "Covers" is here because `IF (MHz)` is an edge rather than a middle: 4828 upper and
         # 4844 lower are the same 16 MHz, and the column that shows it is the one that makes
         # two rows recognisable as the same spectrum.
@@ -53,9 +54,14 @@ class FrequenciesTab(QWidget):
 
     @Slot(str)
     def search_changed(self, text: str):
-        """Handle search text change."""
-        reg_exp = QRegularExpression(text)
-        self.proxy_model.setFilterRegularExpression(reg_exp)
+        """Show only the rows holding what was typed.
+
+        Notes:
+            - A substring, not a pattern. The sidebands column joins them with a `+`, so a
+              band recording both is shown as `U+L` -- which, read as a regular expression,
+              matches `UL` and never the row it was copied from.
+        """
+        self.proxy_model.setFilterFixedString(text)
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the frequencies table."""
@@ -133,7 +139,10 @@ class FrequenciesTab(QWidget):
         if dialog.exec() == QDialog.Accepted:
             try:
                 if_obj = dialog.get_if_object()
-                freq_name = f"freq_{uuid.uuid4().hex[:32]}"
+                # The band's own name. What stood here was a fresh `freq_` uuid, made up on
+                # this line and given to nothing: the editor names what it makes, so the log
+                # and the signal both announced a band that was not in the observation.
+                freq_name = if_obj.name
                 self.manipulator.configure(self.observation.get_frequencies(), add=if_obj)
                 self.update()
                 self.data_updated.emit(freq_name, None, "add")
@@ -440,7 +449,8 @@ class FrequenciesTab(QWidget):
 
         try:
             self.blockSignals(True)
-            self.data_updated.disconnect()
+            if listening(self, self.data_updated):
+                self.data_updated.disconnect()
 
             self.ui.search.textChanged.disconnect(self.search_changed)
             self.ui.table.customContextMenuRequested.disconnect(self.show_context_menu)

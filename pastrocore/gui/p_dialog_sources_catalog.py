@@ -3,6 +3,7 @@ from typing import Any, List, Optional
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QDialog
 
+from pastrocore.gui.p_custom_model import position_text
 from pastrocore.gui.p_dialog_catalog import CatalogDialog
 from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
 
@@ -19,21 +20,10 @@ class SourcesCatalogDialog(CatalogDialog):
 
     sources_selected = Signal(list)  # Signal to emit list of selected sources
 
-    def _position(self, source) -> tuple:
-        """Return a source's right ascension and declination as the table shows them.
-
-        Notes:
-            - Asked of the source. The sign came from `de_d >= 0`, which is true of `-0.0`, so
-              every source between -1 and 0 degrees was listed north of the equator; and seconds
-              rounded on their own showed 59.96 as `60.0`.
-        """
-        hours, minutes, seconds = self.manipulator.inspect(source, get_right_ascension_parts=1)
-        sign, degrees, arcminutes, arcseconds = self.manipulator.inspect(source, get_declination_parts=1)
-        return (f"{hours:02d}:{minutes:02d}:{seconds:04.1f}",
-                f"{sign}{degrees:02d}:{arcminutes:02d}:{arcseconds:04.1f}")
-
     def row(self, source: Any) -> List[str]:
-        ra_str, dec_str = self._position(source)
+        # The same two columns the sources tab draws, written by the same hand. They were
+        # written twice, and only one of the two was ever corrected.
+        ra_str, dec_str = position_text(self.manipulator, source)
         return [source.name or "", source.name_J2000 or "", source.alt_name or "", ra_str, dec_str]
 
     def searchable(self, source: Any) -> List[Optional[str]]:

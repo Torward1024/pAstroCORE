@@ -1,11 +1,12 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
-from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint, QEvent
-from PySide6.QtGui import QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QPoint, QEvent
+from PySide6.QtGui import QStandardItem, QStandardItemModel, QIcon
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from msb_arch.utils.logging_setup import logger
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
+from pastrocore.gui.p_custom_model import (CustomSortFilterProxyModel,
+                                           fit_narrow_columns, fit_columns, listening)
 
 class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
@@ -25,7 +26,7 @@ class ProjectInfoTab(QWidget):
 
     def setup_table(self):
         """Set up the observations table with appropriate columns."""
-        self.model = CustomStandardItemModel()
+        self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "Name", "Code", "Type", "Frequencies", "Start Time",
             "Duration", "Sources", "Telescopes", "Scans"
@@ -81,9 +82,14 @@ class ProjectInfoTab(QWidget):
 
     @Slot(str)
     def handle_search_text_changed(self, text: str):
-        """Handle search text change for filtering the table."""
-        reg_exp = QRegularExpression(text)
-        self.proxy_model.setFilterRegularExpression(reg_exp)
+        """Show only the rows holding what was typed.
+
+        Notes:
+            - A substring, not a pattern, as everywhere else this application searches. An
+              observation code is whatever its author typed, and an unclosed bracket in the
+              box emptied the table with nothing to say why.
+        """
+        self.proxy_model.setFilterFixedString(text)
 
     @Slot()
     def update_tab(self):
@@ -242,29 +248,32 @@ class ProjectInfoTab(QWidget):
 
                 try:
                     observation = self.manipulator.inspect(self.project, get_item=obs_name)
+                    is_active = self.manipulator.inspect(observation, get="isactive")
                 except Exception as e:
+                    # The entries below are the only ones that need the row; the rest of the
+                    # menu is still worth having. `observation` used to be left unbound here
+                    # and read on the next line anyway, and the NameError took the whole menu
+                    # down -- including Add Observation, which needs nothing from the row.
                     logger.error("Failed to get observation '%s': %s", obs_code, str(e))
-                
-                is_active = self.manipulator.inspect(observation, get="isactive")
-
-                menu.addSeparator()
-                if is_active:
-                    deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
-                    deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_name, obs_code))
                 else:
-                    activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
-                    activate_action.triggered.connect(lambda: self.activate_observation(obs_name, obs_code))
+                    menu.addSeparator()
+                    if is_active:
+                        deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
+                        deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_name, obs_code))
+                    else:
+                        activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
+                        activate_action.triggered.connect(lambda: self.activate_observation(obs_name, obs_code))
 
-                menu.addSeparator()
-                import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Observation")
-                export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Observation")
-                import_action.triggered.connect(lambda: self.import_observation(obs_name, obs_code))
-                export_action.triggered.connect(lambda: self.export_observation(obs_name, obs_code))
-                menu.addSeparator()
-                remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
-                edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
-                remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
-                edit_action.triggered.connect(lambda: self.edit_observation(obs_name, obs_code))
+                    menu.addSeparator()
+                    import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Observation")
+                    export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Observation")
+                    import_action.triggered.connect(lambda: self.import_observation(obs_name, obs_code))
+                    export_action.triggered.connect(lambda: self.export_observation(obs_name, obs_code))
+                    menu.addSeparator()
+                    remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
+                    edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
+                    remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
+                    edit_action.triggered.connect(lambda: self.edit_observation(obs_name, obs_code))
 
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
 
@@ -395,12 +404,10 @@ class ProjectInfoTab(QWidget):
         """Clean up resources associated with this tab."""
         try:
             self.blockSignals(True)
-            
-            try:
+
+            if listening(self, self.project_name_changed):
                 self.project_name_changed.disconnect()
                 logger.debug("Disconnected project_name_changed signal for %s", self.objectName())
-            except TypeError as e:
-                logger.debug("No connections to disconnect for project_name_changed signal in %s: %s", self.objectName(), str(e))
 
             self.ui.projectInfoTable.setModel(None)
             if self.model:

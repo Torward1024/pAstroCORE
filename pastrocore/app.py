@@ -21,6 +21,7 @@ from pastrocore.utils.catalogmanager import CatalogManager
 # happens whether or not anyone opens a dialog.
 from pastrocore import theme
 from pastrocore.gui import icon_theme
+from pastrocore.gui.p_custom_model import listening
 from pastrocore.gui.styling import load_stylesheet
 from pastrocore.gui.ui_main_window import Ui_MainWindow
 from pastrocore.gui.p_tab_project import ProjectInfoTab
@@ -1663,12 +1664,13 @@ class PAstroCoreMainWindow(QMainWindow):
 
             self._cleanup_tabs()
             
-            try:
+            # Asked first: disconnecting a signal nothing listens to is not an error, it is a
+            # `RuntimeWarning` and a False. The `except RuntimeError` that stood here, and the
+            # `except TypeError` in the project tab, were each guarding against an exception
+            # Qt does not raise -- and `isSignalConnected` is the question the comment beside
+            # this one said Qt does not offer.
+            if listening(self, self.project_updated):
                 self.project_updated.disconnect()
-            except RuntimeError:
-                # Qt raises when a signal has no connections, and offers no way to ask
-                # beforehand, so this is the only way to disconnect idempotently.
-                pass
             # That took back every connection to the signal, this window's included, so the
             # register must stop claiming it: `clear_connections` runs a few lines later on
             # each of the three paths through here, and would disconnect it a second time.

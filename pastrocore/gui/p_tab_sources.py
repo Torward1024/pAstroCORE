@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
-from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QPoint
+from PySide6.QtGui import QStandardItem, QStandardItemModel, QIcon
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
 from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
+from pastrocore.gui.p_custom_model import (CustomSortFilterProxyModel,
+                                           fit_narrow_columns, fit_columns, listening,
+                                           position_text)
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
@@ -27,7 +29,7 @@ class SourcesTab(QWidget):
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search sources...")
 
-        self.model = CustomStandardItemModel()
+        self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["#", " ", "Source Name", "Name J2000", "Alt. Name", "RA", "DEC"])
         self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -52,9 +54,16 @@ class SourcesTab(QWidget):
 
     @Slot(str)
     def search_changed(self, text: str):
-        """Handle search text change."""
-        reg_exp = QRegularExpression(text)
-        self.proxy_model.setFilterRegularExpression(reg_exp)
+        """Show only the rows holding what was typed.
+
+        Notes:
+            - **What is typed is a name, not a pattern.** It went to the table as a regular
+              expression, and 801 of the 1633 names in the shipped source catalogue hold a
+              `+`: in `0010+405` that is one-or-more rather than a plus, so searching for a
+              source by the name it was copied from found nothing at all. An unclosed bracket
+              emptied the table outright. The catalogue's own search is a substring.
+        """
+        self.proxy_model.setFilterFixedString(text)
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the sources table."""
@@ -291,11 +300,8 @@ class SourcesTab(QWidget):
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
 
-                    attrs = self.manipulator.inspect(source_obj, get=[
-                        "name", "name_J2000", "alt_name",
-                        "ra_h", "ra_m", "ra_s",
-                        "de_d", "de_m", "de_s"
-                    ])
+                    attrs = self.manipulator.inspect(source_obj,
+                                                     get=["name", "name_J2000", "alt_name"])
                     if not attrs:
                         logger.error("Failed to get attributes for source '%s': No result returned", name)
                         continue
@@ -304,16 +310,10 @@ class SourcesTab(QWidget):
                     name_J2000 = attrs.get("name_J2000", "") or ""
                     alt_name = attrs.get("alt_name", "") or ""
 
-                    ra_h = attrs.get("ra_h", 0.0)
-                    ra_m = attrs.get("ra_m", 0.0)
-                    ra_s = attrs.get("ra_s", 0.0)
-                    ra_str = f"{int(ra_h):02d}:{int(ra_m):02d}:{ra_s:05.1f}"
-
-                    de_d = attrs.get("de_d", 0.0)
-                    de_m = attrs.get("de_m", 0.0)
-                    de_s = attrs.get("de_s", 0.0)
-                    dec_sign = "+" if de_d >= 0 else "-"
-                    dec_str = f"{dec_sign}{abs(int(de_d)):02d}:{int(de_m):02d}:{de_s:05.1f}"
+                    # Asked of the source rather than assembled from its fields: the sign of a
+                    # declination and the carry out of its seconds are the source's own answer,
+                    # and this table used to get both of them wrong.
+                    ra_str, dec_str = position_text(self.manipulator, source_obj)
 
                     row = [
                         QStandardItem(str(idx)),
@@ -392,7 +392,8 @@ class SourcesTab(QWidget):
 
         try:
             self.blockSignals(True)
-            self.data_updated.disconnect()
+            if listening(self, self.data_updated):
+                self.data_updated.disconnect()
 
             self.ui.search.textChanged.disconnect(self.search_changed)
             self.ui.table.customContextMenuRequested.disconnect(self.show_context_menu)

@@ -1,7 +1,7 @@
 # pastrocore/gui/p_tab_scans.py
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
-from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QPoint
+from PySide6.QtGui import QStandardItem, QStandardItemModel, QIcon
 from .ui_tab_observation_any import Ui_observation_tab
 from .p_dialog_edit_scan import ScanEditorDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -11,7 +11,8 @@ from msb_arch import ValidationError
 from pastrocore.gui.p_tab_telescopes import TelescopesTab
 from pastrocore.gui.p_tab_frequencies import FrequenciesTab
 from pastrocore.gui.p_tab_sources import SourcesTab
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
+from pastrocore.gui.p_custom_model import (CustomSortFilterProxyModel,
+                                           fit_narrow_columns, fit_columns, listening)
 
 class ScansTab(QWidget):
     """Widget for displaying and managing scans in an observation."""
@@ -31,7 +32,7 @@ class ScansTab(QWidget):
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search scans...")
         
-        self.model = CustomStandardItemModel()
+        self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies"
         ])
@@ -52,21 +53,25 @@ class ScansTab(QWidget):
         self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
 
-        if telescopes_tab:
-            telescopes_tab.data_updated.connect(self.handle_data_updated)
-        if frequencies_tab:
-            frequencies_tab.data_updated.connect(self.handle_data_updated)
-        if sources_tab:
-            sources_tab.data_updated.connect(self.handle_data_updated)
-            
+        # Kept, because a connection has to be taken back from the object that made it and
+        # `_cleanup` asked `self.sender()` for that -- which is whoever emitted the signal
+        # being handled, and nothing is being handled during a cleanup.
+        self.listens_to = [tab for tab in (telescopes_tab, frequencies_tab, sources_tab) if tab]
+        for tab in self.listens_to:
+            tab.data_updated.connect(self.handle_data_updated)
+
         self.update()
         logger.info("ScansTab initialized for observation '%s'", observation.code)
 
     @Slot(str)
     def search_changed(self, text: str):
-        """Handle search text change."""
-        reg_exp = QRegularExpression(text)
-        self.proxy_model.setFilterRegularExpression(reg_exp)
+        """Show only the rows holding what was typed.
+
+        Notes:
+            - A substring, not a pattern. A scan is listed by its source, and a source name
+              carrying a `+` -- half of the shipped catalogue -- matched no row at all.
+        """
+        self.proxy_model.setFilterFixedString(text)
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the scans table."""
@@ -450,13 +455,18 @@ class ScansTab(QWidget):
 
         try:
             self.blockSignals(True)
-            self.data_updated.disconnect()
+            if listening(self, self.data_updated):
+                self.data_updated.disconnect()
 
             self.ui.search.textChanged.disconnect(self.search_changed)
             self.ui.table.customContextMenuRequested.disconnect(self.show_context_menu)
 
-            if self.sender() and hasattr(self.sender(), 'data_updated'):
-                self.sender().data_updated.disconnect(self.handle_data_updated)
+            # `listening` first: whoever holds all four may have dropped every connection to
+            # each of them before getting here, and disconnecting a slot twice does raise.
+            for tab in self.listens_to:
+                if listening(tab, tab.data_updated):
+                    tab.data_updated.disconnect(self.handle_data_updated)
+            self.listens_to = []
 
             self.ui.table.setModel(None)
             self.model.clear()

@@ -5,6 +5,7 @@ from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from msb_arch.utils.logging_setup import logger
+from pastrocore.gui.p_custom_model import listening
 from .p_tab_frequencies import FrequenciesTab
 from .p_tab_sources import SourcesTab
 from .p_tab_telescopes import TelescopesTab
@@ -93,14 +94,20 @@ class ObservationTab(QWidget):
             self.ui.obs_name_edit.setReadOnly(True)
             return
         try:
-            self.manipulator.configure(obj=self.observation, set={"params": {"code": new_code}})
+            # Asked of the *project*, which is what knows that no two observations may carry
+            # one code. Written on the observation, the rule never ran: the rename was taken,
+            # saved, and refused on the way back in, so the project could not be opened again.
+            # The two `self.observation.code = ...` lines that stood here wrote straight to
+            # the model besides -- one repeating what the request had just done, the other
+            # putting back a value a refused request had never changed.
+            self.manipulator.configure(obj=self.project,
+                                       set_observation_code={"name": self.observation.name,
+                                                             "code": new_code})
             logger.info("Observation code changed from '%s' to '%s'", old_code, new_code)
-            self.observation.code = new_code
             self.observation_updated.emit()
         except Exception as e:
             logger.error("Failed to change observation code: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to change observation code: {str(e)}")
-            self.observation.code = old_code
             self.update_tab()
         finally:
             self.ui.obs_name_edit.setReadOnly(True)
@@ -196,13 +203,23 @@ class ObservationTab(QWidget):
             self.observation_updated.emit()
     
     def close_tab(self):
-        """Close the current observation tab and clean up resources."""
+        """Close the current observation tab and clean up resources.
+
+        Notes:
+            - **The code is read first.** The log line at the end read it from the observation
+              *after* the cleanup had set that to `None`, so closing raised where `update_tab`
+              caught it and put the type error in front of the user: removing an observation
+              whose tab was open -- Drop Inactive, Clear, the project table -- answered with a
+              critical dialog reading "'NoneType' object has no attribute
+              'get_observation_code'" instead of quietly closing the tab.
+        """
+        code = self.observation.get_observation_code() if self.observation else "unknown"
         tab_container = self.parent_widget.ui.tabContainer
         for i in range(tab_container.count()):
             if tab_container.widget(i) == self:
                 self._cleanup()
                 tab_container.removeTab(i)
-                logger.info("Closed and cleaned observation tab for code '%s'", self.observation.get_observation_code())
+                logger.info("Closed and cleaned observation tab for code '%s'", code)
                 break
     
     def _cleanup(self):
@@ -214,19 +231,25 @@ class ObservationTab(QWidget):
               were already disconnected -- Qt warns once per signal -- and then reach through
               an attribute this method had set to `None`, which the blanket `except` below
               logged as "Error cleaning up" for work that had in fact been done.
+            - **Each of the four is told to clean up too.** They were disconnected and then
+              `deleteLater`-ed, which destroys the widget and leaves the Python object holding
+              the observation, the orchestrator and the project it was built with. Each of
+              them has a `_cleanup` that lets go of all of it, and nothing was calling it.
         """
         if self.observation is None:
             return
 
         try:
             self.blockSignals(True)
-            self.observation_updated.disconnect()
+            if listening(self, self.observation_updated):
+                self.observation_updated.disconnect()
 
             for tab in [self.frequencies_tab, self.sources_tab, self.telescopes_tab, self.scans_tab]:
                 if tab:
                     tab.blockSignals(True)
-                    if hasattr(tab, 'data_updated'):
+                    if listening(tab, tab.data_updated):
                         tab.data_updated.disconnect()
+                    tab._cleanup()
                     tab.deleteLater()
 
             self.ui.tabWidget.clear()

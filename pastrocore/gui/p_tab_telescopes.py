@@ -1,11 +1,12 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QFileDialog, QDialog
-from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QPoint
+from PySide6.QtGui import QStandardItem, QStandardItemModel, QIcon
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
-from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel, fit_narrow_columns, fit_columns
+from pastrocore.gui.p_custom_model import (CustomSortFilterProxyModel,
+                                           fit_narrow_columns, fit_columns, listening)
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.spacetelescope import SpaceTelescope
@@ -31,7 +32,7 @@ class TelescopesTab(QWidget):
         self.ui.search.setPlaceholderText("Search telescopes...")
 
         # Setup table
-        self.model = CustomStandardItemModel()
+        self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["#", " ", "Code", "Name", "Type"])
         self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -52,9 +53,14 @@ class TelescopesTab(QWidget):
 
     @Slot(str)
     def search_changed(self, text: str):
-        """Handle search text change."""
-        reg_exp = QRegularExpression(text)
-        self.proxy_model.setFilterRegularExpression(reg_exp)
+        """Show only the rows holding what was typed.
+
+        Notes:
+            - A substring, not a pattern, as everywhere else this application searches. What
+              was typed went to the table as a regular expression, where a `+` is not a plus
+              and an unclosed bracket empties the table.
+        """
+        self.proxy_model.setFilterFixedString(text)
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the telescopes table."""
@@ -486,7 +492,8 @@ class TelescopesTab(QWidget):
 
         try:
             self.blockSignals(True)
-            self.data_updated.disconnect()
+            if listening(self, self.data_updated):
+                self.data_updated.disconnect()
 
             self.ui.search.textChanged.disconnect(self.search_changed)
             self.ui.table.customContextMenuRequested.disconnect(self.show_context_menu)

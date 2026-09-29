@@ -690,6 +690,31 @@ def test_a_form_names_the_button_that_does_the_thing():
         f"Give it <property name=\"role\" stdset=\"0\"><string>primary</string></property>.")
 
 
+def test_no_search_box_turns_what_was_typed_into_a_pattern():
+    """Every search in this application is a substring of a name.
+
+    Five tables handed the box's text to `setFilterRegularExpression`, where a `+` is
+    one-or-more rather than a plus. 801 of the 1633 names in the shipped source catalogue hold
+    one, so searching for a source by the name it was copied from -- `0010+405` -- found
+    nothing, and an unclosed bracket emptied the table with nothing to say why. The catalogue
+    dialog's own search was already `wanted not in held`.
+    """
+    offenders = {}
+    for module in sorted((ROOT / "pastrocore" / "gui").glob("*.py")):
+        if module.name.startswith(("ui_", "rc_")):
+            continue
+        found = [number for number, line
+                 in enumerate(module.read_text(encoding="utf-8").splitlines(), 1)
+                 if "setFilterRegularExpression" in line and not line.strip().startswith("#")]
+        if found:
+            offenders[module.name] = found
+
+    assert not offenders, (
+        "a search box filters on a pattern:\n  "
+        + "\n  ".join(f"{name}: lines {lines}" for name, lines in offenders.items())
+        + "\nUse setFilterFixedString: what is typed is a name.")
+
+
 def test_no_form_styles_itself():
     """The forms are authored in Designer, and a `styleSheet` property there is a rule nobody
     outside that form can see. They are regenerated from the `.ui` sources, so this checks the
