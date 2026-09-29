@@ -18,7 +18,7 @@ class BaselineSensitivityVisualizationTab(VisualizationTab):
     FORM = Ui_VisSensitivityTab
     STORE_KEY = "baseline_sensitivity"
     FILTERS = ("source_name", "baseline")
-    DRAWN = "baselines"
+    DRAWN = ("baselines",)
 
     #: The row holding every band of a scan together, spelled as the result spells it.
     TOGETHER = "all"

@@ -31,11 +31,31 @@ class AnalysisTab(QWidget):
         parent (QWidget): The window.
     """
 
-    #: What can be asked. The labels are this module's; every *choice* inside them comes from
-    #: `describe`, which is the difference between a tab that lists things and one that asks.
-    QUESTIONS = (("summary", "Statistics (min, max, mean, range)"),
-                 ("windows", "Time windows (and gaps)"),
-                 ("coverage", "Coverage across stations"))
+    #: How this tab spells the questions it has words for. The *set* is the analyzer's -- an
+    #: analysis added there appears here under whatever `describe_operations` calls it, until
+    #: somebody writes better words for it. This used to be the list itself, so a fourth
+    #: analysis would have been offered by nothing.
+    WORDED = {"summary": "Statistics (min, max, mean, range)",
+              "windows": "Time windows (and gaps)",
+              "coverage": "Coverage across stations"}
+
+    #: The question about the questions, which is not one of them.
+    NOT_A_QUESTION = "describe"
+
+    def questions(self):
+        """Yield `(name, label)` for every analysis the analyzer offers.
+
+        Notes:
+            - The ones this tab has words for come first, in the order it words them, because
+              that order is the simplest question first. Anything the analyzer has gained
+              since follows, under the name it goes by.
+        """
+        offered = self.manipulator.describe_operations("analyze").get("analyze", {})
+        named = [name for name in self.WORDED if name in offered]
+        named += sorted(name for name in offered
+                        if name != self.NOT_A_QUESTION and name not in self.WORDED)
+        for name in named:
+            yield name, self.WORDED.get(name) or offered[name].get("label") or name
 
     #: Columns of an answer that name what a row is about, for the interval summary line.
     SUBJECTS = ("source_name", "target_code", "telescope_code", "baseline")
@@ -54,7 +74,7 @@ class AnalysisTab(QWidget):
         self._range_widgets: Dict[str, Any] = {}
         self._time_widgets: Dict[str, Any] = {}
 
-        for name, label in self.QUESTIONS:
+        for name, label in self.questions():
             self.ui.questionCombo.addItem(label, name)
 
         self.ui.questionCombo.currentIndexChanged.connect(self._question_changed)

@@ -54,9 +54,19 @@ class VisualizationTab(QWidget):
     #: fills a list of checkboxes. Which *values* each takes is asked of the result.
     FILTERS = ("source_name", "telescope_code")
 
-    #: The field in the visualizer's answer that says how much was drawn. An answer of zero is
-    #: an empty plot, and an empty plot is cleared rather than shown.
-    DRAWN = "telescopes"
+    #: The fields of the visualizer's answer that say how much was drawn. Zero in every one of
+    #: them is an empty plot, and an empty plot is cleared rather than shown.
+    #:
+    #: **Several, because one was not enough.** It named a single field, and the two plots that
+    #: report a count of bands as well as a count of stations -- a beam pattern drawn for two
+    #: dishes at one frequency, a (u,v) plot for two baselines at three -- each carried a copy
+    #: of `update_visualization` differing from this one in the line that reads it. Forty lines
+    #: of the machinery this class exists to hold once.
+    DRAWN = ("telescopes",)
+
+    #: What the scans list is asked by. A plot about a source asks by `source_name`; the two
+    #: spacecraft plots ask by `target_code`, which used to mean a copy of the whole refill.
+    SCAN_BY = "source_name"
 
     def __init__(self, manipulator: ScheduleManipulator, observation: Observation, parent=None):
         super().__init__(parent)
@@ -294,7 +304,7 @@ class VisualizationTab(QWidget):
         try:
             asked = {"obj": self.observation, "method": "scan_times", "key": self.STORE_KEY}
             if source_name:
-                asked["source_name"] = source_name
+                asked[self.SCAN_BY] = source_name
             scan_times = self.manipulator.inspect(**asked) or []
         except Exception as e:                          # noqa: BLE001 - an empty list, not a crash
             logger.error("Could not read the scans of '%s': %s", self.STORE_KEY, str(e),
@@ -358,7 +368,8 @@ class VisualizationTab(QWidget):
             self._clear_canvas()
             return
 
-        if not result or (self.DRAWN and result.get(self.DRAWN, 0) == 0):
+        counted = tuple(self.DRAWN)
+        if not result or (counted and not any(result.get(name, 0) for name in counted)):
             logger.debug("Nothing to draw for '%s'", self.plot_type())
             self._clear_canvas()
             return

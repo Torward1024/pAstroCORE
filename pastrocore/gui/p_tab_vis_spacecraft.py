@@ -24,6 +24,10 @@ class SpacecraftVisualizationTab(VisualizationTab):
     FORM = Ui_VisDefaultTab
     STORE_KEY = "telescope_az_el"
     FILTERS = ("target_code", "telescope_code")
+    #: Declared, not implemented. Asking `scan_times` by target rather than by source is the
+    #: only way the refill differed, and it was a copy of the whole twenty-line method --
+    #: three imports inside it included -- in the file the shared base was drawn from.
+    SCAN_BY = "target_code"
 
     def get_selected_target(self) -> Optional[str]:
         """The spacecraft being pointed at.
@@ -34,46 +38,6 @@ class SpacecraftVisualizationTab(VisualizationTab):
               widget is shared with the plots that track a source.
         """
         return self.get_selected_source()
-
-    def update_scans_for_source(self, source_name: Optional[str] = None):
-        """As the base does, but the scans are asked for by target rather than by source."""
-        if not self._has(self.ui, "listScans"):
-            return
-        if not source_name:
-            self.ui.listScans.clear()
-            return
-        self._fill_scans({"key": self.STORE_KEY, "target_code": source_name})
-
-    def _fill_scans(self, asked: Dict[str, Any]):
-        """Refill the scans list from a `scan_times` request, keeping what was ticked."""
-        from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import QListWidgetItem
-        from msb_arch.utils.logging_setup import logger
-
-        was_checked = {self.ui.listScans.item(index).data(Qt.UserRole):
-                       self.ui.listScans.item(index).checkState()
-                       for index in range(self.ui.listScans.count())}
-        self.ui.listScans.clear()
-
-        try:
-            scan_times = self.manipulator.inspect(
-                obj=self.observation, method="scan_times", **asked) or []
-        except Exception as e:                          # noqa: BLE001 - an empty list, not a crash
-            logger.error("Could not read the scans of '%s': %s", self.STORE_KEY, str(e),
-                         exc_info=True)
-            self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
-            return
-
-        if not scan_times:
-            self.ui.listScans.addItem(QListWidgetItem("No scans available"))
-            return
-
-        for entry in scan_times:
-            item = QListWidgetItem(entry["start"])
-            item.setData(Qt.UserRole, entry["scan_name"])
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            item.setCheckState(was_checked.get(entry["scan_name"], Qt.Checked))
-            self.ui.listScans.addItem(item)
 
     def _attributes(self) -> Optional[Dict[str, Any]]:
         """The base's request, with the chosen spacecraft as the target rather than a source.

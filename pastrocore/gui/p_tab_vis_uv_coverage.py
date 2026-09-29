@@ -24,6 +24,9 @@ class BaselineVisualizationTab(VisualizationTab):
 
     FORM = Ui_UVCoverageVisTab
     FILTERS = ("source_name", "baseline")
+    #: Both, because a plot of two baselines at three frequencies reports whichever it drew
+    #: by. Saying so here is what the copy of `update_visualization` below used to.
+    DRAWN = ("baselines", "frequencies")
 
     #: The units offered are the visualizer's to name. This held its own pair, spelled for a
     #: reader and lowercased on the way out -- so what reached the request was `earth
@@ -102,26 +105,6 @@ class BaselineVisualizationTab(VisualizationTab):
                 "figure": self.figure, "source_name": source, "scans": scans,
                 "baselines": baselines, "frequencies": frequencies,
                 "units": self.get_selected_units()}
-
-    def update_visualization(self):
-        """As the base does, but drawn-ness here is baselines *or* frequencies."""
-        attributes = self._attributes()
-        if attributes is None:
-            self._clear_canvas()
-            return
-
-        try:
-            result = self.manipulator.visualize(obj=self.observation, **attributes)
-        except Exception as e:                          # noqa: BLE001 - a blank tab, not a crash
-            logger.error("Could not draw '%s': %s", self.plot_type(), str(e), exc_info=True)
-            self._clear_canvas()
-            return
-
-        drawn = bool(result) and (result.get("baselines", 0) or result.get("frequencies", 0))
-        if not drawn or result.get("figure") is None:
-            self._clear_canvas()
-            return
-        self._show()
 
 
 class UVVisualizationTab(BaselineVisualizationTab):

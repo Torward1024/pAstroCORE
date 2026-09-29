@@ -386,34 +386,62 @@ def test_importing_a_frequency_from_a_file_works(qt_application, project, tmp_pa
         assert all(isinstance(item, IF) for item in after)
     finally:
         tab.close()
+#: Every result a tab reads, so each one has something to draw. Three of them -- the two SEFD
+#: plots and the sensitivity grid -- were left out, so no test had ever drawn those tabs.
+EVERYTHING_A_TAB_READS = ["uv_coverage", "az_el", "sun_angles", "time_on_source",
+                          "parallactic_angle", "beam_pattern", "baseline_projections",
+                          "mollweide_tracks", "sefd", "sefd_track", "baseline_sensitivity"]
+
+
+def on_the_axes(figure) -> int:
+    """How much is drawn on a figure: its lines, markers, patches and images."""
+    return sum(len(axes.lines) + len(axes.collections) + len(axes.patches) + len(axes.images)
+               for axes in figure.axes)
+
+
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_actually_draws(module_name, project, observation, qt_application):
     """Building is the floor; this is the point of the tab.
 
     Every one of them shared nine methods and no two were byte-identical, so folding them onto
     one base was a rewrite rather than a lift. Constructing proves nothing about that: a tab
-    that silently draws a blank canvas builds perfectly well.
+    that silently draws a blank canvas builds perfectly well -- **which is what this test used
+    to say and then not check**. It asserted that `widget.canvas` and `widget.figure` were not
+    None, which they are from the constructor whatever happens afterwards.
+
+    Two tabs have shipped blank and say so in their own docstrings: the Mollweide tab built its
+    own request and left out the tab's figure, and both spacecraft tabs did the same. Neither
+    was found here. What is asserted now is that something is on the axes.
     """
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     manipulator = ScheduleManipulator(project)
+    # A measured SEFD and a measured flux, because the three plots E1 added have nothing to
+    # draw without them and the fixture carries neither: the results come back a row per
+    # station saying "no SEFD", and per baseline saying "no flux measured". This is the setup
+    # those three tabs needed and never had, which is why they were the three no test drew.
+    for telescope in observation.get_telescopes().get_items():
+        manipulator.configure(telescope, set={"params": {"sefd_table": [(500.0, 20000.0, 110.0)]}})
+    for source in observation.get_sources().get_items():
+        manipulator.configure(source, set={"params": {"flux_table": {1000.0: 5.0}}})
     manipulator.compute(obj=observation, method="run", time_step=600.0, recalculate=True,
-                        raise_on_error=False,
-                        calculations=["uv_coverage", "az_el", "sun_angles", "time_on_source",
-                                      "parallactic_angle", "beam_pattern",
-                                      "baseline_projections", "mollweide_tracks"])
+                        raise_on_error=False, calculations=EVERYTHING_A_TAB_READS)
 
     widget = tab_class(module_name)(manipulator, observation)
     try:
-        assert widget.canvas is not None, f"{module_name} built but drew nothing"
-        assert widget.figure is not None
+        assert widget.figure.axes, f"{module_name} put no axes on its figure"
+        assert on_the_axes(widget.figure), f"{module_name} drew axes and nothing on them"
     finally:
         widget.close()
         widget.deleteLater()
 @pytest.mark.parametrize("module_name", sorted(TABS))
 def test_a_tab_declares_what_it_draws_rather_than_implementing_it(module_name):
     """What varies between the tabs is a declaration now: which form, which result, which
-    filters. A tab that reimplements the shared machinery has drifted back."""
+    filters. A tab that reimplements the shared machinery has drifted back -- **which this
+    test said and did not check**: it asserted a subclass and two attributes, and two tabs
+    were carrying a copy of `update_visualization` the whole time, differing from the base's
+    in one line because `DRAWN` could name only one field.
+    """
     from pastrocore.gui.p_tab_vis_base import VisualizationTab
 
     widget_class = tab_class(module_name)
@@ -421,6 +449,52 @@ def test_a_tab_declares_what_it_draws_rather_than_implementing_it(module_name):
     assert issubclass(widget_class, VisualizationTab), f"{module_name} is not on the base"
     assert widget_class.FORM is not None, f"{module_name} declares no form"
     assert widget_class.STORE_KEY, f"{module_name} declares no result to read"
+
+    #: What a tab may have of its own: the filters its form carries, what it asks beyond the
+    #: common request, and the first draw. The machinery itself is the base's.
+    SHARED = ("update_visualization", "_show", "_clear_canvas", "_lock_ui", "_unlock_ui",
+              "tick_all", "_connect_list_buttons", "_distinct", "_checked", "closeEvent",
+              "update_scans_for_source")
+    reimplemented = [name for name in SHARED
+                     if getattr(widget_class, name, None)
+                     is not getattr(VisualizationTab, name, None)]
+
+    assert not reimplemented, (
+        f"{module_name} carries its own {', '.join(reimplemented)}.\n"
+        f"Declare what differs -- DRAWN, FILTERS, _extra_attributes -- rather than copying "
+        f"the method it differs in.")
+def test_an_analysis_added_to_the_analyzer_is_offered_by_the_tab(project, qt_application,
+                                                                 monkeypatch):
+    """The analysis tab said it holds no list of anything, and held one: the three analyses,
+    by name, in a tuple. A fourth would have been asked for by nobody -- which is the rule the
+    calculation dialog already keeps by asking the catalogue.
+
+    The analyzer is asked here rather than grown a handler, because `describe_operations`
+    reads the source of a class rather than the class, which `test_conventions` states.
+    """
+    from pastrocore.gui.p_tab_analysis import AnalysisTab
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    described = manipulator.describe_operations
+    monkeypatch.setattr(manipulator, "describe_operations",
+                        lambda operation: {"analyze": {
+                            **described(operation)["analyze"],
+                            "elevation_histogram": {"label": "Elevation Histogram"}}})
+
+    tab = AnalysisTab(manipulator)
+    try:
+        offered = [tab.ui.questionCombo.itemData(index)
+                   for index in range(tab.ui.questionCombo.count())]
+
+        assert "elevation_histogram" in offered, f"the tab offers {offered} of its own"
+        assert "describe" not in offered, "the question about the questions is not one of them"
+        assert offered[0] == "summary", "the simplest question is no longer offered first"
+        assert tab.ui.questionCombo.itemText(0).startswith("Statistics")
+    finally:
+        tab.deleteLater()
+
+
 def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observation,
                                                               qt_application):
     """A tab redraws whenever a filter moves, so anything it leaves behind is left behind

@@ -22,6 +22,10 @@ class BeamPatternVisualizationTab(VisualizationTab):
     FORM = Ui_VisBeamPatternTab
     STORE_KEY = "beam_pattern"
     FILTERS = ("telescope_code",)
+    #: Both, because a beam drawn for two stations at one frequency reports the frequency
+    #: count and not the telescope count: judged on telescopes alone it cleared a plot that
+    #: had been drawn. Saying so here is what the copy of `update_visualization` below used to.
+    DRAWN = ("telescopes", "frequencies")
 
     def _populate_extra_filters(self):
         """Add the frequency list, which comes from the model rather than from the result.
@@ -65,29 +69,3 @@ class BeamPatternVisualizationTab(VisualizationTab):
             return None
         return {"plot_type": self.plot_type(), "show": False, "return_figure": True,
                 "figure": self.figure, "telescopes": telescopes, "frequencies": frequencies}
-
-    def update_visualization(self):
-        """As the base does, but an empty answer here means *both* counts are zero.
-
-        Notes:
-            - A beam pattern drawn for two stations at one frequency reports the frequency
-              count and not the telescope count, so judging it on telescopes alone cleared a
-              plot that had been drawn.
-        """
-        attributes = self._attributes()
-        if attributes is None:
-            self._clear_canvas()
-            return
-
-        try:
-            result = self.manipulator.visualize(obj=self.observation, **attributes)
-        except Exception as e:                          # noqa: BLE001 - a blank tab, not a crash
-            logger.error("Could not draw the beam pattern: %s", str(e), exc_info=True)
-            self._clear_canvas()
-            return
-
-        drawn = bool(result) and (result.get("telescopes", 0) or result.get("frequencies", 0))
-        if not drawn or result.get("figure") is None:
-            self._clear_canvas()
-            return
-        self._show()
