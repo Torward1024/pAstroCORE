@@ -295,3 +295,41 @@ def test_a_missing_absolute_path_is_kept_and_still_reported(tmp_path, monkeypatc
 
     stored = json.loads(settings_file().read_text(encoding="utf-8"))
     assert stored["sources_catalog_path"] == chosen, "the user's choice was overwritten"
+
+
+def test_a_settings_write_that_fails_leaves_the_last_ones(tmp_path, monkeypatch):
+    """The settings were written in place, and they are written often -- every preference, every
+    project opened, every catalogue saved.
+
+    A write interrupted part way leaves a file that is not JSON, and the next start reads it,
+    fails, and falls back to the defaults: the recent projects, the catalogue paths and the
+    theme all gone, reported as one line in the log.
+    """
+    import pathlib
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.paths import settings_file
+
+    PAstroCoreMainWindow._write_settings({"time_step": 1234, "recent_projects": ["a", "b"]})
+    # Held on to, because `monkeypatch.undo()` below puts the environment back and with it the
+    # real user's settings file, which is not the one this test wrote.
+    where = settings_file()
+    kept = where.read_text(encoding="utf-8")
+
+    real = pathlib.Path.write_text
+
+    def cut_short(self, text, *args, **kwargs):
+        real(self, text[: len(text) // 3], *args, **kwargs)
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(pathlib.Path, "write_text", cut_short)
+    with pytest.raises(OSError):
+        PAstroCoreMainWindow._write_settings({"time_step": 9999})
+
+    monkeypatch.undo()
+    assert where.read_text(encoding="utf-8") == kept, "the last settings were destroyed"
+    assert json.loads(where.read_text(encoding="utf-8"))["time_step"] == 1234
+    assert not list(where.parent.glob("*.partial"))

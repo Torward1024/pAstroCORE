@@ -775,10 +775,24 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @staticmethod
     def _write_settings(settings: dict) -> None:
-        """Write the settings where `load_settings` will look for them."""
+        """Write the settings where `load_settings` will look for them.
+
+        Notes:
+            - Beside the file and moved over it, as everything else this application writes is.
+              These are written often -- every preference, every project opened, every
+              catalogue saved -- and a write interrupted part way left a file that is not JSON,
+              which the next start reads, fails on, and replaces with the defaults: the recent
+              projects, the catalogue paths and the theme all gone at once.
+        """
         destination = settings_file()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(json.dumps(settings, indent=4), encoding="utf-8")
+        partial = destination.with_name(destination.name + ".partial")
+        try:
+            partial.write_text(json.dumps(settings, indent=4), encoding="utf-8")
+            os.replace(partial, destination)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
         logger.info("Settings saved to '%s'", destination)
 
     def save_settings(self, settings: dict):
@@ -794,6 +808,8 @@ class PAstroCoreMainWindow(QMainWindow):
     def new_project(self):
         """Create a new project, cleaning up the old one."""
         try:
+            if not self._confirm_discarding_unsaved():
+                return
             self._cleanup_project()
             self._initialize_project()
             self.current_project_path = None
@@ -842,6 +858,8 @@ class PAstroCoreMainWindow(QMainWindow):
             - The chooser and the recent list both end here, so a project opened from the menu
               and a project opened from the list cannot come up differently.
         """
+        if not self._confirm_discarding_unsaved():
+            return
         new_project = ScheduleProject.open(path)
 
         self._cleanup_project()
@@ -1162,6 +1180,9 @@ class PAstroCoreMainWindow(QMainWindow):
         self.current_project_path = None
         self.clear_connections(is_initial_setup=False)
         self.setup_connections()
+        # As on the other door: a new orchestrator draws in the palette it was built with,
+        # which is the light one, so a package opened in the dark theme had white figures.
+        self.apply_theme()
         self.open_project_info_tab()
         self.update_project_explorer()
         self.project_updated.emit()
@@ -1666,9 +1687,10 @@ class PAstroCoreMainWindow(QMainWindow):
             if self.manipulator:
                 self.manipulator.clear_cache()
                 self.manipulator.clear_base_classes()
-
-                if hasattr(self.manipulator, '_project'):
-                    self.manipulator._project = None
+                # There was a `manipulator._project = None` here behind a `hasattr` true of
+                # nothing: the orchestrator's attribute is `_managing_object`, and MSB has
+                # never had a `_project`. Letting go of the orchestrator is the whole of it,
+                # and a test holds the property the line was there for.
                 self.manipulator = None
 
             self.project = None

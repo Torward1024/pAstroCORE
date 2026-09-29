@@ -226,3 +226,113 @@ def test_closing_the_window_stops_it_listening(window, qt_application):
     window.status.close()
     assert len(attached.handlers) == before - 1
     logger.info("after the window has gone")            # must reach nothing and raise nothing
+
+
+def test_the_window_lets_go_of_a_project_it_replaces(window, qt_application):
+    """Opening a second project must leave nothing of the first one behind.
+
+    `_cleanup_project` ended by nulling `manipulator._project`, behind a `hasattr` that is true
+    of nothing -- the orchestrator's attribute is `_managing_object`, and MSB has never had a
+    `_project`. The line did nothing, and the property it was there for is held here instead:
+    after the window lets go, the project, its observations and the orchestrator are all
+    collectable.
+    """
+    import gc
+    import weakref
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    # A project only the window holds, so what the fixtures keep is not what is being measured.
+    replaced = ScheduleProject(name="the one being replaced")
+    replaced.create_item(item_code="OBS_GONE")
+    window.project = replaced
+    window.manipulator = ScheduleManipulator(replaced)
+    gone = [weakref.ref(replaced), weakref.ref(window.manipulator),
+            weakref.ref(replaced.get_observations()[0])]
+    del replaced
+
+    window._cleanup_project()
+    qt_application.processEvents()
+    gc.collect()
+
+    assert window.project is None and window.manipulator is None
+    assert all(reference() is None for reference in gone), (
+        "the window is still holding the project it let go of")
+
+
+@pytest.fixture
+def holding(window, project, tmp_path):
+    """The window, with a project whose results are in this session's scratch and unsaved."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    window.project = project
+    window.manipulator = ScheduleManipulator(project)
+    project.hold_results_in_scratch()
+    project.get_observations()[0].calculated_data.flush()
+    held = window.manipulator.inspect(obj=project, method="unsaved", raise_on_error=False).value
+    assert held, "the fixture holds nothing unsaved, so the question would not be asked"
+    return window
+
+
+@pytest.mark.parametrize("door", ["new_project", "open_project_at"])
+def test_replacing_a_project_asks_about_results_nobody_has_saved(holding, monkeypatch, tmp_path,
+                                                                 door):
+    """The question exists, says "Opening another project discards them", and was asked on one
+    of the four doors -- the package one.
+
+    File -> New Project, File -> Open and the recent list all replaced the project without a
+    word, and an hour of calculation left the window in silence. It is still on disk, in the
+    session's scratch, and it is offered back only at the *next* start, described as a session
+    that did not close normally.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    asked = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        lambda *arguments, **named: (asked.append(arguments[1]),
+                                                     QMessageBox.StandardButton.No)[1])
+    was = holding.project
+
+    if door == "new_project":
+        holding.new_project()
+    else:
+        # A project of its own to open: saving the held one would empty the scratch this
+        # test is about.
+        from pastrocore.super.schedule_project import ScheduleProject
+
+        elsewhere = tmp_path / "another.pastro"
+        other = ScheduleProject(name="another")
+        other.create_item(item_code="OBS_OTHER")
+        other.save(str(elsewhere))
+        holding._open_project_at(str(elsewhere))
+
+    assert asked, "the project was replaced without asking"
+    assert holding.project is was, "it was replaced although the answer was no"
+
+
+def test_a_project_opened_from_a_package_is_drawn_in_the_window_s_own_palette(window, project,
+                                                                              tmp_path, monkeypatch):
+    """A new orchestrator draws its plots in the palette it was built with, which is the light
+    one -- so a project opened in the dark theme came up with white figures.
+
+    That was found and fixed for File -> Open, and `open_package` builds its orchestrator the
+    same way a few lines further down, without the line that applies the theme.
+    """
+    from PySide6.QtWidgets import QFileDialog
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    package = tmp_path / "sent.pastroz"
+    ScheduleManipulator(project).export(obj=project, method="package", path=str(package))
+
+    window.settings["theme"] = "dark"
+    window.apply_theme()
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                        lambda *arguments, **named: (str(package), ""))
+
+    window.open_package()
+
+    assert window.manipulator is not None
+    assert window.manipulator._plot_theme == "dark", (
+        "the package's plots are drawn in a palette the window is not wearing")
