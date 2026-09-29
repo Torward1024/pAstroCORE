@@ -3,7 +3,7 @@ from PySide6.QtCore import Signal, Slot, Qt, QPoint, QEvent
 from PySide6.QtGui import QStandardItem, QStandardItemModel, QIcon
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.base.observation import Observation
+from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.p_custom_model import (CustomSortFilterProxyModel,
                                            fit_narrow_columns, fit_columns, listening)
@@ -145,7 +145,7 @@ class ProjectInfoTab(QWidget):
                     active_item.setTextAlignment(Qt.AlignCenter)
 
                     obs_type = self.manipulator.inspect(obs, get="observation_type")
-                    obs_type = obs_type if obs_type in ["VLBI", "SINGLE_DISH"] else "N/A"
+                    obs_type = obs_type if obs_type in OBSERVATION_TYPES else "N/A"
 
                     freqs = "N/A"
                     frequencies = self.manipulator.inspect(obs, get_frequencies=None)

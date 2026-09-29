@@ -269,7 +269,7 @@ class Ui_SourceEditorDialog(object):
         self.deMEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"m", None))
         self.deSEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"s", None))
         self.labelSpectralIndex.setText(QCoreApplication.translate("SourceEditorDialog", u"Spectral Index:", None))
-        self.spectralIndexEdit.setProperty(u"placeholderText", QCoreApplication.translate("SourceEditorDialog", u"Enter spectral index (optional)", None))
+        self.spectralIndexEdit.setSpecialValueText(QCoreApplication.translate("SourceEditorDialog", u"not measured", None))
         self.isActiveCheckBox.setText(QCoreApplication.translate("SourceEditorDialog", u"Active in this observation", None))
         self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add", None))
         self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove", None))

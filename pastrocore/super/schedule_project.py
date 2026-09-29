@@ -1,6 +1,6 @@
 # pastrocore/super/schedule_project.py
 from typing import Any, Callable, Dict, List, Optional
-from pastrocore.base.observation import Observation
+from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from pastrocore.base import freshness
 from pastrocore.base.result_store import (PARTIAL_SUFFIX, ResidencyBudget, ResultStore, json_safe,
                                          remove_tree)
@@ -115,9 +115,11 @@ class ScheduleProject(Project):
             ValueError: If item_code is not a non-empty string, observation_type is invalid, or item_code already exists.
         """
         check_non_empty_string(item_code, "Observation code")
-        if observation_type not in ["VLBI", "SINGLE_DISH"]:
-            logger.error("Invalid observation type: %s. Must be 'VLBI' or 'SINGLE_DISH'", observation_type)
-            raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
+        if observation_type not in OBSERVATION_TYPES:
+            logger.error("Invalid observation type: %s. Must be one of %s",
+                         observation_type, sorted(OBSERVATION_TYPES))
+            raise ValueError(f"Observation type must be one of {sorted(OBSERVATION_TYPES)}, "
+                             f"got {observation_type}")
         unique_name = f"obs_{uuid.uuid4().hex[:32]}"
         new_observation = Observation(name=unique_name, code=item_code, isactive=isactive, observation_type=observation_type)
         self.add_item(new_observation)

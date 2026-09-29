@@ -14,7 +14,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.scratch import ScratchSpace
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.base.observation import Observation
+from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from pastrocore.utils.catalogmanager import CatalogManager
 # UI files. The dialogs are imported where they are opened rather than here: between them
 # they pull in matplotlib and every visualization tab, which is 570 ms of a start-up that
@@ -1249,8 +1249,8 @@ class PAstroCoreMainWindow(QMainWindow):
             # file that is not there and one that is not JSON, and says which it was.
             imported_observation = self.manipulator.load(obj=Observation(name="imported"),
                                                          path=file_path)
-            if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
-                imported_observation.observation_type = "VLBI"
+            if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in OBSERVATION_TYPES:
+                imported_observation.observation_type = OBSERVATION_TYPES[0]
 
             self.manipulator.configure(self.project, add_item=imported_observation)
             logger.info("New observation '%s' imported successfully", imported_observation.code)

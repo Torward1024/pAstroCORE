@@ -181,32 +181,46 @@ class TelescopeEditorDialog(QDialog):
         logger.debug("Updated Telescope object '%s' with params: %s", self.telescope.name, params)
         return self.telescope
 
+    def refusal(self) -> str:
+        """Return why what is on screen cannot be saved, or an empty string.
+
+        Notes:
+            - **Asked of the fields, before anything is written.** The station this dialog is
+              handed is the one the observation holds, and `accept` used to build the object
+              to read its `__dict__` -- putting every value on it *first* and refusing
+              afterwards. A code with a space in it stayed on the station through the
+              refusal, through Cancel, and into a written schedule.
+            - A range low to high and a positive diameter are the model's own rules, restated
+              here only because a `set` that a constraint refuses leaves the fields it had
+              already written (G16). They said `>=` where `_rises` says `<=`, which refused a
+              mount fixed at one elevation that the model allows; they say the same thing now,
+              and they go when the write is all-or-nothing.
+        """
+        code = self.ui.codeEdit.text().strip()
+        if not code or not self.ui.nameEdit.text().strip():
+            return "Code and Name are required fields."
+        if not re.match(r'^[a-zA-Z0-9_-]+$', code):
+            return ("Code must contain only alphanumeric characters, underscores, or hyphens.\n\n"
+                    "It is written as it stands into a schedule a correlator reads.")
+        if self.ui.elevationMinEdit.value() > self.ui.elevationMaxEdit.value():
+            return "The elevation range runs from its lowest to its highest."
+        if self.ui.azimuthMinEdit.value() > self.ui.azimuthMaxEdit.value():
+            return "The azimuth range runs from its lowest to its highest."
+        if self.ui.diameterEdit.value() <= 0:
+            return "Diameter must be positive."
+        return ""
+
     def accept(self):
         """Validate and accept the dialog."""
         try:
-            data = self.get_telescope_object().__dict__
-            if not data["code"] or not data["name"]:
-                logger.error("Code and Name are required fields")
-                QMessageBox.critical(self, "Error", "Code and Name are required fields.")
+            refusal = self.refusal()
+            if refusal:
+                logger.error("Telescope cannot be saved: %s", refusal)
+                QMessageBox.critical(self, "Error", refusal)
                 return
-            if not re.match(r'^[a-zA-Z0-9_-]+$', data["code"]):
-                logger.error("Code must contain only alphanumeric characters, underscores, or hyphens")
-                QMessageBox.critical(self, "Error", "Code must contain only alphanumeric characters, underscores, or hyphens.")
-                return
-            if data["elevation_range"][0] >= data["elevation_range"][1]:
-                logger.error("Minimum elevation must be less than maximum elevation")
-                QMessageBox.critical(self, "Error", "Minimum elevation must be less than maximum elevation.")
-                return
-            if data["azimuth_range"][0] >= data["azimuth_range"][1]:
-                logger.error("Minimum azimuth must be less than maximum azimuth")
-                QMessageBox.critical(self, "Error", "Minimum azimuth must be less than maximum azimuth.")
-                return
-            if data["diameter"] <= 0:
-                logger.error("Diameter must be positive")
-                QMessageBox.critical(self, "Error", "Diameter must be positive.")
-                return
+            telescope = self.get_telescope_object()
             super().accept()
-            logger.info("Validated and saved telescope data for '%s'", data['code'])
+            logger.info("Validated and saved telescope data for '%s'", telescope.get_code())
         except ValueError as ve:
             logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")

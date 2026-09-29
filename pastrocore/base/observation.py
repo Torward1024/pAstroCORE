@@ -21,6 +21,12 @@ import io
 #: a choice read the same list.
 OBSERVATION_TYPES = ("VLBI", "SINGLE_DISH")
 
+#: How many telescopes a scan needs to be worth recording, by what the observation is. A single
+#: dish records on its own; an interferometer needs a baseline, and a baseline is two. Named
+#: once because `1 if observation_type == "SINGLE_DISH" else 2` was written three times -- in
+#: the scan's own activation rule, in the scan editor, and in the scans tab.
+TELESCOPES_A_SCAN_NEEDS = {"VLBI": 2, "SINGLE_DISH": 1}
+
 
 class Observation(BaseEntity):
     """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
@@ -431,6 +437,20 @@ class Observation(BaseEntity):
     def get_observation_type(self) -> str:
         """Retrieve the observation type."""
         return self.get("observation_type")
+
+    def get_telescopes_a_scan_needs(self) -> int:
+        """Return how many telescopes a scan in this observation needs to be worth recording.
+
+        Returns:
+            int: Two for VLBI, which needs a baseline; one for a single dish.
+
+        Notes:
+            - Asked rather than worked out, because a request may name it:
+              `inspect(observation, get_telescopes_a_scan_needs=None)`. Both the scan editor
+              and the scans tab worked it out themselves, which is the same rule in three
+              places and a third observation type away from disagreeing.
+        """
+        return TELESCOPES_A_SCAN_NEEDS[self.get_observation_type()]
 
     def get_sources(self) -> Sources:
         """Retrieve the Sources object."""

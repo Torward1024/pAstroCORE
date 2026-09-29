@@ -3742,11 +3742,9 @@ class ScheduleCalculator(Super):
                     logger.warning("No active telescopes in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
-                obs_type = obs.get_observation_type()
-                if obs_type not in ["SINGLE_DISH", "VLBI"]:
-                    logger.warning("Beam pattern calculation is only for SINGLE_DISH or VLBI, got %s", obs_type)
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
-
+                # A guard against a third kind of observation used to stand here, naming the
+                # two there are. `observation_type` is annotated with `OBSERVATION_TYPES` and
+                # refused on every path in, so there has never been a third to guard against.
                 theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
                 telescope_codes = []
                 theta_list = []

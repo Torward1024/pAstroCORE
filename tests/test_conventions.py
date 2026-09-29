@@ -690,6 +690,44 @@ def test_a_form_names_the_button_that_does_the_thing():
         f"Give it <property name=\"role\" stdset=\"0\"><string>primary</string></property>.")
 
 
+def test_nothing_keeps_its_own_list_of_observation_types():
+    """`OBSERVATION_TYPES` is the model's, and its own comment says it is named once so that
+    "the annotation and anything that offers a choice read the same list".
+
+    Seven places wrote the two out again: the add-observation combo, the observation tab's
+    combo and its fallback, the project table's, the window's import path, and two Supers. A
+    third kind of observation would have been refused by the annotation and offered by none
+    of the forms -- and `1 if observation_type == "SINGLE_DISH" else 2`, which is how many
+    telescopes a scan needs, was written three more times on top of that.
+    """
+    named = re.compile(r'["\'](?:SINGLE_DISH|VLBI)["\']')
+    #: The list itself, written out where `OBSERVATION_TYPES` belongs. Naming *one* of them in
+    #: the model is how a rule about that kind of observation is written -- "a single dish uses
+    #: one dish" -- and only the interface is held to naming neither.
+    both = re.compile(r'["\']SINGLE_DISH["\'][^\n]*["\']VLBI["\']'
+                      r'|["\']VLBI["\'][^\n]*["\']SINGLE_DISH["\']')
+
+    offenders = {}
+    for module in source_files():
+        if module.name == "observation.py":
+            continue
+        interface = module.name == "app.py" or module.parent.name == "gui"
+        found = []
+        for number, line in enumerate(module.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith(("#", "-", "*")) or '"""' in line or "(str):" in line:
+                continue
+            if both.search(line) or (interface and named.search(line)):
+                found.append(number)
+        if found:
+            offenders[module.relative_to(ROOT).as_posix()] = found
+
+    assert not offenders, (
+        "an observation type is written out rather than asked for:\n  "
+        + "\n  ".join(f"{name}: lines {lines}" for name, lines in offenders.items())
+        + "\nUse OBSERVATION_TYPES, or ask the observation what it needs.")
+
+
 def test_no_search_box_turns_what_was_typed_into_a_pattern():
     """Every search in this application is a substring of a name.
 

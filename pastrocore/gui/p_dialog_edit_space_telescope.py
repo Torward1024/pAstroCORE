@@ -194,40 +194,48 @@ class SpaceTelescopeEditorDialog(QDialog):
         logger.debug("Updated SpaceTelescope object '%s' with params: %s", self.telescope.name, params)
         return self.telescope
 
+    def refusal(self) -> str:
+        """Return why what is on screen cannot be saved, or an empty string.
+
+        Notes:
+            - **Asked of the fields, before anything is written.** The station this dialog is
+              handed is the one the observation holds, and `accept` used to build the object
+              to read its `__dict__` -- putting every value on it *first* and refusing
+              afterwards. A code with a space in it stayed on the station through the
+              refusal, through Cancel, and into a written schedule.
+            - A range low to high and a positive diameter are the model's own rules, restated
+              here only because a `set` that a constraint refuses leaves the fields it had
+              already written (G16). They said `>=` where `_rises` says `<=`, which refused a
+              mount fixed at one angle that the model allows.
+        """
+        code = self.ui.codeEdit.text().strip()
+        if not code or not self.ui.nameEdit.text().strip():
+            return "Code and Name are required fields."
+        if not re.match(r'^[a-zA-Z0-9_-]+$', code):
+            return ("Code must contain only alphanumeric characters, underscores, or hyphens.\n\n"
+                    "It is written as it stands into a schedule a correlator reads.")
+        if self.ui.pitchMinEdit.value() > self.ui.pitchMaxEdit.value():
+            return "The pitch range runs from its lowest to its highest."
+        if self.ui.yawMinEdit.value() > self.ui.yawMaxEdit.value():
+            return "The yaw range runs from its lowest to its highest."
+        if not self.ui.useKepCheckBox.isChecked() and not self.ui.orbitFileEdit.text().strip():
+            return ("An orbit file is required when the orbit is not given as Keplerian "
+                    "elements.")
+        if self.ui.diameterEdit.value() <= 0:
+            return "Diameter must be positive."
+        return ""
+
     def accept(self):
         """Validate and accept the dialog."""
         try:
-            data = self.get_telescope_object().__dict__
-            if not data["code"] or not data["name"]:
-                logger.error("Code and Name are required fields")
-                QMessageBox.critical(self, "Error", "Code and Name are required fields.")
+            refusal = self.refusal()
+            if refusal:
+                logger.error("Space telescope cannot be saved: %s", refusal)
+                QMessageBox.critical(self, "Error", refusal)
                 return
-            if not re.match(r'^[a-zA-Z0-9_-]+$', data["code"]):
-                logger.error("Code must contain only alphanumeric characters, underscores, or hyphens")
-                QMessageBox.critical(self, "Error", "Code must contain only alphanumeric characters, underscores, or hyphens.")
-                return
-            if data["pitch_range"][0] >= data["pitch_range"][1]:
-                logger.error("Minimum pitch must be less than maximum pitch")
-                QMessageBox.critical(self, "Error", "Minimum pitch must be less than maximum pitch.")
-                return
-            if data["yaw_range"][0] >= data["yaw_range"][1]:
-                logger.error("Minimum yaw must be less than maximum yaw")
-                QMessageBox.critical(self, "Error", "Minimum yaw must be less than maximum yaw.")
-                return
-            if data["use_kep"] and not data["kepler_elements"]:
-                logger.error("Keplerian elements are required when using Keplerian orbit")
-                QMessageBox.critical(self, "Error", "Keplerian elements are required when using Keplerian orbit.")
-                return
-            if not data["use_kep"] and not data["orbit_file"]:
-                logger.error("An orbit file is required when not using Keplerian elements")
-                QMessageBox.critical(self, "Error", "An orbit file is required when not using Keplerian elements.")
-                return
-            if data["diameter"] <= 0:
-                logger.error("Diameter must be positive")
-                QMessageBox.critical(self, "Error", "Diameter must be positive.")
-                return
+            telescope = self.get_telescope_object()
             super().accept()
-            logger.info("Validated and saved space telescope data for '%s'", data['code'])
+            logger.info("Validated and saved space telescope data for '%s'", telescope.get_code())
         except ValueError as ve:
             logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")

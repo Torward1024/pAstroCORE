@@ -83,7 +83,10 @@ class ScanEditorDialog(QDialog):
         self.ui.btnClearAllFrequencies.clicked.connect(self.clear_all_frequencies)
         self.ui.chk_offsource.stateChanged.connect(self.offsource_changed)
         self.ui.sourceCombo.currentIndexChanged.connect(self.update_active_state)
-        self.ui.startTimeEdit.dateTimeChanged.connect(self.adjust_duration_from_start)
+        # Moving the start moves the end and leaves the length alone. It used to recompute the
+        # length from the end, so correcting a start by an hour took an hour off the scan --
+        # and correcting it by more than the scan lasted left a scan of one second.
+        self.ui.startTimeEdit.dateTimeChanged.connect(self.adjust_end_time)
         self.ui.endTimeEdit.dateTimeChanged.connect(self.adjust_duration_from_end)
         self.ui.durationEdit.textChanged.connect(self.adjust_end_time)
         self.telescopes_model.itemChanged.connect(self.telescope_changed)
@@ -184,6 +187,7 @@ class ScanEditorDialog(QDialog):
                     check_item.setCheckState(check_state)
                     active_item = QStandardItem()
                     active_item.setIcon(icon)
+                    active_item.setData(bool(is_active), Qt.UserRole)
                     active_item.setTextAlignment(Qt.AlignCenter)
                     row = [
                         QStandardItem(str(idx)),
@@ -216,6 +220,7 @@ class ScanEditorDialog(QDialog):
                     check_item.setCheckState(check_state)
                     active_item = QStandardItem()
                     active_item.setIcon(icon)
+                    active_item.setData(bool(is_active), Qt.UserRole)
                     active_item.setTextAlignment(Qt.AlignCenter)
                     freq_attrs = self.manipulator.inspect(frequency, get=["frequency", "bandwidth", "polarizations"])
                     row = [
@@ -295,40 +300,37 @@ class ScanEditorDialog(QDialog):
 
     @Slot()
     def update_active_state(self):
-        """Update the active state checkbox based on scan conditions."""
-        conditions_met = self._check_scan_conditions()
-        self.ui.chk_active.setChecked(conditions_met)
-        logger.debug("Updated active state: %s", conditions_met)
+        """Offer the active box only while the scan could be active.
 
-    @Slot()
-    def adjust_duration_from_start(self):
-        """Adjust duration based on start time change."""
-        try:
-            start_qdt = self.ui.startTimeEdit.dateTime()
-            end_qdt = self.ui.endTimeEdit.dateTime()
-            duration = start_qdt.secsTo(end_qdt)
-            if duration <= 0:
-                duration = 1
-                end_qdt = start_qdt.addSecs(1)
-                self.ui.endTimeEdit.blockSignals(True)
-                self.ui.endTimeEdit.setDateTime(end_qdt)
-                self.ui.endTimeEdit.blockSignals(False)
-            self.ui.durationEdit.blockSignals(True)
-            self.ui.durationEdit.setText(f"{duration:.2f}")
-            self.ui.durationEdit.blockSignals(False)
-            logger.debug("Adjusted duration from start time: %ss", duration)
-        except Exception as e:
-            logger.error("Error adjusting duration from start: %s", str(e))
+        Notes:
+            - **It used to tick the box rather than offer it**, and `get_scan_object` then read
+              the conditions again rather than the box: whatever the user did with it was
+              thrown away, and a scan they had unticked came back active.
+            - An unactivatable scan cannot be ticked, which is the same rule `activate_scan`
+              applies from the table. An activatable one may still be left off: that is a
+              choice, and `deactivate_scan` allows it.
+        """
+        conditions_met = self._check_scan_conditions()
+        self.ui.chk_active.setEnabled(conditions_met)
+        if not conditions_met:
+            self.ui.chk_active.setChecked(False)
+        logger.debug("The scan can be active: %s", conditions_met)
 
     @Slot()
     def adjust_duration_from_end(self):
-        """Adjust duration based on end time change."""
+        """Set the length from the end the user moved to.
+
+        Notes:
+            - In milliseconds. `secsTo` is whole seconds, and the length is a float the box
+              itself takes to two places: a scan of 12.5 seconds came back as 12 the first
+              time either time was touched.
+        """
         try:
             start_qdt = self.ui.startTimeEdit.dateTime()
             end_qdt = self.ui.endTimeEdit.dateTime()
-            duration = start_qdt.secsTo(end_qdt)
+            duration = start_qdt.msecsTo(end_qdt) / 1000.0
             if duration <= 0:
-                duration = 1
+                duration = 1.0
                 end_qdt = start_qdt.addSecs(1)
                 self.ui.endTimeEdit.blockSignals(True)
                 self.ui.endTimeEdit.setDateTime(end_qdt)
@@ -355,7 +357,9 @@ class ScanEditorDialog(QDialog):
                 self.ui.durationEdit.blockSignals(True)
                 self.ui.durationEdit.setText(f"{duration:.2f}")
                 self.ui.durationEdit.blockSignals(False)
-            end_qdt = start_qdt.addSecs(int(duration))
+            # In milliseconds: `addSecs(int(duration))` threw away the fraction of a second
+            # that the box beside it takes to two places.
+            end_qdt = start_qdt.addMSecs(round(duration * 1000))
             self.ui.endTimeEdit.blockSignals(True)
             self.ui.endTimeEdit.setDateTime(end_qdt)
             self.ui.endTimeEdit.blockSignals(False)
@@ -372,18 +376,30 @@ class ScanEditorDialog(QDialog):
         except Exception as e:
             logger.error("Error adjusting end time: %s", str(e))
 
+    @staticmethod
+    def _ticked_and_active(model) -> int:
+        """Count the rows that are ticked and whose entity is itself active.
+
+        Notes:
+            - The flag is put on the row when the row is built. It was recovered by comparing
+              the *icon* in the third column against the one this dialog holds -- reading a
+              picture to get back a boolean the model had answered two methods earlier.
+        """
+        return sum(1 for row in range(model.rowCount())
+                   if model.item(row, 1).checkState() == Qt.Checked
+                   and model.item(row, 2).data(Qt.UserRole))
+
     def _check_scan_conditions(self):
         """Check if scan conditions are met for activation."""
         try:
-            active_telescopes = sum(1 for row in range(self.telescopes_model.rowCount())
-                                    if self.telescopes_model.item(row, 1).checkState() == Qt.Checked and
-                                    self.telescopes_model.item(row, 2).icon().cacheKey() == self.active_icon.cacheKey())
-            active_frequencies = sum(1 for row in range(self.frequencies_model.rowCount())
-                                     if self.frequencies_model.item(row, 1).checkState() == Qt.Checked and
-                                     self.frequencies_model.item(row, 2).icon().cacheKey() == self.active_icon.cacheKey())
+            active_telescopes = self._ticked_and_active(self.telescopes_model)
+            active_frequencies = self._ticked_and_active(self.frequencies_model)
             source = self.ui.sourceCombo.currentData()
             source_active = self.manipulator.inspect(source, get="isactive") if source else True
-            min_telescopes = 1 if self.observation.get_observation_type() == 'SINGLE_DISH' else 2
+            # Asked. How many telescopes a scan needs is the observation's answer, and it was
+            # worked out here, in the scans tab, and in the scan's own activation rule.
+            min_telescopes = self.manipulator.inspect(self.observation,
+                                                      get_telescopes_a_scan_needs=None)
             return (active_telescopes >= min_telescopes and active_frequencies >= 1 and
                     (self.ui.chk_offsource.isChecked() or source_active))
         except Exception as e:
@@ -445,7 +461,9 @@ class ScanEditorDialog(QDialog):
             logger.error("No source selected")
             raise ValueError("A source must be selected unless OFF SOURCE is checked")
 
-        isactive = self._check_scan_conditions()
+        # The box, not the conditions again. It is only offered while the scan could be
+        # active, so a tick means the user chose it -- and so does the absence of one.
+        isactive = self.ui.chk_active.isChecked()
 
         scan_data = {
             "name": self.scan.name,

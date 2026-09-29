@@ -27,10 +27,10 @@ class SourceEditorDialog(QDialog):
         self.ui.fluxTable.setSelectionMode(QTableView.SingleSelection)
         self.ui.fluxTable.setSelectionBehavior(QTableView.SelectRows)
 
-        # The coordinate fields take their bounds and precision from the form. They were set here
-        # as well, to 59.999 seconds -- three places, so saving a source rounded a catalogue
-        # position to a millisecond of time whether or not anyone had touched it.
-        self.ui.spectralIndexEdit.setRange(-999, 999)
+        # The fields take their bounds and precision from the form. They were set here as
+        # well -- the coordinates to 59.999 seconds, three places, so saving a source rounded
+        # a catalogue position to a millisecond of time whether or not anyone had touched it,
+        # and the spectral index to the range the form already declares.
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -71,13 +71,23 @@ class SourceEditorDialog(QDialog):
         self.ui.deDEdit.setValue(abs(self.source_obj.de_d))
         self.ui.deMEdit.setValue(self.source_obj.de_m)
         self.ui.deSEdit.setValue(self.source_obj.de_s)
-        self.ui.spectralIndexEdit.setValue(self.source_obj.spectral_index or 0)
+        # **Zero is a spectrum, not the absence of one.** A flat spectrum is what most VLBI
+        # calibrators have, and the box read zero as "not given": opening such a source and
+        # saving it stored `None`, which is what stops a flux being reached at all outside
+        # the frequencies it was measured at. The box says "not measured" at its lowest value
+        # instead, so the two can be told apart in both directions.
+        self.ui.spectralIndexEdit.setValue(self.ui.spectralIndexEdit.minimum()
+                                           if self.source_obj.spectral_index is None
+                                           else self.source_obj.spectral_index)
         self.ui.isActiveCheckBox.setChecked(self.source_obj.isactive)
 
         self.model.removeRows(0, self.model.rowCount())
         for freq, flux in self.source_obj.flux_table.items():
-            freq_item = QStandardItem(f"{freq:.2f}")
-            flux_item = QStandardItem(f"{flux:.2f}")
+            # As measured. Shown to two places, the table *was* the source on the way back
+            # out: opening a source and pressing Save rewrote its spectrum, and a flux under
+            # five millijanskys became `0.00`, which this dialog then refused as not positive.
+            freq_item = QStandardItem(f"{freq:g}")
+            flux_item = QStandardItem(f"{flux:g}")
             freq_item.setEditable(True)
             flux_item.setEditable(True)
             self.model.appendRow([freq_item, flux_item])
@@ -142,7 +152,9 @@ class SourceEditorDialog(QDialog):
             "name_J2000": self.ui.nameJ2000Edit.text().strip() or None,
             "alt_name": self.ui.altNameEdit.text().strip() or None,
             "flux_table": flux_table,
-            "spectral_index": self.ui.spectralIndexEdit.value() if self.ui.spectralIndexEdit.value() != 0 else None,
+            "spectral_index": (None if self.ui.spectralIndexEdit.value()
+                               == self.ui.spectralIndexEdit.minimum()
+                               else self.ui.spectralIndexEdit.value()),
             "isactive": self.ui.isActiveCheckBox.isChecked()
         }
 

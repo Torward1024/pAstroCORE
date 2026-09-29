@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QDialog, QMessageBox
 from PySide6.QtCore import Signal, Slot
+from pastrocore.base.observation import OBSERVATION_TYPES
 from pastrocore.gui.ui_dialog_add_observation import Ui_AddObservationDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from msb_arch.utils.logging_setup import logger
@@ -21,8 +22,11 @@ class AddObservationDialog(QDialog):
         """Initialize the dialog with default settings."""
         self.setWindowTitle("Add Observation")
         
-        self.ui.combo_obs_type.addItems(["VLBI", "SINGLE_DISH"])
-        self.ui.combo_obs_type.setCurrentText("VLBI")
+        # From the model's own list. Written out here, a third kind of observation would need
+        # this line changed as well as the annotation that refuses everything else -- and this
+        # form could offer one the model would not take.
+        self.ui.combo_obs_type.addItems(list(OBSERVATION_TYPES))
+        self.ui.combo_obs_type.setCurrentText(OBSERVATION_TYPES[0])
         self.ui.obs_code.setText("OBS_DEFAULT")
 
         logger.debug("AddObservationDialog initialized")

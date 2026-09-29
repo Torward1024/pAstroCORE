@@ -5,7 +5,7 @@ from pastrocore.base.generation_plan import GenerationPlan
 from pastrocore.base.sources import Sources
 from pastrocore.base.telescopes import Telescopes
 from pastrocore.base.scans import Scan, Scans
-from pastrocore.base.observation import Observation
+from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from msb_arch.utils.logging_setup import logger
 from typing import Dict, Any
 from astropy.time import Time
@@ -142,7 +142,7 @@ class ScheduleConfigurator(Configurator):
             naming_mask = pattern.get("naming_mask", "OBS_{s}_{uuid}")
             progress_callback = attributes.get("progress_callback", None)
 
-            if observation_type not in ["VLBI", "SINGLE_DISH"]:
+            if observation_type not in OBSERVATION_TYPES:
                 logger.error("Invalid observation type: %s", observation_type)
                 return {"status": False, "error": f"Invalid observation type: {observation_type}", "result": []}
 

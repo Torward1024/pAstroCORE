@@ -108,7 +108,7 @@ class Scan(BaseEntity):
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         observation_type = observation.get_observation_type()
-        min_telescopes = 1 if observation_type == "SINGLE_DISH" else 2
+        min_telescopes = observation.get_telescopes_a_scan_needs()
         active_telescopes = [t for t in self.telescopes if t.isactive]
         active_frequencies = [f for f in self.frequencies if f.isactive]
         # **By name, not by value.** `self.source in observation.get_sources().get_items()`

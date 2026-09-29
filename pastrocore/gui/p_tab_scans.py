@@ -156,10 +156,15 @@ class ScansTab(QWidget):
                 missing_components.append("telescopes")
             else:
                 telescope_count = len(telescopes_items)
-                if obs_type == "VLBI" and telescope_count < 2:
-                    missing_components.append("at least 2 telescopes (required for VLBI)")
-                elif obs_type == "SINGLE_DISH" and telescope_count < 1:
-                    missing_components.append("at least 1 telescope (required for SINGLE_DISH)")
+                # Asked, and said once for whatever kind of observation it is: this was two
+                # branches naming two observation types and two numbers, which is the scan's
+                # own activation rule written a third time.
+                needed = self.manipulator.inspect(self.observation,
+                                                  get_telescopes_a_scan_needs=None)
+                if telescope_count < needed:
+                    missing_components.append(
+                        f"at least {needed} telescope{'s' if needed > 1 else ''} "
+                        f"(required for {obs_type})")
 
         frequencies = self.manipulator.inspect(self.observation, get_frequencies=None)
         if not frequencies:

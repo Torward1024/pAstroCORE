@@ -212,8 +212,8 @@
        <property name="maximum">
         <double>999.000000000000000</double>
        </property>
-       <property name="placeholderText" stdset="0">
-        <string>Enter spectral index (optional)</string>
+       <property name="specialValueText">
+        <string>not measured</string>
        </property>
       </widget>
      </item>

@@ -3,7 +3,7 @@ from PySide6.QtCore import Signal, Slot, QEvent
 from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.base.observation import Observation
+from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.p_custom_model import listening
 from .p_tab_frequencies import FrequenciesTab
@@ -167,11 +167,13 @@ class ObservationTab(QWidget):
                     break
 
             obs_type = self.manipulator.inspect(obj=self.observation, get="observation_type")
-            obs_type = obs_type if obs_type in ["VLBI", "SINGLE_DISH"] else "VLBI"
+            # The model's own list, in both places. Written out here, a third kind of
+            # observation would be shown as the first one and offered as neither.
+            obs_type = obs_type if obs_type in OBSERVATION_TYPES else OBSERVATION_TYPES[0]
             if self.ui.combo_obs_type.currentText() != obs_type:
                 self.ui.combo_obs_type.blockSignals(True)
                 self.ui.combo_obs_type.clear()
-                self.ui.combo_obs_type.addItems(["VLBI", "SINGLE_DISH"])
+                self.ui.combo_obs_type.addItems(list(OBSERVATION_TYPES))
                 self.ui.combo_obs_type.setCurrentText(obs_type)
                 self.ui.combo_obs_type.blockSignals(False)
 
