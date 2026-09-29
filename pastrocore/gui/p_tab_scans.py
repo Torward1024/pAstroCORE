@@ -211,7 +211,10 @@ class ScansTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to retrieve scan: No result returned")
                 return
             
-            dialog = ScanEditorDialog(self.observation, self.manipulator, scan=scan, parent=self)
+            # A copy, as the catalogue dialog hands its editor one: an editor writes what it
+            # shows into the object it was given, and this one is the observation's.
+            dialog = ScanEditorDialog(self.observation, self.manipulator, scan=scan.clone(),
+                                      parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
                     scan = dialog.get_scan_object()

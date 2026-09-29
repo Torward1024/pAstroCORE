@@ -177,7 +177,9 @@ class SourcesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to retrieve source: No result returned")
                 return
             
-            dialog = SourceEditorDialog(source_obj=source_obj, parent=self)
+            # A copy, as the catalogue dialog hands its editor one: an editor writes what it
+            # shows into the object it was given, and this one is the observation's.
+            dialog = SourceEditorDialog(source_obj=source_obj.clone(), parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
                     source = dialog.get_source_object()

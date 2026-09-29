@@ -316,11 +316,16 @@ class TelescopesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to retrieve telescope: No result returned")
                 return
             
-            if isinstance(telescope, SpaceTelescope):
-                dialog = SpaceTelescopeEditorDialog(telescope=telescope, parent=self)
+            # **A copy, as the catalogue dialog hands its editor one.** An editor writes what
+            # it shows into the object it was given, and the object here is the one the
+            # observation holds: an edit the model refuses part way through a group leaves
+            # the fields already written on it (G16), through Cancel and into a save.
+            working = telescope.clone()
+            if isinstance(working, SpaceTelescope):
+                dialog = SpaceTelescopeEditorDialog(telescope=working, parent=self)
             else:
-                dialog = TelescopeEditorDialog(telescope=telescope, parent=self)
-            
+                dialog = TelescopeEditorDialog(telescope=working, parent=self)
+
             if dialog.exec() == QDialog.Accepted:
                 try:
                     telescope = dialog.get_telescope_object()

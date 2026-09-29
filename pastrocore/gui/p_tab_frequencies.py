@@ -260,7 +260,9 @@ class FrequenciesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to retrieve frequency: No result returned")
                 return
             
-            dialog = IFEditorDialog(if_obj=if_obj, parent=self)
+            # A copy, as the catalogue dialog hands its editor one: an editor writes what it
+            # shows into the object it was given, and this one is the observation's.
+            dialog = IFEditorDialog(if_obj=if_obj.clone(), parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
                     updated_if = dialog.get_if_object()

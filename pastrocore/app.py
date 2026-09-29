@@ -340,6 +340,9 @@ class PAstroCoreMainWindow(QMainWindow):
             from pastrocore.gui.p_dialog_calculations import CalculationDialog
             dialog = CalculationDialog(self.manipulator, time_step=self.settings.get("time_step", 600), parent=self)
             dialog.time_step_updated.connect(self.handle_time_step_updated)
+            # Clearing results changes the project without running anything, and the explorer
+            # reads its staleness labels from the project.
+            dialog.project_changed.connect(self.project_updated)
             dialog.exec()
             # Kept so the report can be opened again. A run that ended twenty minutes ago is
             # exactly when somebody wants to know which step failed, and the answer used to be

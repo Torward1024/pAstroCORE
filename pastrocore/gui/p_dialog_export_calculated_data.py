@@ -5,6 +5,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_export_calculated_data import Ui_ExportCalculatedDataDialog
 from pastrocore.gui.p_dialog_progress import ProgressDialog, stop_and_wait
+from pastrocore.super.schedule_visualizer import UV_UNITS
 import os
 
 class ExportThread(QThread):
@@ -97,9 +98,14 @@ class ExportCalculatedDataDialog(QDialog):
         self.populate_calc_list()
         self.populate_targets()
         self.ui.lineEdit.setText(self.default_export_path)
-        self.ui.cmbUnits.addItems(["Wavelengths", "Earth Diameters"])
-        self.ui.cmbUnits.setCurrentText("Earth Diameters")  # Default
-        logger.debug("UV units combo box populated with Wavelengths and Earth Diameters")
+        # The visualizer's list, and its keys carried rather than a label lowercased into one.
+        # Spelled here, `Earth Diameters` became `earth_diameters` and the same choice in the
+        # visualization tab became `earth diameters`; the baseline plot labelled its axis with
+        # whichever of the two it was handed.
+        for key, unit in UV_UNITS.items():
+            self.ui.cmbUnits.addItem(unit["label"], key)
+        self.ui.cmbUnits.setCurrentIndex(self.ui.cmbUnits.findData("earth_diameters"))
+        logger.debug("UV units offered: %s", ", ".join(UV_UNITS))
         self.ui.selectAllCalcButton.clicked.connect(self.select_all_calcs)
         self.ui.clearAllCalcButton.clicked.connect(self.clear_all_calcs)
         self.ui.selectAllObsButton.clicked.connect(self.select_all_targets)
@@ -181,7 +187,7 @@ class ExportCalculatedDataDialog(QDialog):
         if not selected_calcs or not selected_targets or not export_path or not os.path.isdir(export_path):
             QMessageBox.warning(self, "Warning", "Please select calculations, targets, and a valid export path.")
             return
-        units = self.ui.cmbUnits.currentText().lower().replace(" ", "_")
+        units = self.ui.cmbUnits.currentData()
 
         self.progress_dialog = ProgressDialog(self, "Export Progress")
         self.progress_dialog.cancelRequested.connect(self.cancel_export)

@@ -326,6 +326,8 @@ def test_the_explorer_is_refreshed_after_a_run(qt_application, monkeypatch):
 
             def __init__(self, *args, **kwargs):
                 self.time_step_updated = _Signal()
+                # As the real dialog has: cleared results change the project without a run.
+                self.project_changed = _Signal()
 
             def exec(self):
                 return 1

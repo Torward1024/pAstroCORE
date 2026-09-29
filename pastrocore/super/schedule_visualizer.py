@@ -33,6 +33,39 @@ from erfa import ErfaWarning
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
+#: How a baseline may be measured: the key a request carries, what a person is offered for it,
+#: and what an axis is labelled with. Named once because two places offered it and spelled the
+#: same unit two ways -- `earth diameters` from the visualization tab and `earth_diameters`
+#: from the export dialog -- while the baseline plots put whichever string they were handed
+#: straight on the axis, so one plot came out labelled two different ways depending on which
+#: door it was drawn from.
+UV_UNITS = {"wavelengths": {"label": "Wavelengths", "axis": "wavelengths"},
+            "earth_diameters": {"label": "Earth Diameters", "axis": "xED"}}
+
+
+def uv_units(units: Any) -> str:
+    """Return the key a request's `units` names.
+
+    Args:
+        units: Whatever a caller sent, however it spelled it.
+
+    Returns:
+        str: A key of `UV_UNITS`; `wavelengths` for anything not recognised.
+
+    Notes:
+        - **Anything that was not wavelengths meant Earth diameters**, because that is what
+          `else` does: a misspelling, and a unit added later, were both drawn to the Earth's
+          diameter and labelled `xED`. An unrecognised unit is said out loud and falls back to
+          what the operation documents as its default.
+    """
+    key = str(units or "wavelengths").strip().lower().replace(" ", "_")
+    if key not in UV_UNITS:
+        logger.warning("No baseline unit called '%s'; drawing in wavelengths. There are: %s",
+                       units, ", ".join(UV_UNITS))
+        return "wavelengths"
+    return key
+
+
 class SkyMollweideAxes(MollweideAxes):
     """matplotlib's Mollweide axes, with an inverse that knows where the sky ends.
 
@@ -561,15 +594,15 @@ class ScheduleVisualizer(Super):
             source_name = attributes.get("source_name", None)
             scans = attributes.get("scans", [])
             frequencies = attributes.get("frequencies", [])
-            units = attributes.get("units", "wavelengths")
+            units = uv_units(attributes.get("units"))
 
             # Validate inputs
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
                 logger.debug("Missing required filters: source_name=%s, baselines=%s, scans=%s, frequencies=%s, returning empty plot", source_name, baselines, scans, frequencies)
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
-                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                    labels={"xlabel": f"u, ({UV_UNITS[units]['axis']})",
+                            "ylabel": f"v, ({UV_UNITS[units]['axis']})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -579,8 +612,8 @@ class ScheduleVisualizer(Super):
                 logger.debug("No UV data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
-                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                    labels={"xlabel": f"u, ({UV_UNITS[units]['axis']})",
+                            "ylabel": f"v, ({UV_UNITS[units]['axis']})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -599,8 +632,8 @@ class ScheduleVisualizer(Super):
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
-                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                    labels={"xlabel": f"u, ({UV_UNITS[units]['axis']})",
+                            "ylabel": f"v, ({UV_UNITS[units]['axis']})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -610,8 +643,8 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid frequencies provided, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
-                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                    labels={"xlabel": f"u, ({UV_UNITS[units]['axis']})",
+                            "ylabel": f"v, ({UV_UNITS[units]['axis']})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1696,13 +1729,13 @@ class ScheduleVisualizer(Super):
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
             frequencies = attributes.get("frequencies", [])
-            units = attributes.get("units", "wavelengths")
+            units = uv_units(attributes.get("units"))
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
                 logger.debug("Missing required filters: source_name=%s, baselines=%s, scans=%s, frequencies=%s, returning empty plot", source_name, baselines, scans, frequencies)
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({UV_UNITS[units]['axis']})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1711,7 +1744,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No baseline projection data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({UV_UNITS[units]['axis']})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1734,7 +1767,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({UV_UNITS[units]['axis']})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1743,7 +1776,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid frequencies provided, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({UV_UNITS[units]['axis']})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1831,7 +1864,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid data plotted, returning empty result")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({UV_UNITS[units]['axis']})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 

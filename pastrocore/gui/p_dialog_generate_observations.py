@@ -6,6 +6,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.base.frequencies import Frequencies
+from pastrocore.base.observation import OBSERVATION_TYPES
 from pastrocore.base.sources import Sources
 from pastrocore.base.telescopes import Telescopes
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
@@ -93,6 +94,12 @@ class GenerateObservationsDialog(QDialog):
         self.ui.telescopeList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.frequencyList.setContextMenuPolicy(Qt.CustomContextMenu)
         
+
+        # From the model's own list, replacing what the form was drawn with. The form carries
+        # the two so that it is not empty in Designer; a list in a form is a second place for
+        # the answer to live, and the two disagree the first time one changes.
+        self.ui.observationTypeCombo.clear()
+        self.ui.observationTypeCombo.addItems(list(OBSERVATION_TYPES))
 
         self.ui.namingMaskEdit.setText("Observation_{i}_{s}_{dt}")
 

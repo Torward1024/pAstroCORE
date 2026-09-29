@@ -6,6 +6,14 @@ from pastrocore.gui.ui_dialog_preferences import Ui_PreferencesDialog
 from msb_arch.utils.logging_setup import logger
 import os
 
+#: What the logging box offers, and what it falls back to. Said once: the list was written out
+#: to fill the box and written out again to check what came back, two lines from a comment
+#: saying the themes are the model's to name -- and the second copy guarded against a choice
+#: the box cannot offer.
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+DEFAULT_LOG_LEVEL = "INFO"
+
+
 class PreferencesDialog(QDialog):
     """Dialog for configuring application settings, such as catalog paths, logging level, time step, and log clearing."""
     settings_updated = Signal(dict, list)
@@ -34,14 +42,14 @@ class PreferencesDialog(QDialog):
         self.ui.chkClearLog.setChecked(self.settings.get("clear_log_on_start", False))
         self.ui.sourcesCatalogPath.setReadOnly(True)
         self.ui.telescopesCatalogPath.setReadOnly(True)
-        log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        self.ui.comboLogging.addItems(log_levels)
-        current_log_level = self.settings.get("log_level", "INFO")
-        if current_log_level in log_levels:
+        self.ui.comboLogging.addItems(list(LOG_LEVELS))
+        current_log_level = self.settings.get("log_level", DEFAULT_LOG_LEVEL)
+        if current_log_level in LOG_LEVELS:
             self.ui.comboLogging.setCurrentText(current_log_level)
         else:
-            self.ui.comboLogging.setCurrentText("INFO")
-            logger.warning("Invalid log level in settings: %s. Defaulting to INFO.", current_log_level)
+            self.ui.comboLogging.setCurrentText(DEFAULT_LOG_LEVEL)
+            logger.warning("Invalid log level in settings: %s. Defaulting to %s.",
+                           current_log_level, DEFAULT_LOG_LEVEL)
 
         self.ui.resultsMemorySpin.setValue(int(round(
             float(self.settings.get("results_memory_share", 0.5)) * 100)))
@@ -95,10 +103,6 @@ class PreferencesDialog(QDialog):
         if telescopes_path and not os.path.isfile(telescopes_path):
             logger.error("Invalid telescopes catalog path: %s", telescopes_path)
             QMessageBox.critical(self, "Error", "Telescopes catalog file does not exist.")
-            return
-        if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-            logger.error("Invalid log level selected: %s", log_level)
-            QMessageBox.critical(self, "Error", "Invalid logging level selected.")
             return
         if time_step < 1:
             logger.error("Invalid time step value: %s. Must be positive.", time_step)

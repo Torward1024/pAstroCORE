@@ -81,6 +81,11 @@ class CalculationThread(QThread):
 class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
     time_step_updated = Signal(int)
+    #: What the project holds has changed without a run: results were cleared. The explorer's
+    #: staleness labels are read from the project, and after a run the window refreshes them
+    #: for exactly this reason -- after a clear it heard nothing and went on listing results
+    #: that were gone.
+    project_changed = Signal()
 
     def done(self, result):
         """Close, but never ahead of the work this dialog started."""
@@ -262,20 +267,25 @@ class CalculationDialog(QDialog):
         logger.debug("All target selections cleared.")
 
     def handle_calc_selection(self, item):
-        """Handle changes in calculation selection, including dependencies."""
-        if item.checkState() != Qt.Checked:
-            return
-        dependencies = item.data(Qt.UserRole)
-        if not dependencies:
-            return
-        # Compared on the key: `requires` names results, the list shows labels. A prerequisite
-        # that is not offered -- a step nobody asks for by name -- is not in the list at all,
-        # and the backend adds it to the plan anyway.
-        logger.debug("Ticking what %s needs: %s", item.data(Qt.UserRole + 1), dependencies)
-        for index in range(self.ui.calcList.count()):
-            other = self.ui.calcList.item(index)
-            if other.data(Qt.UserRole + 1) in dependencies:
-                other.setCheckState(Qt.Checked)
+        """Tick what a ticked calculation needs, and offer what the selection takes.
+
+        Notes:
+            - **The refresh happens whatever changed.** It used to be the last line of the
+              branch that ticks prerequisites, so it ran only when a calculation *with*
+              prerequisites was *ticked*. Unticking one, or ticking one that needs nothing,
+              left the boxes as they were: Clear All offered a detection threshold, an air
+              temperature and a set of gain curves with no calculation selected at all.
+        """
+        dependencies = item.data(Qt.UserRole) if item.checkState() == Qt.Checked else None
+        if dependencies:
+            # Compared on the key: `requires` names results, the list shows labels. A
+            # prerequisite that is not offered -- a step nobody asks for by name -- is not in
+            # the list at all, and the backend adds it to the plan anyway.
+            logger.debug("Ticking what %s needs: %s", item.data(Qt.UserRole + 1), dependencies)
+            for index in range(self.ui.calcList.count()):
+                other = self.ui.calcList.item(index)
+                if other.data(Qt.UserRole + 1) in dependencies:
+                    other.setCheckState(Qt.Checked)
         self.update_params_ui()
 
     def setup_sensitivity(self):
@@ -479,22 +489,46 @@ class CalculationDialog(QDialog):
         logger.debug("Loaded time_step=%s into timeStepSpin", self.time_step)
     
     def clear_selected_data(self):
-        """Clear calculated data for selected observations."""
+        """Throw away the results of the selected observations, once asked.
+
+        Notes:
+            - **It asks now.** A day of calculation went on one click, and what the user was
+              told afterwards was "Success". Everything else in this application that throws
+              something away asks first -- an observation, a catalogue entry, the results a
+              project is closed on -- and this was the one door that did not.
+            - And it says so afterwards. The explorer's staleness labels are read from the
+              project, and the window refreshes them after a *run* because "the label that
+              sent the user here to recompute survived the recomputation". A clear changes
+              the same thing and said nothing, so the explorer went on listing results that
+              were gone until something else happened to refresh it.
+        """
         selected_targets = [
             self.ui.targetList.item(i).data(Qt.UserRole)
             for i in range(self.ui.targetList.count())
             if self.ui.targetList.item(i).checkState() == Qt.Checked
         ]
-        
+
         if not selected_targets:
             QMessageBox.warning(self, "Warning", "No observations selected for clearing data.")
             logger.warning("Attempted to clear data with no observations selected.")
+            return
+
+        holding = sum(len(target.calculated_data) for target in selected_targets)
+        what = (f"{holding} result(s) of {len(selected_targets)} observation(s)" if holding
+                else f"{len(selected_targets)} observation(s), which hold no results")
+        if QMessageBox.question(
+                self, "Throw away the results?",
+                f"This discards {what}.\n\nThey have to be calculated again.",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            logger.info("Clearing the results of %s observation(s) cancelled",
+                        len(selected_targets))
             return
 
         try:
             outcome = self.manipulator.compute(obj=None, method="clear",
                                                targets=selected_targets)
             cleared = len(outcome.get("cleared", selected_targets))
+            self.project_changed.emit()
             QMessageBox.information(self, "Success",
                                     f"Cleared the results of {cleared} observation(s).")
         except Exception as e:

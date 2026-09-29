@@ -8,6 +8,7 @@ from msb_arch.utils.logging_setup import logger
 
 from pastrocore.gui.p_tab_vis_base import VisualizationTab
 from pastrocore.gui.ui_tab_vis_uv_coverage import Ui_UVCoverageVisTab
+from pastrocore.super.schedule_visualizer import UV_UNITS
 
 
 class BaselineVisualizationTab(VisualizationTab):
@@ -24,8 +25,10 @@ class BaselineVisualizationTab(VisualizationTab):
     FORM = Ui_UVCoverageVisTab
     FILTERS = ("source_name", "baseline")
 
-    #: The units offered, and what the visualizer calls each.
-    UNITS = ("Wavelengths", "Earth Diameters")
+    #: The units offered are the visualizer's to name. This held its own pair, spelled for a
+    #: reader and lowercased on the way out -- so what reached the request was `earth
+    #: diameters` from here and `earth_diameters` from the export dialog, and the baseline
+    #: plot put whichever it was handed on its own axis.
 
     def _filter_signals(self):
         """This form's widgets, by the names it gives them."""
@@ -57,7 +60,8 @@ class BaselineVisualizationTab(VisualizationTab):
             item.setCheckState(Qt.Checked)
             self.ui.listFrequencies.addItem(item)
 
-        self.ui.comboBox_2.addItems(list(self.UNITS))
+        for key, unit in UV_UNITS.items():
+            self.ui.comboBox_2.addItem(unit["label"], key)
 
     def _frequencies(self) -> List[float]:
         """The observation's frequencies, in MHz."""
@@ -80,7 +84,7 @@ class BaselineVisualizationTab(VisualizationTab):
         return self._checked(self.ui.listFrequencies, Qt.UserRole)
 
     def get_selected_units(self) -> Optional[str]:
-        return self.ui.comboBox_2.currentText().lower() or None
+        return self.ui.comboBox_2.currentData()
 
     def _first_draw(self):
         if self.ui.comboBox.count() > 0:
