@@ -8,6 +8,159 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [Unreleased]
+
+A3, the fifth audit: every module in `pastrocore/` read once against what it is *for*. Twelve
+passes over eight days -- the entities, where results are kept, the calculator, the other
+Supers, the two formats, the visualizer, the command line, and the interface in five -- and
+sixty-eight findings, each ending in a fix, a test that would have caught it, or a line in the
+roadmap saying why it stands. Seventy-six tests were added, three files of them new; the suite
+is 1 427 passing and 19 skipped.
+
+Recalculate any project holding results for a spacecraft placed by Keplerian elements, or for
+a station on an equatorial mount.
+
+### Fixed
+
+#### What was computed
+
+- **A spacecraft placed by Keplerian elements stood in the wrong place.** The editor asks for a
+  true anomaly and the propagation carried it forward as if it were a mean one. They are the
+  same number only on a circle: at e = 0.6 and nu = 90 degrees the spacecraft was 32 960 km from
+  where its own elements put it, at the epoch itself, before any time had passed -- and 48 000 km
+  at the RadioAstron eccentricity. The one Keplerian test in the suite used e = 0.01, where the
+  two agree to a degree. Converted through the eccentric anomaly, and checked at four
+  eccentricities against the equations written out in the test.
+- **An equatorial mount could not see the sky before transit.** An hour angle runs -180 to 180
+  and a telescope is created with limits of 0 to 360; read as a straight interval, every sample
+  before transit fell outside them. A station observing entirely before transit saw nothing. The
+  limits are an arc on a circle, and are read that way for the azimuth too.
+- **A stored result was handed back for another question.** The rule that a parameter is part of
+  the question was written three times, and the next calculation to take a parameter would have
+  had none of it. One rule now, over the parameters each result declares it records.
+- **A copy answered to another object's name**, so its results were looked up under a name
+  something else already holds; and a fingerprint read `name` and `type`, so renaming or copying
+  a collection made every result stale although nothing it was computed from had changed.
+- **A valid ephemeris was refused.** A CCSDS OEM line may carry an acceleration after the
+  velocity; every line was required to have exactly seven fields, so such a file came back as
+  "must contain at least 2 data points" -- the complaint about its length rather than its columns.
+- **A beam pattern was refused when no source was active**, and said "No active telescopes",
+  which was neither the reason nor true. A dish's beam is the dish.
+- **Clearing results said it had done so when it had not**, a result whose times were all missing
+  was lost whole rather than losing the two entries describing it, and the residency budget held
+  each owner strongly -- so an observation removed from a project kept its results in memory for
+  the rest of the session.
+- **A spacecraft placed by Keplerian elements could be saved and not loaded**: the epoch came
+  back as a string and was handed on unparsed.
+
+#### What was written out
+
+- **Packing a project took its results away from the sender.** A package is written by saving
+  the project into a temporary directory, and a save moves the project in. A project opened with
+  eleven results had none the moment it was packed; an unsaved one lost them outright.
+- **What a reader could not read, it dropped in silence.** A VEX station with no position, a
+  source with no coordinates, a scan with no start; the same in CFX. Each was a bare `continue`,
+  so a file came in with fewer stations, sources or scans than it holds and the report called it
+  a clean read. Each is named now -- as is a scan reduced by stations, bands or a source the file
+  never defines, and a length the file does not state.
+- **A scan shorter than a second was written as no scan at all.** Both writers rounded to whole
+  seconds, so four tenths went to a correlator as `0 sec`.
+- **`Time Arrays` could not be exported**, because its handler's name and its store key differ;
+  ticking everything in the export dialog wrote every file but that one, with the reason at debug
+  level. The same mistake told a dialog an observation did not hold a result it was holding.
+- **Three files were written in place** -- a session, a schedule and the settings -- each of them
+  a file that a write interrupted part way leaves unreadable. Beside and moved over, like
+  everything else this application writes.
+- **A catalogue saved by an editor that writes a byte order mark came back empty.** Three bytes
+  before the first brace, and the reader -- which decides JSON by that brace -- read the whole
+  file as the old `.dat` format and answered with no sources at all. Every file a person may have
+  written is read with `utf-8-sig` now.
+
+#### What was drawn
+
+- **The resolution a caller asked for was ignored.** The save that honoured `dpi` was behind a
+  status a plot handler has never set, so asking for 300 gave the same 727x463 image. A plot for
+  a paper can be got out of this application now.
+- **A baseline in Earth diameters grew with the frequency.** Both baseline plots divided by the
+  wavelength and then by the Earth's diameter *in wavelengths at the lowest frequency drawn*, so
+  the same baseline came out twice as long at twice the frequency.
+- **A position was written north of the equator by the table that shows it.** The sources tab
+  took the sign from `de_d >= 0`, true of the `-0.0` every source between -1 and 0 degrees
+  carries; it rounded seconds apart from their minutes, so 59.97 read `:60.0`; and it printed
+  them three digits wide -- `12:34:012.3`. The source answers all three, and the catalogue dialog
+  was already asking it.
+- **An export named pictures it did not draw**, and two forced collections in the drawing path
+  cost 2.34 s against 0.90 s over eighteen plots to save nothing measurable.
+
+#### What the window did
+
+- **Replacing a project asked about unsaved results at one door of four.** New Project, Open and
+  the recent list each replaced it without a word; an hour of calculation left the window in
+  silence. All four ask now.
+- **"Clr" discarded every result of every selected observation on one click**, said "Success"
+  afterwards, and told the window nothing -- so the explorer went on listing results that were
+  gone.
+- **Renaming an observation onto a code another one carries was accepted, saved, and refused on
+  the way back in** by the rule that had not run. The file could not be opened again. The rename
+  belongs to the project now, because the rule does.
+- **The search boxes took a pattern rather than a name.** 801 of the 1 633 names in the shipped
+  source catalogue hold a `+`, which in a regular expression is not a plus: searching for a
+  source by the name it was copied from found nothing, and an unclosed bracket emptied the table.
+- **Moving a scan's start changed how long it is.** Correcting a start by an hour took an hour
+  off the scan; correcting it by more than the scan lasts left a scan of one second.
+- **"Active in this observation" was asked and ignored** -- the saved value was recomputed, so a
+  scan unticked came back active.
+- **The two station editors wrote before they checked**, so a code the form itself rejects was
+  already on the station the observation holds, through the refusal, through Cancel, and into a
+  written schedule. All four editors are handed a copy now, as the catalogue dialog's already was.
+- **The source editor rewrote a spectrum on every save.** The flux table was shown to two decimal
+  places and read back from what was shown, and anything under five millijanskys became `0.00`,
+  which the dialog then refused as not positive. A spectral index of zero -- a flat spectrum,
+  which is what most VLBI calibrators have -- was stored as "not measured".
+- **Closing an observation tab put a `NoneType` error in front of the user** instead of closing,
+  and the four tabs it holds were destroyed without being told to let go of the observation, the
+  orchestrator and the project.
+- **A project opened from a package was drawn in the light palette** whatever the theme.
+
+### Added
+
+- **`ScheduleProject.set_observation_code`**, which is how an observation is renamed: the rule
+  that no two may share a code is the project's, and a rename is the one change to what it holds
+  that msb_arch does not re-check.
+- **`Observation.get_telescopes_a_scan_needs`**, **`OBSERVATION_TYPES`** in the interface, and
+  **`UV_UNITS`** in the visualizer -- three answers that were written out in three, eight and two
+  places respectively, one of them in a form.
+- **Seventy-six tests**, including three new files: the editors, the operation dialogs and the
+  project tab, none of which had any. Among them a Keplerian orbit checked against its own
+  equations at four eccentricities, a baseline checked against the geometry at two frequencies,
+  and eleven visualization tabs checked for something actually being on their axes.
+- A convention test apiece for: a search box that filters on a pattern, an observation type
+  written out rather than asked for, a private call to a method nothing defines, an example in a
+  docstring that does not import, and a comment in a second language.
+
+### Changed
+
+- **`BaseEntity` and the containers came from msb_arch 3.1.0**, which is where the rule that a
+  name is an identity now lives, so this project carries no code for it.
+- **The interface asks where it used to list.** The observation types, how many telescopes a scan
+  needs, the units a baseline is measured in, the analyses on offer and the logging levels were
+  each written out in the interface; all five are the backend's answer now, and a sixth -- the
+  calculations -- was already.
+- **Nine visualization tabs share one `update_visualization` again.** Three carried a copy of it
+  that differed in one line, because the declaration of what counts as drawn could name only one
+  field. It names as many as the plot answers with.
+- **A calculation removed from the selection stops being offered its parameters.** The refresh
+  ran only when a calculation with prerequisites was ticked, so Clear All left a detection
+  threshold offered to nothing.
+
+### Standing
+
+Four findings are decisions rather than defects, and are written into
+[`docs/ROADMAP.md`](docs/ROADMAP.md) with what each would take: **E2**, what an equatorial mount
+is limited in, where the SEFD track cuts and what `$ANTENNA` writes; **G14**, what a plot shows
+when it has nothing to show; **G15**, a rule about what a container holds when a held item
+changes; **G16**, a write of several fields that one of them refuses.
+
 ## [1.16.0] - 2026-09-21
 
 U1: one palette, two themes, and no element left in the platform's default.
