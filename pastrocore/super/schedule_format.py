@@ -154,7 +154,7 @@ class ScheduleFormat(Super):
         from pastrocore.formats import build_observation
 
         source = Path(path)
-        read = reader(source.read_text(encoding="utf-8", errors="replace"), source=str(source))
+        read = reader(source.read_text(encoding="utf-8-sig", errors="replace"), source=str(source))
         observation, refused, reduced = build_observation(read, code=attributes.get("code"))
         obj.add_item(observation)
 

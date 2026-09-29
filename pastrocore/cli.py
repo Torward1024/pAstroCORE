@@ -199,7 +199,20 @@ def _slice(pairs: Optional[List[str]]) -> dict:
         - `a=b` is a value, `a=b,c` is a set of them, and `a=x:y` is a range with either end
           allowed to be empty. Nothing here knows which columns exist -- the analyzer refuses
           one it does not have, and `analyze describe` is what lists them.
+        - **An end of a range is handed over as it was typed when it is not a number.** A
+          moment is stored as an MJD and written by people as a date, and the analyzer reads
+          both -- that conversion is the model's. `float()` here refused a date with a
+          traceback instead of the refusal every other mistake gets.
     """
+    def end(text: str):
+        text = text.strip()
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return text
+
     where = {}
     for pair in pairs or []:
         if "=" not in pair:
@@ -207,8 +220,7 @@ def _slice(pairs: Optional[List[str]]) -> dict:
         column, value = pair.split("=", 1)
         if ":" in value:
             low, _, high = value.partition(":")
-            where[column] = {"from": float(low) if low else None,
-                             "to": float(high) if high else None}
+            where[column] = {"from": end(low), "to": end(high)}
         elif "," in value:
             where[column] = value.split(",")
         else:

@@ -1372,3 +1372,40 @@ def test_every_inspect_names_only_reads():
 
     assert not offenders, ("inspect asked for something that is not a read -- a change is asked "
                            "of configure:\n  " + "\n  ".join(offenders))
+
+
+def test_every_file_this_application_reads_tolerates_a_byte_order_mark():
+    """A catalogue, a session, a settings file, a stylesheet and a schedule are all files a
+    person may have written -- and a Windows editor offers "UTF-8 with BOM" for every one.
+
+    Three bytes before the first character, and `encoding="utf-8"` keeps them: the catalogue
+    reader decided a file is JSON by whether it starts with a brace, so a catalogue saved that
+    way came back with no sources at all. `utf-8-sig` reads a file without a mark exactly as
+    `utf-8` does, so it is what everything is read with.
+    """
+    offenders = {}
+    for path in source_files():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if 'read_text(encoding="utf-8"' in line or "read_text(encoding='utf-8'" in line:
+                offenders.setdefault(path.relative_to(ROOT).as_posix(), []).append(number)
+
+    assert not offenders, f"read with utf-8 rather than utf-8-sig: {offenders}"
+
+
+def test_the_code_is_written_in_one_language():
+    """The forms are checked for look-alike letters already; the code was not checked at all.
+
+    One comment was left in Russian -- `# Скорости не указаны в каталоге` -- which is a sentence
+    half the people who read this file cannot read, in a place a translation cannot reach. The
+    interface is translated; the code is English.
+    """
+    import re
+
+    cyrillic = re.compile(r"[Ѐ-ӿ]")
+    found = {}
+    for path in source_files():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if cyrillic.search(line):
+                found.setdefault(path.relative_to(ROOT).as_posix(), []).append(number)
+
+    assert not found, f"Cyrillic in the source: {found}"

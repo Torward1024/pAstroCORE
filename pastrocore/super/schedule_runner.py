@@ -325,7 +325,7 @@ class RunQuestions:
         if steps is None and not path:
             raise ValueError("No 'path' or 'steps' given; there is no session to work on")
         if steps is None:
-            document = json.loads(Path(path).read_text(encoding="utf-8"))
+            document = json.loads(Path(path).read_text(encoding="utf-8-sig"))
             if not isinstance(document, dict) or "steps" not in document:
                 raise ValueError(f"'{path}' is not a session: it has no 'steps'")
             steps = document["steps"]

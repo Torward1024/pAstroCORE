@@ -85,7 +85,7 @@ def load_stylesheet(choice: str = "system", system_is_dark: bool = False) -> str
     theirs = user_stylesheet_path()
     try:
         if theirs.is_file():
-            text = theirs.read_text(encoding="utf-8")
+            text = theirs.read_text(encoding="utf-8-sig")
             logger.info("Styling from '%s' (%s lines)", theirs, len(text.splitlines()))
             return text
     except Exception as e:                              # noqa: BLE001 - appearance is not fatal

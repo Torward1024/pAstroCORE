@@ -42,10 +42,16 @@ def split(line: str) -> List[str]:
     Notes:
         - A backslash is kept as it is: on Windows it is how a path is written, and a shell's
           escape character would have turned `C:\\data\\re03fr.vex` into `C:datare03fr.vex`.
+        - **`#` is an address, not a comment.** `OBS001/scans/#3` is how a person names the
+          third scan -- a scan's own name is a UUID -- and the shell prints that syntax in its
+          own help, while a POSIX lexer dropped everything from the `#` onwards: the line
+          arrived as `inspect OBS001/scans/` and answered about the container. A request is
+          data; there is nothing in it for a comment to be.
     """
     lexer = shlex.shlex(line, posix=True)
     lexer.whitespace_split = True
     lexer.escape = ""
+    lexer.commenters = ""
     return list(lexer)
 
 

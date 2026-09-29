@@ -207,3 +207,30 @@ def test_a_command_that_saves_refuses_a_package_before_it_calculates(saved, tmp_
     assert "Calculated" not in printed and "calculation(s) in" not in printed, (
         "it calculated before refusing")
     assert package.read_bytes() == before
+
+
+def test_a_filter_can_name_a_moment_the_way_a_person_writes_one(saved, capsys):
+    """`--where time=<from>:<to>` took two floats and nothing else.
+
+    A moment is stored as an MJD and written by people as a date, and the analyzer already
+    reads both -- that conversion is the model's, and the window hands it what a calendar gave.
+    From the command line a date raised `ValueError: could not convert string to float`, with a
+    traceback rather than the refusal every other mistake here gets.
+    """
+    from astropy.time import Time
+
+    from pastrocore.cli import _slice
+
+    project = ScheduleProject.open(str(saved))
+    observation = project.get_observations()[0]
+    times = observation.get_calculated_data_by_key("az_el")["data"]["time"]
+    first, last = float(times.min()), float(times.max())
+    day = Time(first, format="mjd").isot.split("T")[0]
+
+    assert _slice([f"time={day}:{Time(last, format='mjd').isot.split('T')[0]}"]) == {
+        "time": {"from": day, "to": Time(last, format="mjd").isot.split("T")[0]}}
+
+    code, printed = run("analyze", saved, "describe", "--key", "az_el",
+                        "--where", f"time={day}:", capsys=capsys)
+    assert code == 0, printed
+    assert "el" in printed

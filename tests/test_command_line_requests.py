@@ -295,3 +295,23 @@ def test_what_the_shell_did_is_a_script_that_replays(shell, saved, tmp_path, cap
     assert code == 0, printed
     reopened = ScheduleProject.open(str(saved))
     assert reopened.get_observations()[0].get_sources().get("1228+126").isactive is False
+
+
+def test_the_shell_can_type_the_address_its_own_help_advertises(shell):
+    """`OBS001/scans/#3` is how a person names the third scan, and the shell's help prints it.
+
+    The splitter read `#` as the start of a comment, as a POSIX shell does, so everything from
+    there was dropped: `inspect OBS_DEFAULT/scans/#3 get` arrived as
+    `inspect OBS_DEFAULT/scans/` and answered with a list of the container's methods. The one
+    address a person cannot avoid -- a scan's name is a UUID -- was the one that could not be
+    typed. A request is data, not a shell script; there are no comments in it.
+    """
+    from pastrocore.cli_request import split
+
+    assert "#3" in shell.help([]), "the help offers an address by position"
+    assert split("inspect OBS_DEFAULT/scans/#3 get") == [
+        "inspect", "OBS_DEFAULT/scans/#3", "get"]
+
+    said = shell.handle("inspect OBS_DEFAULT/scans/#1 get_start")
+    assert "Traceback" not in said and "has no method" not in said, said
+    assert said.strip(), "the first scan answered nothing"

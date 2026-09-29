@@ -277,7 +277,7 @@ class ScratchSpace:
             except OSError:
                 continue
             try:
-                owner = json.loads((candidate / MARKER).read_text(encoding="utf-8")).get("pid", 0)
+                owner = json.loads((candidate / MARKER).read_text(encoding="utf-8-sig")).get("pid", 0)
             except (OSError, ValueError):
                 continue
             if not asked:
@@ -327,7 +327,7 @@ class ScratchSpace:
                 continue
 
             try:
-                data = json.loads(marker.read_text(encoding="utf-8"))
+                data = json.loads(marker.read_text(encoding="utf-8-sig"))
             except (OSError, ValueError):
                 logger.debug("Ignoring '%s': its session marker cannot be read", candidate)
                 continue

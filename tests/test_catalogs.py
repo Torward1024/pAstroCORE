@@ -93,3 +93,29 @@ def test_a_telescope_line_without_a_diameter_is_skipped(tmp_path):
     catalogs = CatalogManager(telescope_file=str(catalog))
 
     assert [t.get_code() for t in catalogs.telescope_catalog.get_items()] == ["Sv"]
+
+
+def test_a_catalogue_saved_by_an_editor_that_writes_a_byte_order_mark_still_loads(tmp_path):
+    """A catalogue is the file this application invites a person to edit, and a Windows editor
+    offers to save it as "UTF-8 with BOM".
+
+    Three bytes at the front, and the reader decided a file is JSON by whether it starts with a
+    brace: it read the whole catalogue as the old `.dat` format instead, matched nothing, and
+    came back with **no sources at all** -- which looks like the catalogue was lost rather than
+    like a file that was saved in a different encoding.
+    """
+    from pastrocore.paths import shipped_catalog
+    from pastrocore.utils.catalogmanager import CatalogManager
+
+    text = shipped_catalog("sources.json").read_text(encoding="utf-8")
+    plain, marked = tmp_path / "plain.json", tmp_path / "marked.json"
+    plain.write_text(text, encoding="utf-8")
+    marked.write_text(text, encoding="utf-8-sig")
+    assert marked.read_bytes().startswith(b"\xef\xbb\xbf")
+
+    expected = CatalogManager()
+    expected.load("sources", str(plain))
+    read = CatalogManager()
+    read.load("sources", str(marked))
+
+    assert len(read.catalog("sources")) == len(expected.catalog("sources")) > 0

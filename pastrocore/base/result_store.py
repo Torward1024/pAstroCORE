@@ -216,7 +216,7 @@ class ResultStore:
         _, metadata_path = self._paths(owner, key)
         if not metadata_path.is_file():
             return None
-        return json.loads(metadata_path.read_text(encoding="utf-8"))
+        return json.loads(metadata_path.read_text(encoding="utf-8-sig"))
 
     def rename_owner(self, old: str, new: str) -> None:
         """Move an owner's results to a new name, so a rename does not strand them.
@@ -267,7 +267,7 @@ class ResultStore:
         if not data_path.is_file():
             raise KeyError(f"no stored result '{key}' for '{owner}'")
         frame = pl.read_parquet(data_path)
-        metadata = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else {}
+        metadata = json.loads(meta_path.read_text(encoding="utf-8-sig")) if meta_path.is_file() else {}
         logger.debug("Read result '%s' for '%s': %s rows", key, owner, frame.height)
         return {"data": frame, "metadata": metadata}
 

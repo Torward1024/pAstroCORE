@@ -747,7 +747,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
         if source is not None:
             try:
-                default_settings.update(json.loads(source.read_text(encoding="utf-8")))
+                default_settings.update(json.loads(source.read_text(encoding="utf-8-sig")))
                 logger.info("Settings loaded from '%s'", source)
                 if source is left_behind:
                     PAstroCoreMainWindow._write_settings(default_settings)

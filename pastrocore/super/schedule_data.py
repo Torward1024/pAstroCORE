@@ -449,7 +449,7 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         from pastrocore.base.telescope import Telescope
 
         path = self._destination(attributes, verb="load")
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
         # The same handler is reached whether a telescope is being imported *into* a container
         # or the container itself is being read back, because MSB resolves on the type of the
@@ -523,7 +523,7 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         from pastrocore.base.generation_plan import GenerationPlan
 
         path = self._destination(attributes, verb="load")
-        held = json.loads(Path(path).read_text(encoding="utf-8"))
+        held = json.loads(Path(path).read_text(encoding="utf-8-sig"))
         if not isinstance(held, dict):
             raise ValueError(f"'{path}' does not hold a generation plan")
         logger.info("Read a generation plan from '%s'", path)

@@ -408,7 +408,7 @@ class ScheduleProject(Project):
         if not model_path.is_file():
             raise IOError(f"'{path}' is not a project directory: no {cls.MODEL_FILE}")
 
-        project = cls.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        project = cls.from_dict(json.loads(model_path.read_text(encoding="utf-8-sig")))
         store = ResultStore(root / cls.RESULTS_DIRECTORY)
         for observation in project._items.get_items():
             if hasattr(observation.calculated_data, "attach"):

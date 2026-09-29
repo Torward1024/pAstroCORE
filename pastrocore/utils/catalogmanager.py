@@ -201,8 +201,19 @@ class CatalogManager:
 
     @staticmethod
     def _read(path: str) -> str:
+        """Read a catalogue, tolerating the byte order mark a Windows editor puts in front.
+
+        Notes:
+            - **A catalogue is the file this application invites a person to edit**, and an
+              editor offering "UTF-8 with BOM" adds three bytes before the first brace. JSON or
+              not is decided by that brace, so such a file was read as the old `.dat` format,
+              matched nothing, and came back as no sources at all -- which looks like the
+              catalogue was lost rather than like a file saved in another encoding.
+            - `utf-8-sig` reads a file without one exactly as `utf-8` does, so this is the
+              encoding every file a person may have written is read with.
+        """
         try:
-            return Path(path).read_text(encoding="utf-8")
+            return Path(path).read_text(encoding="utf-8-sig")
         except FileNotFoundError:
             raise FileNotFoundError(f"Catalog file '{path}' not found!")
 
@@ -377,7 +388,7 @@ class CatalogManager:
                 number, short_name, full_name = parts[0], parts[1], parts[2]
                 x, y, z = map(float, parts[3:6])
                 diameter = float(parts[6])
-                vx, vy, vz = 0.0, 0.0, 0.0  # Скорости не указаны в каталоге
+                vx, vy, vz = 0.0, 0.0, 0.0      # the `.dat` format states no plate motion
 
                 catalogue.add(Telescope(
                     code=short_name,
