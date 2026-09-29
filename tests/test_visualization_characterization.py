@@ -675,3 +675,28 @@ def test_beam_panels_names_labels_and_legend_do_not_overlap(manipulator, observa
         for label in (figure._suptitle, figure._supxlabel, figure._supylabel):
             assert not overlap(label.get_window_extent(renderer), panel), \
                 f"'{label.get_text()}' lies over {name.get_text()}"
+
+
+
+def test_a_plot_is_saved_at_the_resolution_that_was_asked_for(manipulator, observation, tmp_path):
+    """`dpi` was documented, passed, and ignored: asking for 300 gave the same 76-dpi picture.
+
+    Two places saved the file. The one that honoured `dpi` was behind `result.get("status")`,
+    and no plot handler has ever set a `status` -- they answer with what they drew -- so that
+    branch never ran, and the save that did run used the style's own resolution. A plot for a
+    paper could not be got out of this application at all.
+    """
+    from PIL import Image
+
+    sizes = {}
+    for dpi in (76, 200):
+        target = tmp_path / f"uv{dpi}.png"
+        answer = manipulator.visualize(obj=observation, plot_type="uv_coverage", show=False,
+                                       output_file=str(target), dpi=dpi, raise_on_error=False,
+                                       **filters_for(observation))
+        assert answer.ok, answer.error
+        with Image.open(target) as image:
+            sizes[dpi] = image.size
+            assert round(image.info["dpi"][0]) == dpi, f"asked for {dpi}, the file says {image.info['dpi']}"
+
+    assert sizes[200][0] > sizes[76][0], "the same picture came out at both resolutions"

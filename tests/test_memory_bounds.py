@@ -170,3 +170,34 @@ def test_a_plot_request_pins_nothing_it_was_given(qt_application, drawn):
         pytest.skip("this orchestrator records nothing")
     held = journal.entries[-1]["attributes"].get("figure")
     assert not isinstance(held, Figure), "the journal is holding the figure it was told about"
+
+
+def test_drawing_forces_no_collection_of_its_own(drawn, tmp_path):
+    """The nine tabs each called `gc.collect(2)` on every redraw and dropped it when it was
+    measured: 1.4 MB saved of 90, and 14.60 s against 6.92 s over sixty redraws.
+
+    Two of them stayed in the operation underneath -- one after saving a plot to a file, one
+    whenever there was nothing to draw. Measured the same way: eighteen plots in 2.34 s against
+    0.90 s, and the memory they were holding down settles on its own within 6 MB of 170 over
+    240 plots. What matters is the property, and the property is that figures do not
+    accumulate, which `plt.close` is what actually gives.
+    """
+    import pathlib
+
+    from matplotlib.figure import Figure
+
+    source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "super"
+              / "schedule_visualizer.py").read_text(encoding="utf-8")
+    assert "gc.collect" not in source, (
+        "a forced collection is back in the draw path; it changes when objects go, not whether")
+
+    core, observation = drawn
+    gc.collect()
+    before = alive(Figure)
+
+    for round_ in range(6):
+        core.visualize(obj=observation, plot_type="uv_coverage", show=False,
+                       output_file=str(tmp_path / f"uv{round_}.png"), raise_on_error=False)
+
+    gc.collect()
+    assert alive(Figure) <= before, "a plot saved to a file left its figure behind"

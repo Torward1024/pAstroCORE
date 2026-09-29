@@ -363,6 +363,14 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                         except Exception as e:
                             raise ValueError(
                                 f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
+                        # **Reported because it is there, not because it was asked for.** A plot
+                        # with nothing to draw -- a filter that selects no row -- returns an
+                        # empty answer and writes no file, and this named the file anyway: the
+                        # caller was handed a path to something that does not exist.
+                        if not os.path.isfile(png_path):
+                            logger.warning("Nothing was drawn for %s in %s, so no file was "
+                                           "written", calc_type, obs_code)
+                            continue
                         written.append(png_path)
                     current_step += 1
                     report(int(current_step / total_steps * 100),

@@ -13,7 +13,6 @@ import threading
 import os
 import warnings
 
-import gc
 
 import numpy as np
 import polars as pl
@@ -391,8 +390,11 @@ class ScheduleVisualizer(Super):
             output_dir = os.path.dirname(output_file)
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
-            fig.savefig(output_file, dpi=self._style_config['figure']['dpi'], bbox_inches='tight')
-            logger.info("Visualization saved to '%s'", output_file)
+            # What the caller asked for, and the style's only when it did not ask. A plot for a
+            # paper is the reason `dpi` is in the request at all.
+            dpi = attributes.get("dpi") or self._style_config['figure']['dpi']
+            fig.savefig(output_file, dpi=float(dpi), bbox_inches='tight')
+            logger.info("Visualization saved to '%s' at %s dpi", output_file, dpi)
 
         if show:
             logger.debug("Displaying plot with plt.show()")
@@ -442,12 +444,18 @@ class ScheduleVisualizer(Super):
                                    for side in ("left", "right", "bottom", "top", "wspace", "hspace")})
 
         def nothing_to_draw(why: str) -> Dict[str, Any]:
-            """Leave the figure empty. A borrowed one is the caller's to keep."""
+            """Leave the figure empty. A borrowed one is the caller's to keep.
+
+            Notes:
+                - **No forced collection.** Closing the figure is what frees the arrays; a
+                  a forced collection here changed only *when* the cycles went, and the nine tabs
+                  above had already measured what that costs -- 14.60 s against 6.92 s over
+                  sixty redraws, to save 1.4 MB of 90.
+            """
             logger.debug("%s", why)
             fig.clf()
             if borrowed is None:
                 plt.close(fig)
-                gc.collect(2)
             return {}
 
         try:
@@ -527,20 +535,11 @@ class ScheduleVisualizer(Super):
             logger.error("Plot function %s returned invalid result: %s", plot_type, type(result))
             return {"status": False, "message": f"Invalid result from {plot_type}"}
         
-        if output_file and result.get("status", False):
-            try:
-                with self._lock:
-                    fig = result.get("figure", plt.gcf())
-                    logger.debug("Saving visualization to %s with dpi=%s", output_file, dpi)
-                    fig.savefig(output_file, dpi=float(dpi), bbox_inches="tight")
-                    logger.info("Saved visualization to %s with dpi=%s", output_file, dpi)
-                    plt.close(fig)
-                    gc.collect()
-            except Exception as e:
-                logger.error("Failed to save visualization to %s: %s", output_file, str(e), exc_info=True)
-                result["status"] = False
-                result["message"] = f"Failed to save visualization: {str(e)}"
-        
+        # **The file is written once, by `_finalize_plot`, at the resolution asked for.** A
+        # second save stood here, guarded by `result.get("status")` -- and a plot handler
+        # answers with what it drew, never with a status, so the guard was true of nothing and
+        # the branch never ran. What it was for was honouring `dpi`, which the save that does
+        # run therefore did not: asking for 300 gave the same 76-dpi picture as the default.
         return result
 
     def _visualize_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -621,9 +620,6 @@ class ScheduleVisualizer(Super):
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             # Calculate reference wavelength
-            ref_freq = min(freq_list)
-            ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
 
             result = {"baselines": 0, "points": 0, "frequencies": len(freq_list)}
             plotted_pairs = set()
@@ -683,9 +679,14 @@ class ScheduleVisualizer(Super):
                         u_scaled = u / wavelength / scale  # Apply scale for plotting
                         v_scaled = v / wavelength / scale
                     else:
-                        scale_factor = self.EARTH_DIAMETER / ref_wavelength
-                        u_scaled = (u / wavelength) / scale_factor
-                        v_scaled = (v / wavelength) / scale_factor
+                        # **An Earth diameter is a length.** This divided by the wavelength
+                        # first and then by the Earth's diameter measured in wavelengths *at
+                        # the lowest frequency drawn*, which leaves a factor of
+                        # `ref_wavelength / wavelength`: the same baseline came out twice as
+                        # long at twice the frequency, so ticking a second band drew an array
+                        # the schedule does not have.
+                        u_scaled = u / self.EARTH_DIAMETER
+                        v_scaled = v / self.EARTH_DIAMETER
 
                     # Log scaled values
                     logger.debug(f"Scaled values for {baseline} at {freq_mhz:.2f} MHz (scale={scale}): "
@@ -1746,9 +1747,6 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            ref_freq = min(freq_list)
-            ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
 
             ax = self._setup_axes(fig, "baseline_projections", obj.get_observation_code())
             self._time_axis(ax)
@@ -1786,7 +1784,9 @@ class ScheduleVisualizer(Super):
                     if units == "wavelengths":
                         bl_scaled = valid_projections / wavelength
                     else:
-                        bl_scaled = (valid_projections / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
+                        # A length, not a count of wavelengths: see the same correction in the
+                        # (u,v) plot. The projection is already metres.
+                        bl_scaled = valid_projections / self.EARTH_DIAMETER
 
                     valid_mask = ~np.isnan(bl_scaled)
                     if not np.any(valid_mask):

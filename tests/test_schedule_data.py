@@ -25,9 +25,9 @@ TYPES = ["UV Coverage", "Time on Source", "Sun Angles", "Mollweide Tracks"]
 
 def export(manipulator, target, path, calc_types=None, **extra):
     """Run an export through the orchestrator and return what it reports."""
-    response = manipulator.export(obj=target, calc_types=calc_types or TYPES, export_data=True,
-                                  export_vis=False, export_path=str(path),
-                                  units="wavelengths", raise_on_error=False, **extra)
+    asked = {"export_data": True, "export_vis": False, "units": "wavelengths", **extra}
+    response = manipulator.export(obj=target, calc_types=calc_types or TYPES,
+                                  export_path=str(path), raise_on_error=False, **asked)
     return response.value if response.ok else None
 
 
@@ -579,3 +579,26 @@ def test_a_result_that_cannot_be_read_is_reported_rather_than_dropped(project, m
     assert result == []
     assert any("Cannot tell whether" in line and "the file is gone" in line for line in said), (
         f"the failure was not reported: {said}")
+
+
+def test_an_export_names_the_pictures_it_actually_drew(project, tmp_path, monkeypatch):
+    """A plot with nothing to draw writes no file, and the export named it anyway.
+
+    `written` is what a caller reads to find out what it got -- a dialog lists it, a command
+    line prints it -- so a path to a file that was never written is worse than a missing one.
+    """
+    from pastrocore.super.schedule_visualizer import ScheduleVisualizer
+
+    # As a filter that selects no row leaves it: an empty answer, and nothing on disk.
+    monkeypatch.setattr(ScheduleVisualizer, "_visualize_sun_angles",
+                        lambda self, obj, attributes, fig: {})
+
+    core = ScheduleManipulator(project)
+    observation = project.get_observations()[0]
+    result = export(core, observation, tmp_path, calc_types=["UV Coverage", "Sun Angles"],
+                    export_data=False, export_vis=True)
+
+    on_disk = sorted(path.name for path in tmp_path.iterdir())
+    assert len(on_disk) == 1, f"the sun angles drew nothing, so there is one file: {on_disk}"
+    assert sorted(pathlib.Path(path).name for path in result["written"]) == on_disk, (
+        "the export named a picture it did not draw")

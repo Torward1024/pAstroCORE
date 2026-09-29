@@ -207,6 +207,51 @@ def test_time_on_source_is_the_visible_samples_times_the_spacing(computed):
         assert part["duration"].sum() == pytest.approx(seen * spacing, abs=1e-3), code
 
 
+@pytest.mark.parametrize("plot_type", ["uv_coverage", "baseline_projections"])
+def test_a_baseline_in_earth_diameters_is_the_same_baseline_at_every_frequency(recomputed, plot_type):
+    """An Earth diameter is a length, and a projected baseline measured in them is geometry.
+
+    Both plots divided by the wavelength first and then by the Earth's diameter in wavelengths
+    *at the lowest frequency drawn*, so the same baseline came out longer at every frequency
+    above it -- twice as long at twice the frequency. Ticking a second band drew an array the
+    schedule does not have.
+    """
+    core, observation = recomputed
+    frame = stored(observation, "uv_coverage")
+    baselines = sorted(frame["baseline"].unique().to_list())
+    longest = float(np.nanmax(np.abs(np.concatenate([frame["u"].to_numpy(),
+                                                     frame["v"].to_numpy()]))))
+    if plot_type == "baseline_projections":
+        projections = stored(observation, "baseline_projections")["projection"].to_numpy()
+        longest = float(np.nanmax(np.abs(projections)))
+
+    def drawn(frequencies):
+        answer = core.visualize(obj=observation, plot_type=plot_type, return_figure=True,
+                                show=False, raise_on_error=False, units="earth_diameters",
+                                baselines=baselines, source_name="1228+126",
+                                scans=[scan.name for scan in observation.get_scans().get_items()],
+                                frequencies=frequencies)
+        assert answer.ok, answer.error
+        # The points themselves, which both plots draw as a scatter: `u` and `v` on one, the
+        # baseline's length against time on the other, whose x is a moment rather than a length.
+        reached = []
+        for axes in answer.value["figure"].get_axes():
+            for collection in axes.collections:
+                offsets = np.asarray(collection.get_offsets())
+                if len(offsets):
+                    lengths = np.abs(offsets if plot_type == "uv_coverage" else offsets[:, 1])
+                    reached.append(float(lengths.max()))
+        assert reached, "the plot drew nothing to measure"
+        return max(reached)
+
+    earth = 12742000.0
+    one = drawn([1000.0])
+    assert one == pytest.approx(longest / earth, rel=1e-6), (
+        "what is drawn is not the baseline over the Earth's diameter")
+    assert drawn([1000.0, 2000.0]) == pytest.approx(one, rel=1e-6), (
+        "the same baseline was drawn at two lengths because two frequencies were ticked")
+
+
 @pytest.mark.parametrize("megahertz", [1000.0, 22000.0])
 def test_the_drawn_beam_is_an_airy_pattern_at_the_chosen_frequency(recomputed, megahertz):
     """Half power at 1.029 lambda/D, first null at 1.2197 lambda/D.

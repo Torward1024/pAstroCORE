@@ -42,9 +42,10 @@ def eager_log_calls(path):
 # Thirteen calls carry a format spec or a conversion -- `{x:.2f}`, `{x!r}` -- where `%s` would
 # render something different. They are left alone deliberately. The number may only go down: by
 # one when the calculator's per-call timing line became lazy, by one when the Sun angle's NaN
-# warning was rewritten along with the step, by one with the beam pattern's drawing line, and by
-# three when the telescope's `calculate_*` methods -- unused, and wrong by a factor of 1e26 -- went.
-ALLOWED_EAGER = 10
+# warning was rewritten along with the step, by one with the beam pattern's drawing line, by
+# three when the telescope's `calculate_*` methods -- unused, and wrong by a factor of 1e26 --
+# went, and by two with the reference wavelength the (u,v) and baseline plots no longer have.
+ALLOWED_EAGER = 8
 
 
 def test_logging_is_lazy():
