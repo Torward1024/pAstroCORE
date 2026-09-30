@@ -18,11 +18,9 @@ def _sexagesimal(value: float, decimals: int = 6) -> tuple:
             so that what is carried is what will be shown.
 
     Notes:
-        - One place, because right ascension and declination were each doing it and each got it
-          wrong the same way. Rounded first, so 11.7308066500 does not come back as 43 minutes
-          and 59.999999 seconds.
-        - **From the total, not piece by piece.** Rounding the seconds on their own let
-          59.99999999 be written as `60.0000000` -- a minute that is not there.
+        - Rounded before it is split, so 11.7308066500 does not come back as 43 minutes and
+          59.999999 seconds.
+        - Split from the total: rounding the seconds alone writes 59.99999999 as `60`.
     """
     total = round(value * 3600.0, decimals)
     units, rest = divmod(total, 3600.0)
@@ -40,7 +38,7 @@ def _below_sixty(value: float) -> bool:
 
 
 class Source(BaseEntity):
-    """Base class representing an astronomical source with coordinates, names, and optional flux properties.
+    """One astronomical source: where it is, what it is called, and how bright it is.
 
     Attributes:
         name (str): Source name in B1950 notation.
@@ -56,15 +54,13 @@ class Source(BaseEntity):
         spectral_index (Optional[float]): Spectral index for flux extrapolation.
         isactive (bool): Whether the source is active.
     """
-    # The bounds are on the annotation rather than in a check called from `__init__`. The
-    # check guarded construction and nothing else: `set` accepted ninety-nine hours of right
-    # ascension, and so did `from_dict`, which is how a saved project carries one back.
+    # On the annotation rather than in a check called from `__init__`, which `set` and
+    # `from_dict` both go past.
     name: str
     ra_h: Annotated[float, Range(0, 23)]
     ra_m: Annotated[float, Range(0, 59)]
-    # Seconds are anything below sixty. `Range(0, 59.999)` refused 59.9995 -- a position a
-    # catalogue can hold and a VEX file can state, so reading one failed, and so did converting
-    # a declination whose seconds rounded to it.
+    # Anything below sixty: `Range(0, 59.999)` refuses 59.9995, which a catalogue holds and
+    # a VEX file states.
     ra_s: Annotated[float, Predicate(_below_sixty, "must be at least 0 and below 60")]
     de_d: Annotated[float, Range(-90, 90)]
     de_m: Annotated[float, Range(0, 59)]
@@ -115,13 +111,8 @@ class Source(BaseEntity):
             InvariantError: Naming the frequency and the value.
 
         Notes:
-            - It was `_validate_flux_table`, called from `__init__` and nowhere else, so
-              `set({"flux_table": {1000.0: -5.0}})` was accepted and `get_flux` handed the
-              minus five straight to whatever asked -- a sensitivity, an integration time.
-              The third of these found: the coordinate range and the polarization group were
-              the same shape.
-            - The *types* are MSB's, from the annotation, and it already refuses a key that is
-              not a number. What an annotation cannot say is that the value must be above zero.
+            - On the invariant, so `set` and a saved project are held to it as `__init__` is.
+            - The types are the annotation's; what it cannot say is that a flux is above zero.
         """
         for frequency, flux in (self.flux_table or {}).items():
             if not isinstance(flux, (int, float)) or flux <= 0:
@@ -147,14 +138,10 @@ class Source(BaseEntity):
             Dict[str, Any]: `{"flux": float | None, "basis": str | None, "reason": str | None}`.
 
         Notes:
-            - **A spectrum is a power law, `S ~ nu^alpha`.** Between two measured frequencies the
-              flux is on the power law through them: halfway between 5 Jy at 1 GHz and 7.5 Jy at
-              2 GHz is 6.34 Jy at 1.5 GHz. It was a straight line in frequency, 6.25.
-            - **Beyond what was measured, only with a spectral index**, from the nearest measured
-              point. It extrapolated from whichever point happened to be first in the table, which
-              could be the far end of the spectrum. Without an index the flux is not guessed.
-            - One measured point with an index is a power law through it; an index with no
-              measurement has nothing to scale, and says so.
+            - A spectrum is a power law, `S ~ nu^alpha`: between two measured frequencies the
+              flux is on the power law through them, not on a straight line.
+            - Outside the measured band, only with a spectral index, from the nearest
+              measured point. Without an index the flux is not guessed.
         """
         if not isinstance(frequency, (int, float)):
             raise TypeError(f"Frequency must be a number, got {type(frequency)}")
@@ -195,10 +182,7 @@ class Source(BaseEntity):
         """Declination in decimal degrees.
 
         Notes:
-            - The sign is taken with `copysign` rather than by comparing against zero, so that
-              a source between -1 and 0 degrees comes back south of the equator. `de_d` is the
-              only field that can carry the sign, and for those sources it is `-0.0`, which
-              `>= 0` reads as positive.
+            - The sign is read with `copysign`: below zero it lives in `-0.0`.
         """
         sign = math.copysign(1.0, self.de_d)
         return sign * (abs(self.de_d) + self.de_m / 60 + self.de_s / 3600)
@@ -207,8 +191,7 @@ class Source(BaseEntity):
         """Return `(hours, minutes, seconds)` as they are to be written, to `decimals` places.
 
         Notes:
-            - For anything that writes a position out. Formatting the stored fields directly
-              rounded the seconds apart from the minutes, and 24 hours is 0.
+            - The stored fields round apart from each other, and 24 hours is 0.
         """
         hours, minutes, seconds = _sexagesimal(self.ra_degrees / 15.0, decimals)
         return int(hours) % 24, int(minutes), seconds
@@ -217,9 +200,8 @@ class Source(BaseEntity):
         """Return `(sign, degrees, minutes, seconds)` as they are to be written.
 
         Notes:
-            - **The sign on its own**, as "+" or "-". Taken from the degrees field it was lost
-              for every source between -1 and 0 degrees, whose sign lives in `-0.0`: the VEX
-              writer put them north of the equator, and so did the catalogue's table.
+            - The sign comes back on its own, because between -1 and 0 degrees the degrees
+              field is `-0.0` and a reader of it loses the hemisphere.
         """
         declination = self.dec_degrees
         degrees, minutes, seconds = _sexagesimal(abs(declination), decimals)
@@ -230,11 +212,8 @@ class Source(BaseEntity):
         """Set Right Ascension from decimal degrees.
 
         Notes:
-            - **The hours field takes the whole hours and nothing else.** It used to take the
-              whole value -- `338.1517` degrees became 22.543 hours, 32.6 minutes and 36.1
-              seconds, and the fraction was then counted three times: reading it back gave
-              346.455, eight degrees away. `ra_degrees` is what every calculation asks, so the
-              source was simply somewhere else.
+            - The hours field takes whole hours and nothing else; the fraction goes to the
+              minutes and seconds once.
         """
         if not (0 <= ra_deg <= 360):
             raise ValueError(f"RA degrees must be in range [0, 360], got {ra_deg}")
@@ -248,11 +227,9 @@ class Source(BaseEntity):
         """Set Declination from decimal degrees.
 
         Notes:
-            - The same fault as `set_ra_degrees` had, and the same fix: the degrees field takes
-              whole degrees, and the fraction goes to the minutes and seconds once.
-            - The sign is carried by `de_d`, which is the only field that can: minutes and
-              seconds are constrained to 0-59. For a source between -1 and 0 degrees that means
-              **negative zero**, which is why `dec_degrees` reads the sign with `copysign`.
+            - The degrees field takes whole degrees; the fraction goes to minutes and seconds.
+            - `de_d` carries the sign, minutes and seconds being 0-59, so between -1 and 0
+              degrees it is negative zero.
         """
         if not (-90 <= dec_deg <= 90):
             raise ValueError(f"DEC degrees must be in range [-90, 90], got {dec_deg}")
@@ -436,13 +413,8 @@ class Sources(BaseContainer[Source]):
         """Create a deep copy of the Sources object.
 
         Notes:
-            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
-              UUID that appears twice in a project is a name that no longer identifies anything.
-              What a collection is called is not part of what a calculation reads, so a copy
-              being freshly named does not make a result stale -- `freshness._what_is_read`
-              leaves it out, which is the other half of the audit finding this comes from.
-            - The items keep their names: a scan's name is the key its results are filed under,
-              and a source's name is the source.
+            - The copy is named afresh: a UUID appearing twice identifies nothing.
+            - The items keep their names, which are the keys results are filed under.
         """
         return Sources(
             items={name: item.copy() for name, item in self._items.items()},

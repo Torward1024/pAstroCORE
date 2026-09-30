@@ -21,19 +21,15 @@ import io
 #: a choice read the same list.
 OBSERVATION_TYPES = ("VLBI", "SINGLE_DISH")
 
-#: How many telescopes a scan needs to be worth recording, by what the observation is. A single
-#: dish records on its own; an interferometer needs a baseline, and a baseline is two. Named
-#: once because `1 if observation_type == "SINGLE_DISH" else 2` was written three times -- in
-#: the scan's own activation rule, in the scan editor, and in the scans tab.
+#: How many telescopes a scan needs to be worth recording. A single dish records on its
+#: own; an interferometer needs a baseline, and a baseline is two.
 TELESCOPES_A_SCAN_NEEDS = {"VLBI": 2, "SINGLE_DISH": 1}
 
 
 class Observation(BaseEntity):
-    """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
+    """One observation: its code, its type, what it observes with, and what was calculated.
 
-    Encapsulates the structure and metadata of an observation, such as its unique code, type (VLBI or
-    SINGLE_DISH), and associated entities. Manages calculated data using Polars DataFrames with metadata
-    stored in a dictionary under the same key. Provides methods for validation, synchronization, and serialization using Parquet.
+    Results are Polars frames with metadata beside them, read from parquet only when asked for.
 
     Attributes:
         name (str): Unique identifier for the observation.
@@ -49,9 +45,7 @@ class Observation(BaseEntity):
     """
     name: str
     code: str
-    # One of two, on the annotation. The check in `__init__` guarded construction and left
-    # `set` and `from_dict` to accept anything -- and `from_dict` is how a saved project brings
-    # a value back.
+    # On the annotation, so `set` and `from_dict` are held to it as `__init__` is.
     observation_type: Annotated[str, Predicate(lambda value: value in OBSERVATION_TYPES,
                                                f"one of {sorted(OBSERVATION_TYPES)}")]
     sources: Sources
@@ -95,9 +89,8 @@ class Observation(BaseEntity):
             telescopes=telescopes if telescopes is not None else Telescopes(),
             frequencies=frequencies if frequencies is not None else Frequencies(),
             scans=scans if scans is not None else Scans(),
-            # Wrapped once, here, so every later reader gets the lazy mapping without
-            # knowing about it. An observation not yet part of a saved project has no
-            # store, and then this is simply a dictionary that lives in memory.
+            # Wrapped once here, so every reader gets the lazy mapping. With no store
+            # it is simply a dictionary in memory.
             calculated_data=CalculatedData(name, resident=dict(calculated_data or {})),
             isactive=isactive,
             use_cache=use_cache
@@ -161,13 +154,9 @@ class Observation(BaseEntity):
                 if the observation has no such result.
 
         Notes:
-            - This is the counterpart of `get_calculated_data_by_key` for a consumer that is
-              about to filter. Reading the whole result and then discarding most of it costs
-              both the read and the memory to hold what was discarded; a filter applied to
-              this view is pushed into the parquet read instead, so the rows that fail it are
-              never materialised.
-            - Falls back to a lazy view of what is held in memory when the result has not been
-              written yet, so a caller does not have to know where the result currently lives.
+            - For a caller about to filter: the filter is pushed into the parquet read, so
+              the rows that fail it are never materialised.
+            - Falls back to what is held in memory when the result is not written yet.
         """
         check_non_empty_string(key, "Key")
         results = self.calculated_data
@@ -192,9 +181,8 @@ class Observation(BaseEntity):
             Dict[str, any]: The metadata, empty if there is no such result.
 
         Notes:
-            - Several plots need only the metadata -- the sources a track covers, the
-              frequency a beam was computed at. Reaching it through the result read every row
-              off disk to arrive at a handful of entries.
+            - Several plots need only this -- the sources a track covers, the frequency a
+              beam was computed at -- and reading the result for it costs every row.
         """
         check_non_empty_string(key, "Key")
         results = self.calculated_data
@@ -244,9 +232,8 @@ class Observation(BaseEntity):
             metadata = {}
         check_type(metadata, dict, "Metadata")
         self._validate_calculated_data_key(key, df, metadata)
-        # Set in place rather than copying the mapping and re-assigning it. The copy loaded
-        # every stored result to store one, which is exactly the cost this format exists to
-        # avoid -- and on a project of a year of observations it would load all of them.
+        # Set in place: copying the mapping loads every stored result in order to store
+        # one, which is the cost this format exists to avoid.
         self.calculated_data[key] = {"data": df, "metadata": metadata}
         self._invalidate_cache()
         logger.info("Stored calculated data '%s' for observation '%s'", key, self.name)
@@ -265,10 +252,8 @@ class Observation(BaseEntity):
                 including msb_arch, which calls it with no arguments -- behaves as it did.
 
         Notes:
-            - The directory format passes False. Results then live in their own parquet files
-              beside the model, so the mapping this returns stays small and reading it does not
-              mean reading gigabytes: the single-file form of the small test project is 97.1%
-              base64, with the model under 7 KB of 230.
+            - The directory format passes False, and the results then live in parquet beside
+              the model: the single-file form of the test project is 97.1% base64.
         """
         def convert_dataframe(df: pl.DataFrame, key: str, metadata: Dict) -> dict:
             """Convert a Polars DataFrame and metadata to a serializable dictionary with Parquet data."""
@@ -445,10 +430,8 @@ class Observation(BaseEntity):
             int: Two for VLBI, which needs a baseline; one for a single dish.
 
         Notes:
-            - Asked rather than worked out, because a request may name it:
-              `inspect(observation, get_telescopes_a_scan_needs=None)`. Both the scan editor
-              and the scans tab worked it out themselves, which is the same rule in three
-              places and a third observation type away from disagreeing.
+            - Asked rather than worked out, because a request may name it and the interface
+              would otherwise hold the same rule twice.
         """
         return TELESCOPES_A_SCAN_NEEDS[self.get_observation_type()]
 
@@ -472,9 +455,8 @@ class Observation(BaseEntity):
         """Whether any active telescope here is a spacecraft placed from an orbit file.
 
         Notes:
-            - What decides whether interpolating orbits has anything to do. An observation of
-              ground stations only had the step planned anyway, which ran, found nothing, stored
-              an empty result, and logged four warnings about it on every calculation.
+            - What decides whether interpolating orbits has anything to do; without it the
+              step is planned for an array of ground stations.
         """
         from pastrocore.base.spacetelescope import SpaceTelescope
 
@@ -510,10 +492,8 @@ class Observation(BaseEntity):
         """Create a deep copy of the Observation object.
 
         Notes:
-            - **Named as a new object.** A project holds its observations under their names, so
-              a copy carrying the original's could not be added beside it. The code is kept: it
-              is what a person calls the experiment, and the project checks that codes do not
-              collide when one is added.
+            - Named afresh, because a project holds its observations under their names.
+            - The code is kept; the project refuses a collision when the copy is added.
         """
         return Observation(
             code=self.code,

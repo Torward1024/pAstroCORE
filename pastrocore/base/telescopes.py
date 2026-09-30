@@ -9,23 +9,16 @@ import re
 import uuid
 
 class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
-    """Class representing a collection of Telescope and SpaceTelescope objects.
-
-    Manages a dictionary of telescopes, held under their names, with codes unique too.
-    Inherits from BaseContainer for collection management, activation/deactivation,
-    and serialization. Supports synchronization with a parent Observation object.
+    """A collection of ground and space telescopes, held under their names.
 
     Attributes:
-        _items (Dict[str, Telescope | SpaceTelescope]): Dictionary of telescope objects, keyed by name.
-        isactive (bool): Whether the Telescopes object itself is active.
+        _items (Dict[str, Telescope | SpaceTelescope]): The telescopes, keyed by name.
+        isactive (bool): Whether the collection itself is active.
 
     Notes:
-        - A telescope is held under its name, and its code is unique too: `set_telescope` and the
-          exporters find one by code.
-        - Deactivating a telescope reaches the scans through the observation, which watches its
-          containers; this collection does not call back into it.
-        - Both `name` and `code` must be unique and valid strings (no spaces or special characters).
-        
+        - Name and code are both unique, and both are letters, digits, `_` and `-` only.
+        - Deactivating a telescope reaches the scans through the observation.
+    
     Examples:
         >>> tels = Telescopes()
         >>> tels.create_telescope(code="RT32", name="Zelenchukskaya_RT32", diameter=32.0)
@@ -56,7 +49,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         logger.debug("Initialized Telescopes with %s telescopes", len(self._items))
 
     def _validate_item(self, item: Union[Telescope, SpaceTelescope], exclude_name: Optional[str] = None) -> None:
-        """Validate that the item is a Telescope or SpaceTelescope and has a valid and unique name and code.
+        """Check that a telescope is one, and that its name and code are free.
 
         Args:
             item (Telescope | SpaceTelescope): The telescope to validate.
@@ -108,17 +101,11 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             str: The name it was added under.
 
         Notes:
-            - **Importing a telescope from a file could not add a second copy of one.** A name
-              and a code are each unique here, and a file written from an observation carries
-              both -- so importing it back, or importing the same station from a colleague's
-              project, was refused outright. The interface had two lines meant to deal with
-              this that read `telescope.code = telescope.code` and `telescope.name =
-              telescope.name`, which do nothing at all.
-            - A number is appended rather than a UUID: `EHT_ALMA_2` still says which station it
-              is, and the name is constrained to letters, digits, `_` and `-` anyway.
-            - Here rather than in the window, because importing is not something only a window
-              does -- and because the rule about what is taken belongs with the collection that
-              enforces it.
+            - For importing a station a file already carries: both its name and its code are
+              unique here, so adding a second copy is otherwise refused.
+            - A number is appended rather than a UUID, so `EHT_ALMA_2` still says which
+              station it is.
+            - Here rather than in the window, with the collection that enforces the rule.
         """
         check_type(item, (Telescope, SpaceTelescope), "Telescope")
         item.name = self._free(self._items, item.name)
@@ -178,10 +165,8 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         """
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
             raise ValueError(f"Invalid telescope code '{code}' (use alphanumeric, underscore, or hyphen)")
-        # **The name is used.** It was documented as "set to code for consistency" and the
-        # argument was thrown away, so a telescope called Svetloe came back as `Sv` -- and both
-        # exporters write a `name` where the model had only ever kept a code. Falling back to
-        # the code keeps every caller that passes none, which is what the old behaviour was for.
+        # The name is used, falling back to the code when none is passed: both exporters
+        # write a name.
         new_telescope = Telescope(
             code=code, name=name or code, x=x, y=y, z=z, vx=vx, vy=vy, vz=vz,
             diameter=diameter, sefd_table=sefd_table,
@@ -306,9 +291,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         params = {}
         if name is not None and name != telescope.name:
-            # A name identifies a telescope: the collection is keyed by it, and every result,
-            # session and exported file refers to it. msb_arch refuses the rename itself; this
-            # says which telescope and what to do instead.
+            # msb_arch refuses the rename; this says which telescope and what to do.
             raise ValueError(
                 f"Telescope '{telescope.name}' cannot be renamed to '{name}': a name is given "
                 f"when a telescope is created. Add another and remove this one.")
@@ -360,9 +343,8 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             if not isinstance(telescope, SpaceTelescope):
                 raise ValueError("Interpolation method can only be set for SpaceTelescope")
             params["interpolation_method"] = interpolation_method
-        # What a dish is made of belongs to every dish. These four were refused for a ground
-        # station -- "can only be set for SpaceTelescope" -- although `Telescope` has carried
-        # all four since E1, and every sensitivity calculation reads them.
+        # What a dish is made of belongs to every dish: `Telescope` has carried all four
+        # since E1, and every sensitivity calculation reads them.
         if surface_accuracy is not None:
             params["surface_accuracy"] = surface_accuracy
         if surface_efficiency_table is not None:
@@ -381,11 +363,8 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
             telescope.set(params)
             logger.info("Updated telescope '%s' with params: %s", code, params)
-            # What stood here reached `self._parent._sync_scans_with_activation()`. Neither
-            # exists: a container has no `_parent`, and nothing in the model has ever had that
-            # method -- so every update that changed anything ended in AttributeError *after*
-            # applying the change. Activation is synchronised by the observation, which watches
-            # its containers; there is nothing for this to do.
+            # Activation is synchronised by the observation, which watches its
+            # containers, so there is nothing for this to do.
         else:
             logger.debug("No parameters to update for telescope '%s'", code)
     
@@ -393,13 +372,8 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         """Create a deep copy of the Telescopes object.
 
         Notes:
-            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
-              UUID that appears twice in a project is a name that no longer identifies anything.
-              What a collection is called is not part of what a calculation reads, so a copy
-              being freshly named does not make a result stale -- `freshness._what_is_read`
-              leaves it out, which is the other half of the audit finding this comes from.
-            - The items keep their names: a scan's name is the key its results are filed under,
-              and a source's name is the source.
+            - The copy is named afresh: a UUID appearing twice identifies nothing.
+            - The items keep their names, which are the keys results are filed under.
         """
         return Telescopes(
             items={name: item.copy() for name, item in self._items.items()},

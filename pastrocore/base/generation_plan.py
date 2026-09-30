@@ -2,15 +2,10 @@
 """What a generation is, as one object: what to observe with what, when, and in what pattern (O1).
 
 Notes:
-    - **The arithmetic of a pattern lives here and nowhere else.** The generator worked out how long
-      a pattern takes in order to place its scans, and the dialog worked the same thing out again to
-      show an end time -- two implementations of one formula, and the dialog's inverse (the scan
-      duration that fits a given end) was a third. They are one now, and the window asks.
-    - **A plan is data, so it is a file.** What a preset used to save was the timing and not what it
-      was for: the sources, stations and bands were dropped, so loading one left the dialog with a
-      pattern and nothing to point it at. A plan carries the collections themselves.
-    - The built-in presets are here rather than in the dialog, for the same reason every other list
-      the interface shows is asked for rather than written down.
+    - The arithmetic of a pattern lives here and nowhere else; the window asks for it.
+    - A plan is data, so it is a file, and it carries the collections themselves rather than
+      only the timing.
+    - The built-in presets are here, like every other list the interface shows.
 """
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
@@ -73,8 +68,7 @@ class GenerationPlan:
         """Seconds from the first scan of an observation to the end of its last.
 
         Notes:
-            - The interval falls *between* blocks, so `n` scans carry `n - 1` of them. An interval
-              after the last scan would be time the observation does not use.
+            - The interval falls between blocks, so `n` scans carry `n - 1` of them.
         """
         if self.num_scans <= 0:
             return 0.0
@@ -133,9 +127,7 @@ class GenerationPlan:
         """A collection as data, without the name its container happens to carry.
 
         Notes:
-            - A plan is about *which* sources, stations and bands, not about the container holding
-              them, and those names are generated: `srcs_<uuid>`. Kept, two plans over the same
-              selection would never compare equal and a file would change on every save.
+            - A container's name is generated, and two plans over one selection are equal.
         """
         return {key: value for key, value in held.to_dict().items() if key != "name"}
 
@@ -197,10 +189,8 @@ class GenerationPlan:
             GenerationPlan: The plan.
 
         Notes:
-            - **So that nothing outside has to convert.** The window sends what it is showing and
-              the backend reads it; a file is read the same way. The interface reaches the model
-              through requests, and `to_dict` on the way out of a dialog was exactly that rule
-              being broken.
+            - So that nothing outside converts: the window sends what it is showing, and a
+              file is read the same way.
         """
         if isinstance(data, cls):
             return data
@@ -255,9 +245,8 @@ def presets() -> List[Dict[str, Any]]:
         List[Dict[str, Any]]: `{"name": str, "plan": dict}` for each, the plan being what
             `GenerationPlan.from_dict` reads.
     """
-    # Without the collections: a preset is a pattern, and it is applied to whatever is selected.
-    # Empty ones would also carry a fresh random container name on every call, which would make two
-    # identical presets compare unequal.
+    # Without the collections: a preset is a pattern applied to whatever is selected, and
+    # an empty container would carry a fresh name on every call.
     pattern_only = []
     for name, settings in PRESETS.items():
         plan = GenerationPlan(**settings).to_dict()

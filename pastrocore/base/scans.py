@@ -13,7 +13,7 @@ import astropy.units as u
 import uuid
 
 class Scan(BaseEntity):
-    """Base class representing a single observation scan with timing, source, telescopes, and frequencies."""
+    """One scan: when it runs, what it points at, and with which stations and bands."""
     name: str
     start: Time
     # On the annotation: `set_duration` checked it and `set` went straight past, and a scan of
@@ -85,12 +85,8 @@ class Scan(BaseEntity):
         """Create a deep copy of the Scan object.
 
         Notes:
-            - **The name comes too.** Without it the constructor invents one, and `Scans.copy`
-              files each copy under the *old* key: the container then held scans whose `name`
-              did not match the key they answered to. A copied observation is where that
-              showed -- its results are keyed by scan name, and after the copy no scan had
-              the name the results referred to. `Source`, `Telescope` and `IF` all carry
-              theirs; this was the one that did not.
+            - The name comes too, or the container files the copy under a key the scan does
+              not answer to -- and results are keyed by scan name.
         """
         return Scan(
             name=self.name,
@@ -111,11 +107,8 @@ class Scan(BaseEntity):
         min_telescopes = observation.get_telescopes_a_scan_needs()
         active_telescopes = [t for t in self.telescopes if t.isactive]
         active_frequencies = [f for f in self.frequencies if f.isactive]
-        # **By name, not by value.** `self.source in observation.get_sources().get_items()`
-        # compares every field, so a scan counted as pointed at nothing the moment the source
-        # was edited: change one digit of its declination in the Sources tab and the copy the
-        # scan holds no longer equalled it, and every scan on that source went quietly
-        # inactive. A scan refers to a source; what identifies it is its name.
+        # By name, not by value: comparing every field makes a scan lose its source the
+        # moment the source is edited.
         held = None if self.source is None else observation.get_sources().get(self.source.name)
         source_active = (
             self.is_off_source or
@@ -360,9 +353,7 @@ class Scan(BaseEntity):
 
     def to_dict(self) -> dict:
         """Convert the Scan object to a dictionary, serializing Time as ISO string."""
-        # A copy: on an object that caches, `to_dict` returns the cache itself, and
-        # writing to it corrupts what every later call reports -- which MSB 1.9.0
-        # turned from silent into a refusal.
+        # A copy: on an object that caches, `to_dict` returns the cache itself.
         data = dict(super().to_dict())
         data["start"] = self.start.isot
         data["source"] = self.source.name if self.source else None
@@ -375,9 +366,11 @@ class Scan(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict, observation: 'Observation' = None) -> 'Scan':
-        """Create a Scan object from a dictionary, parsing ISO string to Time and resolving objects from Observation.
+        """Build a Scan from a dictionary, resolving its source and stations in an observation.
 
-        Ensures the source reference is synchronized with the observation and activity status is validated.
+        Notes:
+            - The start is parsed from ISO, the source reference is synchronized with the
+              observation, and the activity status is checked against it.
         """
         from pastrocore.base.observation import Observation
         data = data.copy()
@@ -470,21 +463,10 @@ class Scans(BaseContainer[Scan]):
                 cannot be in both.
 
         Notes:
-            - **It used to refuse any two active scans that overlapped in time**, and that is
-              wrong twice over. `re03fr.vex` observes 2230+114 from 13:50 with Wb, Sv and Bd at
-              4828 MHz *and* with Ev, Nt and Zc at 22228 MHz: two sub-arrays on one source at
-              two frequencies, which is an ordinary way to run an array and the basis of
-              multi-frequency synthesis. The old rule threw half of a real experiment away on
-              import. Nor is one station in two overlapping scans wrong -- a dual-band receiver
-              records two bands at once, and that is two scans of one source.
-            - What cannot happen is one antenna pointed at **two different sources** at the
-              same moment: it has one mount. That is the rule, and it is the only one the model
-              can actually justify.
-            - **Active scans only.** An inactive scan is an alternative being kept rather than
-              a commitment, and two of those may well cover the same hour.
-            - Sorted by start and compared only against the scans still running, so the usual
-              case costs a sort rather than a square -- and compared as **Julian days**, since
-              turning each end into a  was what made reading a real schedule slow.
+            - Two sub-arrays may observe one source at two frequencies at once, and a
+              dual-band receiver records two bands at once; neither is refused.
+            - Active scans only: an inactive scan is an alternative, not a commitment.
+            - Sorted by start and compared in Julian days against the scans still running.
         """
         windows = []
         for name, scan in self._items.items():
@@ -492,11 +474,8 @@ class Scans(BaseContainer[Scan]):
                 continue
             on_it = {telescope.get_code() for telescope in scan.telescopes}
             looking_at = scan.source.name if scan.source is not None else None
-            # **Julian days rather than `Time` objects.** The rule only ever compares moments,
-            # and `get_end()` builds a `TimeDelta` and adds it to a `Time` -- which is a
-            # millisecond each. Checked on every add, that is 2415 of them for a 69-scan file
-            # and 1.6 s to read one in; a real schedule of several hundred scans made it
-            # minutes. A day is a number, and `start.jd` is already computed.
+            # Julian days rather than `Time`: building a `TimeDelta` per comparison costs
+            # a millisecond, and a 69-scan file makes 2415 of them.
             start = scan.get_start().jd
             windows.append((start, start + scan.duration / _SECONDS_IN_A_DAY, name, on_it,
                             looking_at, scan))
@@ -624,10 +603,8 @@ class Scans(BaseContainer[Scan]):
         if isactive is not None:
             params["isactive"] = isactive
         if params:
-            # A scan is edited in place, so the container is never told and cannot check its
-            # own rule. Written, checked, and put back when the rule refuses -- the same shape
-            # msb_arch uses for a field, and for the same reason: a refused change must leave
-            # the scan exactly as it was.
+            # A scan is edited in place, so the container is never told: written, checked,
+            # and put back when the rule refuses.
             was = {key: getattr(scan, key) for key in params}
             scan.set(params)
             try:
@@ -711,13 +688,8 @@ class Scans(BaseContainer[Scan]):
         """Create a deep copy of the Scans object.
 
         Notes:
-            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
-              UUID that appears twice in a project is a name that no longer identifies anything.
-              What a collection is called is not part of what a calculation reads, so a copy
-              being freshly named does not make a result stale -- `freshness._what_is_read`
-              leaves it out, which is the other half of the audit finding this comes from.
-            - The items keep their names: a scan's name is the key its results are filed under,
-              and a source's name is the source.
+            - The copy is named afresh: a UUID appearing twice identifies nothing.
+            - The items keep their names, which are the keys results are filed under.
         """
         return Scans(
             items={name: item.copy() for name, item in self._items.items()},

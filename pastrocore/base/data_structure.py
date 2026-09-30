@@ -3,9 +3,8 @@ from typing import Dict, List, Type, Optional
 import numpy as np
 import polars as pl
 
-#: What a calculation can be given beyond the model: the same answer from other parameters is
-#: another answer, so each is recorded with the result. `freshness` fingerprints these, and a
-#: dialog asks a calculation which of them it takes rather than keeping a list of its own.
+#: What a calculation can be given beyond the model. Each is recorded with the result, so
+#: `freshness` fingerprints them and a dialog asks which of them a calculation takes.
 PARAMETERS = ("time_step", "target_telescope", "units", "threshold", "bits",
               "recording_efficiency", "opacity", "t_atm", "gain_curve")
 
@@ -15,15 +14,12 @@ class CalculatedDataStructure:
     SCHEMAS = {
         "times": {
             "label": "Time Arrays",
-            # The one calculation whose handler and store key differ: `_calculate_time_arrays`
-            # files its result under `times`. Stated here so the catalogue, which knows only
-            # handler names, can find this entry -- rather than special-cased where it is read.
+            # The one handler whose name is not its store key, stated so the catalogue --
+            # which knows only handler names -- can find this entry.
             "handler": "time_arrays",
             "intermediate": True,
-            # Sampled per *active source* -- one block each, and a `source_name` column to say
-            # which -- so a source going inactive changes the answer. It said `("scans",)`, and
-            # the result stayed "current" while holding rows for a source no longer observed.
-            # Every calculation below it inherits the mistake, since they all start here.
+            # Sampled per active source, one block each, so a source going inactive
+            # changes the answer. Everything below inherits this; they all start here.
             "depends_on": ("scans", "sources"),
             "columns": ["source_name", "scan_name", "time"],
             "metadata": {
@@ -350,9 +346,8 @@ class CalculatedDataStructure:
             }
         },
         "sefd_track": {
-            # E1. A station's SEFD at every sample of the time grid, from where the source stands:
-            # one row per sample, station and band. The weather and the gain curves it was worked
-            # out with are parameters, not the stations', so they are recorded here.
+            # E1. A station's SEFD at every sample, from where the source stands: one row
+            # per sample, station and band. The weather and the gain curves are parameters.
             "label": "SEFD Track",
             "depends_on": ("telescopes", "sources", "scans", "frequencies"),
             "columns": ["time", "scan_name", "source_name", "telescope_code", "if_name", "frequency",
@@ -469,10 +464,8 @@ class CalculatedDataStructure:
                 otherwise is offered.
 
         Notes:
-            - Declared rather than derived. It cannot be worked out from the graph: `uv_coverage`
-              is needed by baseline projections *and* asked for by name, while `source_visibility`
-              is only ever a step. One is a leaf, the other is not, and both are required by
-              something -- the difference is intent, and intent has to be stated.
+            - Declared, because the graph cannot say it: `uv_coverage` is both a step and
+              asked for by name, and the difference from `source_visibility` is intent.
         """
         return bool(cls.entry_for(key).get("intermediate", False))
 
@@ -488,9 +481,8 @@ class CalculatedDataStructure:
                 a result every observation can have.
 
         Notes:
-            - Declared beside the result, like everything else about it, and asked of the model
-              through a request -- so what makes a calculation pointless is a fact about the
-              observation, not a list kept by whoever plans the run.
+            - Declared beside the result and asked of the model, so what makes a calculation
+              pointless is the observation's answer rather than a planner's list.
         """
         return cls.entry_for(key).get("only_if")
 
@@ -506,10 +498,7 @@ class CalculatedDataStructure:
                 calculation sampled over a grid records and one that is not does not.
 
         Notes:
-            - Read from what the schema already declares rather than from a name. The dialog
-              used to ask whether "Beam Pattern" was selected, which is the one calculation
-              that happens not to be sampled -- a fact about that calculation, spelled as a
-              comparison against its title.
+            - Read from what the schema declares rather than from a calculation's title.
         """
         return "time_step" in (cls.entry_for(key).get("metadata") or {})
 
@@ -524,13 +513,10 @@ class CalculatedDataStructure:
             tuple: Parameter names, in the order they are declared.
 
         Notes:
-            - **Read from what the result records.** A parameter that changes the answer has to
-              be recorded with it -- otherwise freshness could not tell one answer from another
-              -- so the metadata already names them, and a dialog asking what to offer needs no
-              list of its own.
-            - `asks` is the other kind: what a calculation is told to *do* rather than what it
-              computes with. `fill` writes an SEFD into the station it was worked out for, and
-              nothing about the result differs, so nothing records it.
+            - Read from what the result records: a parameter that changes the answer is
+              recorded with it, so the metadata already names them.
+            - `asks` is the other kind -- what a calculation is told to do rather than what it
+              computes with, which changes nothing about the result.
         """
         return cls.recorded_parameters(key) + tuple(cls.entry_for(key).get("asks", ()))
 
@@ -545,14 +531,10 @@ class CalculatedDataStructure:
             tuple: Parameter names, in the order `PARAMETERS` declares them.
 
         Notes:
-            - **What makes a stored result an answer to another question.** The cache compares
-              these, so a result worked out for another weather or another detection threshold
-              is not handed back as this one's. It used to compare `time_step` by name and leave
-              two calculations to compare the rest themselves, which is one rule written three
-              times and none at all for the next calculation that takes a parameter.
-            - Read from the metadata the schema declares, because a parameter that changes the
-              answer has to be recorded with the result anyway -- otherwise nothing could tell
-              one answer from another afterwards.
+            - What makes a stored result an answer to another question: the cache compares
+              these before handing one back.
+            - Read from the metadata the schema declares, which is where a parameter that
+              changes the answer is recorded anyway.
         """
         return tuple(name for name in PARAMETERS
                      if name in (cls.entry_for(key).get("metadata") or {}))
@@ -569,10 +551,8 @@ class CalculatedDataStructure:
                 named after its result.
 
         Notes:
-            - `_calculate_time_arrays` files under `times`, and it is the only one where the
-              two differ. A caller that passed the handler's name as `store_key` stored the
-              result where nothing reads it, and the model said so on every save:
-              `Unknown calculated_data key 'time_arrays'`.
+            - `_calculate_time_arrays` files under `times`, the only one where the two
+              differ; stored under the handler's name, nothing reads the result.
         """
         if key in cls.SCHEMAS:
             return key
@@ -592,9 +572,8 @@ class CalculatedDataStructure:
             dict: The entry, or an empty one.
 
         Notes:
-            - The catalogue knows handlers, results are filed under store keys, and for one
-              calculation the two differ. Resolving it here means nothing that reads the schema
-              has to know which spelling it was handed.
+            - Resolved here, so nothing reading the schema has to know which spelling it was
+              handed.
         """
         entry = cls.SCHEMAS.get(key)
         if entry is not None:
@@ -616,15 +595,12 @@ class CalculatedDataStructure:
                 a key that does not declare them -- safe, and merely coarse.
 
         Notes:
-            - Declared here rather than in a table of its own, because this is the one place a
-              new calculation already has to register: it cannot produce a frame without
-              dtypes. A separate table would be the file somebody forgets, and forgetting it
-              fails quietly by making a result look permanently fresh or permanently stale.
-            - The granularity of staleness is exactly this: editing a scan does not make a beam
-              pattern stale, and changing a frequency does not move azimuth and elevation.
-            - Found by its handler's name as well as by its store key. `time_arrays` files its
-              result under `times`, and asked by the handler's name this answered "everything",
-              which is the coarseness the declaration exists to avoid.
+            - Declared here, where a new calculation already registers its dtypes, rather
+              than in a table that can be forgotten.
+            - This is the granularity of staleness: editing a scan does not make a beam
+              pattern stale.
+            - Found by handler name as well as store key, or `time_arrays` answers
+              "everything".
         """
         schema = cls.entry_for(key)
         if "depends_on" not in schema:

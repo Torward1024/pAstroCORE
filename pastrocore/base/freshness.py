@@ -47,13 +47,8 @@ from pastrocore.base.data_structure import CalculatedDataStructure
 #: The metadata field a result's input fingerprint is stored under.
 DIGEST_FIELD = "inputs_digest"
 
-#: Parameters that change the answer without being part of the model. The detection threshold,
-#: the bits per sample, the weather assumed and the gain curves are E1's: the same baseline
-#: detects at 5 sigma and not at 7, and in dry air and not in wet.
-#:
-#: Declared beside the schemas rather than here, because a second reader appeared: a dialog asks
-#: a calculation which of these it takes, and two lists of the same thing is how one of them
-#: comes to be missing an entry.
+#: Parameters that change the answer without being part of the model. Declared beside the
+#: schemas, because a dialog reads the same list.
 PARAMETERS = data_structure.PARAMETERS
 
 _ACCESSORS = {
@@ -74,29 +69,21 @@ def dependencies_of(key: str) -> Tuple[str, ...]:
         Tuple[str, ...]: The parts it reads, or every part if it declares none.
 
     Notes:
-        - Read from the result's own schema rather than from a table here. A new calculation
-          already has to register there -- it cannot produce a frame without dtypes -- so the
-          declaration cannot be forgotten in a second file that nobody thinks to open.
+        - Read from the result's own schema, where a new calculation already registers.
     """
     return CalculatedDataStructure.get_dependencies(key)
 
 
-#: What a serialized part carries about *itself* rather than about what it holds. A calculation
-#: reads the stations, not what the collection of them is called -- so a fingerprint that covers
-#: the name reports a result as stale when nothing it was computed from has changed.
+#: What a serialized part says about itself rather than about what it holds. A calculation
+#: reads the stations, not what the collection of them is called.
 NOT_READ = ("name", "type")
 
 
 def _what_is_read(part: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a serialized part without the fields that say what the collection is, not what is in it.
+    """Return a serialized part without the fields naming the collection itself.
 
     Notes:
-        - Found by the audit: copying an observation marked every one of its results stale,
-          including a beam pattern, which depends on the telescopes and nothing else. Two of the
-          four collections invented a new name when copied, the name was in `to_dict`, and the
-          fingerprint covered it.
-        - The items keep their names. A scan's name is what its result is filed under, and a
-          station's code is what a row of a result names -- those *are* read.
+        - A calculation reads what a collection holds, not what it is called.
     """
     return {key: value for key, value in part.items() if key not in NOT_READ}
 
@@ -120,10 +107,8 @@ def digest(observation: Any, key: str, metadata: Optional[Dict[str, Any]] = None
             which case nothing can be said about freshness, and nothing is.
     """
     parts = {}
-    # Serialising a part is not free -- a container of scans converts every scan inside it --
-    # and a project has a dozen results whose dependencies overlap almost entirely. Without
-    # this, opening one project converted the same scan ten times over, which is what a user
-    # saw in the log.
+    # Serialising a part converts everything inside it, and a project's results overlap in
+    # what they depend on, so the same scan would be converted a dozen times.
     cache = parts_cache if parts_cache is not None else {}
     try:
         for name in dependencies_of(key):
@@ -178,10 +163,8 @@ def is_stale(observation: Any, key: str,
             mechanism, or the fingerprint could not be taken.
 
     Notes:
-        - Three answers rather than two, on purpose. A result saved before results carried
-          fingerprints is not stale and is not fresh: nothing is known about it, and reporting
-          "current" would be a claim, while reporting "stale" would send a user to recompute
-          everything they own the first time they open an old project.
+        - Three answers, because a result predating fingerprints is neither: "current" would
+          be a claim and "stale" would send a user to recompute everything they own.
     """
     metadata = observation.get_calculated_metadata(key) or {}
     recorded = metadata.get(DIGEST_FIELD)
@@ -209,14 +192,11 @@ def adopt_baseline(observation: Any) -> int:
         int: How many results were given one.
 
     Notes:
-        - Without this the mechanism is invisible to every project that already exists, which
-          is every project anyone has. Answering "unknown" forever is honest and useless: a
-          user changes a scan, nothing is reported, and the feature has never once fired.
-        - It is **not** a claim that the results are current. It records what the configuration
-          was when the project was opened, so that changes *from now on* are visible, and marks
-          the fingerprint as adopted so nothing later mistakes it for one taken at calculation
-          time.
-        - Metadata only. No result is read and no frame is rewritten.
+        - Without it the mechanism never fires on a project that already exists, which is
+          every project anyone has.
+        - It is not a claim that the results are current: it records the configuration as of
+          opening, and marks the fingerprint adopted.
+        - Metadata only; no result is read and no frame rewritten.
     """
     results = observation.calculated_data
     if not hasattr(results, "keys"):
@@ -271,15 +251,8 @@ def same_metadata(one: Any, other: Any) -> bool:
         bool: True when they are equal all the way down.
 
     Notes:
-        - `==` is not enough. Mollweide records the source coordinates it draws against and
-          those are numpy arrays, so comparing two such mappings produces an *array* rather
-          than an answer, and asking whether it is true raises:
-
-              The truth value of an array with more than one element is ambiguous
-
-          which the calculator's broad handler turned into a failed calculation. It only bit
-          when the two arrays were distinct objects -- that is, when the result had genuinely
-          been recomputed -- because Python compares a mapping's values by identity first.
+        - `==` is not enough: a value may be a numpy array, and comparing two of those gives
+          an array rather than an answer.
     """
     if one is other:
         return True
@@ -308,10 +281,7 @@ def record_metadata(observation: Any, key: str, metadata: Dict[str, Any]) -> boo
         bool: Whether it was recorded.
 
     Notes:
-        - The calculator stores a frame while computing it and then has to correct its
-          metadata with the freshness stamp. Storing the frame a second time to carry the
-          correction wrote the parquet twice for every calculation, which since results reach
-          the disk when they are made is a real cost rather than a tidiness one.
+        - Metadata only, or stamping freshness would write every parquet twice.
     """
     return _rewrite_metadata(observation.calculated_data, observation.name, key, metadata)
 

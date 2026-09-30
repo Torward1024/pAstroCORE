@@ -19,7 +19,7 @@ POLARIZATION_GROUPS = (CIRCULAR_POLARIZATIONS, SINGLE_LINEAR_POLARIZATIONS, LINE
 VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS + SINGLE_LINEAR_POLARIZATIONS + LINEAR_FEED_POLARIZATIONS
 
 class IF(BaseEntity):
-    """Base class representing an Intermediate Frequency (IF) with frequency, bandwidth, and polarization properties.
+    """One intermediate frequency: a sky frequency, a bandwidth and what it records.
 
     Attributes:
         name (str, optional): Unique identifier for the IF.
@@ -29,12 +29,9 @@ class IF(BaseEntity):
         isactive (bool): Indicates whether the IF is active.
 
     Notes:
-        - Polarizations must belong to a single group: circular, paired linear, or single linear.
-        - Wavelength is calculated as C_MHZ_CM / frequency.
-        - **`frequency` is the sky frequency at the edge of the band**, and `sidebands` says
-          which way the band runs from it: `U` covers `[frequency, frequency + bandwidth]`,
-          `L` covers `[frequency - bandwidth, frequency]`. Both are real and different pieces
-          of spectrum, and a receiver commonly records both from one local oscillator.
+        - `frequency` is the edge of the band, not its middle: `U` covers
+          `[frequency, frequency + bandwidth]` and `L` covers `[frequency - bandwidth, frequency]`.
+        - Polarizations belong to one group: circular, paired linear, or single linear.
     """
 
     #: Which way a band runs from its sky frequency. The letters are VEX's and CFX's.
@@ -50,17 +47,12 @@ class IF(BaseEntity):
     def __init__(self, *, name: str = None, frequency: float = 1000.0, bandwidth: float = 16.0,
                  polarizations: Optional[Union[str, List[str]]] = None,
                  sidebands: Optional[Union[str, List[str]]] = None, isactive: bool = True):
-        """Initialize an IF object with frequency, bandwidth, polarizations, and active status.
+        """Initialize an IF with frequency, bandwidth, polarizations and active status.
 
         Notes:
-            - **`sidebands` is a list, like `polarizations`, and for the same reason.** One
-              receiver setting at one sky frequency records what it records: a band with both
-              sidebands and both circular polarizations is four channels, and it is still one
-              setting. Making the sideband a property *of* the band would mean two `IF`s
-              carrying the same frequency, kept in step by hand.
-            - Defaults to `["U"]`, which is what every band written before this field existed
-              was implicitly taken to be: the overlap rule read a band as
-              `[frequency, frequency + bandwidth]`, and that is upper sideband.
+            - `sidebands` is a list, like `polarizations`: one receiver setting recording
+              both sidebands in both polarizations is four channels and still one setting.
+            - It defaults to `["U"]`, which is what a band written without the field means.
         """
         polarizations = self._validate_polarizations(polarizations)
         super().__init__(name=name, frequency=frequency, bandwidth=bandwidth,
@@ -112,34 +104,26 @@ class IF(BaseEntity):
             sidebands (List[str]): `U`, `L`, or both.
 
         Notes:
-            - **The one place a sideband is turned into numbers.** It takes loose values rather
-              than an `IF` so that an editor can show what the fields on screen *would* cover
-              before anything is saved -- which is the moment the answer is useful -- without
-              subtracting a bandwidth itself and getting it wrong differently.
+            - The one place a sideband becomes numbers. It takes loose values so an editor
+              can show what the fields on screen would cover before anything is saved.
         """
         low = frequency - bandwidth if "L" in sidebands else frequency
         high = frequency + bandwidth if "U" in sidebands else frequency
         return (low, high)
 
     def get_band(self) -> tuple:
-        """Return the spectrum this band actually covers, as `(low, high)` in MHz.
+        """Return what this band covers, as `(low, high)` in MHz.
 
         Notes:
-            - Everything that needs to know what a band covers -- the overlap rule, an
-              exporter, a person asking what was recorded -- asks this or `band_of` rather
-              than adding or subtracting a bandwidth itself.
-            - With both sidebands it spans `[frequency - bandwidth, frequency + bandwidth]`:
-              one setting recording either side of its sky frequency covers both.
+            - Both sidebands span twice the bandwidth about the sky frequency.
         """
         return self.band_of(self.frequency, self.bandwidth, self.sidebands)
 
     def get_channel_count(self) -> int:
-        """How many channels this one setting records: a polarization times a sideband.
+        """How many channels this setting records: a polarization times a sideband.
 
         Notes:
-            - What VEX writes as `chan_def` and CFX as `IF =`. One band at 4828 MHz with two
-              circular polarizations and both sidebands is four of them, which is exactly what
-              the RadioAstron example records.
+            - What VEX writes as `chan_def` and CFX as `IF =`.
         """
         return max(len(self.polarizations), 1) * len(self.sidebands)
 
@@ -147,9 +131,7 @@ class IF(BaseEntity):
         """The middle of what this band covers, in MHz.
 
         Notes:
-            - `frequency` is an edge, unless both sidebands are recorded, in which case it is
-              already the middle. For anything wanting one representative frequency -- a
-              wavelength to scale a baseline by -- this is the honest answer.
+            - `frequency` is an edge unless both sidebands are recorded.
         """
         low, high = self.get_band()
         return (low + high) / 2.0
@@ -234,10 +216,8 @@ class IF(BaseEntity):
             InvariantError: Naming what was found.
 
         Notes:
-            - `_validate_sidebands` runs from `__init__` and from `set_sidebands`, and `set`
-              reaches neither -- so `set({"sidebands": ["X"]})` was taken, and then `get_band`
-              returned a band of zero width, quietly, because neither letter matched. Both
-              exporters would have written it.
+            - On the invariant, because `set` reaches neither `__init__` nor `set_sidebands`
+              and an unknown letter makes `get_band` a band of zero width.
         """
         for letter in self.sidebands or []:
             if letter not in self.VALID_SIDEBANDS:
@@ -253,12 +233,7 @@ class IF(BaseEntity):
         """A band is recorded in circular polarization or in linear, never in a mixture.
 
         Notes:
-            - It was checked in `_validate_polarizations`, which runs from `__init__` and
-              nowhere else: `set({"polarizations": ["RCP", "H"]})` was accepted, and so was a
-              saved project carrying one back. The same shape as the coordinate range and the
-              scan duration before them.
-            - An empty list is not a mixture. A band with no polarization entered means nothing
-              was said, and the exporter writes that as "not stated" rather than as an answer.
+            - An empty list is not a mixture; an exporter writes it as "not stated".
         """
         if not self.polarizations:
             return True
@@ -299,18 +274,9 @@ class Frequencies(BaseContainer[IF]):
             InvariantError: Naming both bands and what each covers.
 
         Notes:
-            - A rule about the contents rather than about any one IF, which is what an
-              invariant is for. It was a `_check_overlap` helper called by hand from six
-              places -- the constructor, `add`, `create_if`, `set_if`, `set_item` and
-              `set_items` -- so it held exactly where somebody had remembered it. msb_arch
-              1.10.0 checks a container's rule after `add`, `remove`, `set_item`, `set_items`
-              and `remove_all`, and puts the items back when it refuses.
-            - Sorted rather than compared pairwise: the hand-written version asked one new band
-              against every existing one, which is the same work per call and quadratic when
-              the whole container is checked.
-            - Raises its own error so the message still names the two bands. A rule that only
-              answers False would say "frequency ranges must not overlap" and leave the user to
-              find which two.
+            - A rule about the contents, so msb_arch checks it after every change.
+            - Sorted rather than compared pairwise, which is quadratic over the container.
+            - Raises its own error, so the message names the two bands rather than the rule.
         """
         bands = []
         for name, if_obj in self.get_all().items():
@@ -442,10 +408,8 @@ class Frequencies(BaseContainer[IF]):
             params["isactive"] = isactive
 
         if params:
-            # An IF is edited in place, so the container is never told and cannot check its
-            # own rule. Written, checked, and put back when the rule refuses -- which is what
-            # msb_arch does for a field, and the same reason: a refused change must leave the
-            # object exactly as it was.
+            # An IF is edited in place, so the container is never told: written, checked,
+            # and put back when the rule refuses.
             was = {key: getattr(if_obj, key) for key in params}
             if_obj.set(params)
             try:
@@ -472,9 +436,8 @@ class Frequencies(BaseContainer[IF]):
             raise ValueError(f"IF name '{item.name}' does not match key '{name}'")
         if not isinstance(item, IF):
             raise TypeError(f"Item must be of type IF, got {type(item).__name__}")
-        # Through the container rather than into `_items`: writing the mapping directly is what
-        # made this the one path where the overlap rule could be skipped, and it is also what
-        # the container checks its rule after.
+        # Through the container rather than into `_items`, which is what the overlap rule
+        # is checked after.
         super().set_item(name, item)
         logger.debug("Set IF with name '%s' in Frequencies", name)
 
@@ -525,13 +488,9 @@ class Frequencies(BaseContainer[IF]):
         """Create a deep copy of the Frequencies object.
 
         Notes:
-            - **A copy is another object, so it is named as one.** These names are UUIDs, and a
-              UUID that appears twice in a project is a name that no longer identifies anything.
-              What a collection is called is not part of what a calculation reads, so a copy
-              being freshly named does not make a result stale -- `freshness._what_is_read`
-              leaves it out, which is the other half of the audit finding this comes from.
-            - The items keep their names: a scan's name is the key its results are filed under,
-              and a source's name is the source.
+            - The copy is named afresh: a UUID appearing twice identifies nothing, and what a
+              collection is called is not part of what a calculation reads.
+            - The items keep their names, which are the keys results are filed under.
         """
         return Frequencies(
             items={name: item.copy() for name, item in self._items.items()},

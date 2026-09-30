@@ -35,9 +35,8 @@ def _rows(table: Optional[Any]) -> List[Row]:
     """Return a table as rows, accepting the `{frequency: value}` form tables had before E1.
 
     Notes:
-        - A value measured at one frequency, written the old way, applies at that frequency and
-          nowhere else: no range is made up for it. Widening it is a decision about a receiver,
-          and the editor is where that is made.
+        - A value written the old way holds at that frequency and nowhere else; widening it
+          is a decision made in the editor.
     """
     if not table:
         return []
@@ -47,14 +46,13 @@ def _rows(table: Optional[Any]) -> List[Row]:
 
 
 class Telescope(BaseEntity):
-    """Class representing a ground-based telescope with ITRF coordinates, velocities, and SEFD properties.
+    """One ground station: where it stands, how it moves, and what was measured of it.
 
     Notes:
-        - **The measured tables are rows of `(f_min, f_max, value)`** (E1): what was measured, and the
-          frequencies it holds for. A value applies to a band whose frequency lies in its range and
-          to nothing else, so a system temperature measured for a C-band receiver is never taken as
-          the one at 22 GHz. The ranges in one table do not overlap, so no frequency has two answers.
-          Tables were `{frequency: value}` before, and read that way still (`SCHEMA_VERSION` 2).
+        - The measured tables are rows of `(f_min, f_max, value)` (E1). A value holds for a
+          band whose frequency lies in its range and for nothing else.
+        - Ranges in one table do not overlap, so no frequency has two answers. The older
+          `{frequency: value}` form is still read (`SCHEMA_VERSION` 2).
     """
     SCHEMA_VERSION = 2
 
@@ -140,16 +138,11 @@ class Telescope(BaseEntity):
             InvariantError: Naming the table, the range and the value.
 
         Notes:
-            - `add_sefd` checked what it was given and `set` did not, so
-              `set({"sefd_table": ...})` took a negative SEFD and `get_sefd` handed the minus
-              one to whatever asked -- a sensitivity, an integration time, a beam. Four tables
-              had the same hole, and so did a saved project carrying one back.
-            - **Surface efficiency is a fraction**, so it is bounded above as well: an aperture
-              cannot return more than it collects, and 1.4 there is a typo for 0.4 rather than
-              a very good dish.
-            - **A range runs low to high, and ranges in one table do not overlap.** Two rows
-              covering one frequency would be two answers to one question. Ranges may touch; at
-              the frequency they share, the lower row answers.
+            - On the invariant, so `set` and a saved project are held to it as `add_sefd` is.
+            - Surface efficiency is a fraction, so it is bounded above: an aperture cannot
+              return more than it collects.
+            - A range runs low to high and ranges do not overlap. They may touch, and at the
+              frequency they share the lower row answers.
         """
         for table, what in self.TABLES.items():
             rows = sorted(getattr(self, table, None) or [])
@@ -176,9 +169,8 @@ class Telescope(BaseEntity):
         if self.surface_accuracy is not None and (
                 not isinstance(self.surface_accuracy, (int, float))
                 or self.surface_accuracy <= 0):
-            # An RMS surface error is a length. It reaches Ruze's formula squared, so a
-            # negative one gives the same answer as its opposite -- which is worse than an
-            # error, because the number is wrong and the result looks reasonable.
+            # An RMS surface error is a length, and Ruze squares it, so a negative one
+            # answers as its opposite and looks reasonable.
             raise InvariantError(
                 f"Telescope '{self.code}': surface accuracy is {self.surface_accuracy!r}; "
                 f"it is an RMS error in micrometres, so it is positive or not stated")
@@ -276,9 +268,7 @@ class Telescope(BaseEntity):
         """Return the SEFD measured for a frequency, in Jy, or None when no row covers it.
 
         Notes:
-            - It returned the one point of a one-point table at any frequency at all, and
-              interpolated between rows in a straight line -- a 22 GHz SEFD made out of an L-band
-              and a Q-band measurement. A row now says what it holds for.
+            - A row says what it holds for; nothing is interpolated between rows.
         """
         check_type(frequency, (int, float), "Frequency")
         row = self._covering(self.sefd_table, frequency)
@@ -288,8 +278,7 @@ class Telescope(BaseEntity):
         """Return the aperture efficiency measured for a frequency, or None when no row covers it.
 
         Notes:
-            - `surface_efficiency_table` holds what was measured of the whole aperture --
-              illumination, spillover and blockage as well as the surface.
+            - The table holds the whole aperture, not only the surface.
         """
         check_type(frequency, (int, float), "Frequency")
         row = self._covering(self.surface_efficiency_table, frequency)
@@ -337,18 +326,11 @@ class Telescope(BaseEntity):
                 `basis` saying how the value was got, `reason` why there is none.
 
         Notes:
-            - In this order, the first that answers:
-              1. **Measured for this frequency** -- a `surface_efficiency_table` row covering it.
-              2. **Measured elsewhere, carried by Ruze** -- with the surface accuracy known, the
-                 efficiency of the row nearest in frequency, at the middle of its range, is split
-                 into what the surface loses there and the rest, `eta0 = eta(nu1) / ruze(nu1)`,
-                 and the rest is taken to hold at every frequency: `eta = eta0 * ruze(nu)`. That is
-                 the physics of an aperture, and why a measurement at one frequency speaks for
-                 another.
-              3. **Ruze alone** -- nothing measured, the surface accuracy known. Only the surface's
-                 losses, so it is higher than a real dish's efficiency and the SEFD it gives is
-                 optimistic; the basis says so.
-            - None, with the reason, when none of those can be made.
+            - Measured for this frequency, if a `surface_efficiency_table` row covers it.
+            - Otherwise carried by Ruze from the nearest measured row: `eta0 = eta(nu1) /
+              ruze(nu1)` holds at every frequency, so `eta = eta0 * ruze(nu)`.
+            - Otherwise Ruze alone, which counts only the surface's losses and is therefore
+              optimistic. `basis` says which of the three it was, `reason` why there is none.
         """
         check_type(frequency, (int, float), "Frequency")
         measured = self._covering(self.surface_efficiency_table, frequency)
@@ -390,11 +372,8 @@ class Telescope(BaseEntity):
                 it was computed from when it was; and the reason when there is no SEFD.
 
         Notes:
-            - **The SEFD table first.** Otherwise `SEFD = 2 k Tsys / A_eff`, in Jy, with `Tsys` from
-              a row covering the frequency and `A_eff` from an effective-area row covering it, or
-              from `get_aperture_efficiency` times the dish's area.
-            - The old `calculate_sefd` left out the conversion to janskys, so it gave 1.8e-25 for a
-              dish of 18 Jy, and took the efficiency from Ruze alone. Nothing called it.
+            - The SEFD table first. Otherwise `SEFD = 2 k Tsys / A_eff` in Jy, with `Tsys` and
+              `A_eff` from rows covering the frequency, or the area from the efficiency.
         """
         check_type(frequency, (int, float), "Frequency")
         check_positive(frequency, "Frequency")
@@ -461,9 +440,7 @@ class Telescope(BaseEntity):
 
     def to_dict(self) -> dict:
         """Convert the Telescope object to a dictionary for serialization."""
-        # A copy: on an object that caches, `to_dict` returns the cache itself, and
-        # writing to it corrupts what every later call reports -- which MSB 1.9.0
-        # turned from silent into a refusal.
+        # A copy: on an object that caches, `to_dict` returns the cache itself.
         data = dict(super().to_dict())
         data.update({
             "mount_type": self.mount_type.value,

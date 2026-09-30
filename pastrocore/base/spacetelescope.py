@@ -69,13 +69,10 @@ class SpaceTelescope(Telescope):
             InvariantError: When the path is a string with nothing in it.
 
         Notes:
-            - `set_orbit` refuses a blank and `set` reached neither it nor the check in
-              `__init__`, so `set({"orbit_file": ""})` was taken and the failure arrived later,
-              inside a calculation, as an empty path being opened.
-            - **It does not insist that a spacecraft be positioned.** Making one and giving it
-              an orbit afterwards is how the editor works, and `None` is what "not yet" looks
-              like. A rule the model cannot justify refuses something real -- which is how the
-              rule about overlapping scans threw half of a real experiment away.
+            - On the invariant, so `set` is held to it as `set_orbit` is; otherwise the empty
+              path is opened inside a calculation.
+            - It does not insist that a spacecraft be positioned: `None` is "not yet", which
+              is how the editor works.
         """
         if isinstance(self.orbit_file, str) and not self.orbit_file.strip():
             raise InvariantError(
@@ -145,8 +142,7 @@ class SpaceTelescope(Telescope):
         """Whether this spacecraft is placed from an orbit file rather than Keplerian elements.
 
         Notes:
-            - One answer to a question the calculator asked in four places, each spelled
-              `isinstance(tel, SpaceTelescope) and not tel.get("use_kep")`.
+            - One answer to a question the calculator asks in four places.
         """
         return not self.use_kep
 
@@ -217,20 +213,10 @@ class SpaceTelescope(Telescope):
             SpaceTelescope: The telescope.
 
         Notes:
-            - A space telescope has no station geometry, no mount and no elevation limits: the
-              constructor sets them and does not accept them. They are inherited fields all the
-              same, so a file written before `to_dict` stopped emitting them still carries
-              them, and every such project must keep opening. They are dropped here rather
-              than rejected.
-            - Without this, a project containing a space telescope could not be opened at all.
-              The failure named `elevation_range`, which pointed at the field rather than at
-              the rule.
-            - **The epoch comes back as a time.** `to_dict` writes it as an ISO string, which is
-              what a file can hold, and the constructor refuses anything that is not an astropy
-              `Time` -- so a spacecraft placed by Keplerian elements was written correctly and
-              could not be read back at all: `TypeError: Epoch must be an astropy Time object`.
-              Every round-trip test used a spacecraft that follows an orbit file, which is the
-              other branch.
+            - Station geometry, mount and elevation limits are dropped rather than rejected:
+              the constructor derives them, and an older file still carries them.
+            - The Keplerian epoch is parsed back into an astropy `Time`, which is what the
+              constructor takes and not what a file can hold.
         """
         derived = ("x", "y", "z", "vx", "vy", "vz",
                    "elevation_range", "azimuth_range", "mount_type")
@@ -247,14 +233,10 @@ class SpaceTelescope(Telescope):
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization."""
         try:
-            # A copy: on an object that caches, `to_dict` returns the cache itself, and
-            # writing to it corrupts what every later call reports -- which MSB 1.9.0
-            # turned from silent into a refusal.
+            # A copy: on an object that caches, `to_dict` returns the cache itself.
             data = dict(super().to_dict())
-            # A space telescope has no station geometry and no mount, so the constructor fixes
-            # these rather than accepting them. Writing them out would produce a file whose
-            # every key is a constructor argument except these -- which is exactly what
-            # deserialization assumes, and why it used to fail on the first one it met.
+            # The constructor fixes these rather than accepting them, and every other key
+            # of the file is a constructor argument.
             for key in ["x", "y", "z", "vx", "vy", "vz",
                         "elevation_range", "azimuth_range", "mount_type"]:
                 data.pop(key, None)

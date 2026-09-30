@@ -28,6 +28,10 @@ COMMENT_LINES = 2
 #: How many lines a paragraph of markdown may take.
 PARAGRAPH = 4
 
+#: The shortest a docstring may be held to whatever the body is. A one-line function still
+#: takes a summary and a note, and Google style has no shorter form than that.
+PROSE_FLOOR = 3
+
 DATE = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
 
 #: The Google sections, whose length a signature decides rather than a writer.
@@ -85,12 +89,17 @@ def _docstring_faults(node, found):
         body = node.body[1:]
         written = (body[-1].end_lineno - body[0].lineno + 1) if body else 0
         held = prose_of(text)
-        if held > max(written, 1):
+        if held > max(written, PROSE_FLOOR):
             found.append(f"line {where}: {held} lines of prose over {written} of body")
 
     if "Notes:" not in text:
         return
+    # Up to the next Google section: `Examples` after `Notes` is not a note.
     tail = text.split("Notes:", 1)[1]
+    for number, line in enumerate(tail.splitlines()):
+        if SECTION.match(line):
+            tail = "\n".join(tail.splitlines()[:number])
+            break
     points = re.split(r"^\s*- ", tail, flags=re.M)[1:]
     if len(points) > NOTES:
         found.append(f"line {where}: {len(points)} notes")
@@ -154,21 +163,9 @@ def long_paragraphs(path) -> list:
 #: ledger look like progress that has not happened.
 OWED = {
     "app.py":                                 46,
-    "base/data_structure.py":                 15,
-    "base/frequencies.py":                    22,
-    "base/freshness.py":                      13,
-    "base/generation_plan.py":                7,
-    "base/observation.py":                    11,
-    "base/result_store.py":                   27,
-    "base/scans.py":                          13,
-    "base/scratch.py":                        7,
-    "base/sources.py":                        18,
-    "base/spacetelescope.py":                 8,
-    "base/telescope.py":                      13,
-    "base/telescopes.py":                     10,
     "cli.py":                                 6,
     "cli_request.py":                         5,
-    "formats/__init__.py":                    15,
+    "formats/__init__.py":                    14,
     "formats/cfx.py":                         8,
     "formats/vex.py":                         24,
     "gui/icon_theme.py":                      2,
@@ -220,7 +217,7 @@ OWED = {
     "super/schedule_vex.py":                  1,
     "super/schedule_visualizer.py":           40,
     "theme.py":                               4,
-    "utils/catalogmanager.py":                11,
+    "utils/catalogmanager.py":                10,
     "utils/machine.py":                       1,
 }
 

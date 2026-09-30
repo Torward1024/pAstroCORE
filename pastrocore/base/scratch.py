@@ -59,10 +59,8 @@ def live_pids() -> Optional[set]:
         Optional[set]: Every running pid, asked once.
 
     Notes:
-        - One call rather than one per directory. `psutil.pid_exists` costs about four
-          milliseconds on Windows, so asking it for each scratch directory made startup take
-          **1 246 ms** against a hundred and ninety-nine of them -- and every one of those was
-          empty, so the answer was not even used.
+        - One call rather than one per directory: `pid_exists` costs about four milliseconds
+          on Windows, and a hundred and ninety-nine directories made startup 1 246 ms.
     """
     try:
         import psutil
@@ -84,10 +82,8 @@ def _process_is_alive(pid: int, running: Optional[set] = None) -> bool:
         bool: True if it is running, or if the question cannot be answered.
 
     Notes:
-        - The bias matters and is deliberate. Answering "no" wrongly means treating a live
-          session's results as abandoned, and offering to recover a directory that is being
-          written to. Answering "yes" wrongly means one stale directory survives until the user
-          is asked about it, which costs disk and nothing else.
+        - "No" wrongly offers to recover a directory being written to; "yes" wrongly costs
+          one stale directory.
     """
     if running is None:
         running = live_pids()
@@ -107,12 +103,9 @@ def _is_a_scratch_directory(candidate: Path, root: Path) -> bool:
         bool: True only for a direct child of the scratch root carrying a session marker.
 
     Notes:
-        - Two conditions, both required, and neither is satisfied by a project directory: it
-          is not inside the scratch root, and it holds `project.json` rather than
-          `session.json`. Deleting a project would be the worst failure this module could
-          have, so it is made unreachable rather than merely avoided.
-        - A project saved *into* the scratch root -- which nothing invites but nothing
-          forbids -- still fails the marker test.
+        - Both conditions are required, and a project directory satisfies neither: it is not
+          under the scratch root, and it holds `project.json` rather than `session.json`.
+        - A project saved into the scratch root still fails the marker test.
     """
     try:
         candidate, root = Path(candidate).resolve(), Path(root).resolve()
@@ -250,20 +243,10 @@ class ScratchSpace:
             root (Path): The scratch root they must lie under.
 
         Notes:
-            - Safe in a way the rest of this module is careful not to be: there is nothing to
-              lose. The rule "a scratch directory is not litter" protects *calculations*, and
-              one that holds none is exactly litter. Left alone they accumulate one per run --
-              a hundred and ninety-nine of them was what made startup slow.
-            - Recently touched directories are left alone without asking anything, which is
-              most of them and costs nothing.
-            - **An idle directory is not a dead one.** A session's directory is created when
-              its project is opened, before anything is calculated, and an empty directory's
-              time never moves -- so a window left open for an hour without calculating looked
-              exactly like litter, and the next window to start deleted it. The first window then
-              wrote its results into a directory recreated without its marker, and when it
-              crashed there was nothing to offer back: the one loss this module exists to
-              prevent. So the process is asked about -- once for the whole sweep, which is
-              the cheap way; asking per directory is what once made startup slow.
+            - A directory holding no results is litter, and they accumulate one per run.
+            - Recently touched ones are left alone without asking anything.
+            - An idle directory is not a dead one: it is created when a project is opened and
+              its time never moves, so the owning process is asked about once per sweep.
         """
         cutoff = time.time() - 3600
         removed = 0
@@ -319,9 +302,8 @@ class ScratchSpace:
             if not candidate.is_dir() or not marker.is_file():
                 continue
 
-            # Counted before the process is asked about, because a session that wrote nothing
-            # has nothing to offer back whether it is alive or not -- and asking the operating
-            # system is the expensive part. Reversing these two is what made startup slow.
+            # Counted before the process is asked about: a session that wrote nothing has
+            # nothing to offer back either way, and asking is the expensive part.
             if not any(candidate.rglob("*.parquet")):
                 empty.append(candidate)
                 continue

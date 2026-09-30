@@ -1,27 +1,20 @@
 """Where calculated results live when they are not in memory.
 
-A project used to be one JSON file with every result base64-encoded inside it, which meant
-opening anything required reading everything. Measured on a real session -- 300 sources, a year
-of daily observations, 12 telescopes -- that is 173 million rows of `uv_coverage` alone, 8.3 GB
-resident before any other result exists.
-
-So a project is a directory now:
+A project is a directory:
 
     project.pastro/
-        project.json                            the model, and nothing else
+        project.json                            the model
         results/
             <observation>/uv_coverage.parquet
             <observation>/source_visibility.parquet
 
-Parquet rather than a zip or a database, for one reason that outweighs the tidiness of a single
-file: `polars.scan_parquet` can push a filter into the read. Drawing one source of three hundred
-touches 1 584 rows instead of 475 200, measured, and 2.6 times faster than reading everything
-and filtering afterwards. Inside a container that property is lost, because the member has to be
-unpacked first.
+Parquet, because `polars.scan_parquet` pushes a filter into the read: drawing one source of
+three hundred touches 1 584 rows instead of 475 200, 2.6 times faster than reading everything
+and filtering after. A member of a zip has to be unpacked first, which loses that.
 
-`CalculatedData` is what the rest of the application sees. It behaves like the dictionary it
-replaces -- `results["uv_coverage"]`, `.get`, `.items`, `in`, `len` -- and reads from disk only
-when a key is actually asked for.
+`CalculatedData` is what the rest of the application sees. It behaves like a dictionary --
+`results["uv_coverage"]`, `.get`, `.items`, `in`, `len` -- and reads a key from disk only when
+one is asked for.
 """
 import json
 import math
@@ -64,11 +57,8 @@ def remove_tree(path: Path, attempts: int = 5) -> None:
         OSError: If it still cannot be removed.
 
     Notes:
-        - A file written a moment ago is often still open in someone else's hands -- the search
-          indexer, the antivirus -- and its deletion is only *pending*. Removing its directory
-          then fails with "the directory is not empty" (WinError 145), and nothing is wrong.
-          Renaming an observation onto an existing name failed this way, and so did the last
-          step of a save, after every result had already been written.
+        - A file written a moment ago may be held by the indexer or the antivirus, its delete
+          only pending, and the directory's removal then fails with WinError 145.
     """
     for attempt in range(attempts):
         try:
@@ -93,10 +83,8 @@ def remove_file(path: Path, attempts: int = 5) -> None:
         OSError: If it still cannot be removed.
 
     Notes:
-        - The same pending delete `remove_tree` waits out, on the path that removes one result:
-          a parquet written or read a moment ago is often still open in someone else's hands,
-          and clearing it failed at the first attempt on a Clear that would have worked 50 ms
-          later.
+        - The same pending delete `remove_tree` waits out, on the path that removes one
+          result rather than a whole observation's.
     """
     for attempt in range(attempts):
         try:
@@ -128,13 +116,8 @@ def json_safe(value: Any) -> Any:
         Any: The same value, with NaN and infinity replaced by None throughout.
 
     Notes:
-        - `json.dumps` writes bare `NaN` and `Infinity` by default, and **neither is valid
-          JSON**. Python reads them back only because its own parser is lenient, so a file in
-          that state is readable by us and by nothing else -- which surfaces the first time an
-          export, an import or a server response has to be parsed by something we did not
-          write.
-        - `None` is not a workaround here but the honest answer: a span that could not be
-          determined is absent, and `null` is how JSON says absent.
+        - `json.dumps` writes bare `NaN` and `Infinity`, which no other JSON parser accepts.
+        - A span that could not be determined is absent, and `null` is how JSON says absent.
     """
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return None
@@ -143,10 +126,7 @@ def json_safe(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [json_safe(item) for item in value]
 
-    # Numpy reaches metadata by the front door -- a calculation records coordinates as an
-    # array because that is what it was working with -- and `json.dumps` refuses it. The
-    # metadata write then dropped the key with a warning nobody reads, which is how Mollweide
-    # tracks lost the source coordinates they are drawn against.
+    # A calculation records coordinates as a numpy array, which `json.dumps` refuses.
     if hasattr(value, "tolist") and not isinstance(value, (str, bytes)):
         return json_safe(value.tolist())
     if hasattr(value, "item") and type(value).__module__ == "numpy":
@@ -161,9 +141,8 @@ class ResultStore:
         root (Path): The `results/` directory inside a project directory.
 
     Notes:
-        - Nothing is written until `write` is called, and nothing is read until a key is asked
-          for. A store pointed at a directory that does not exist yet is legal: it is created
-          on the first write.
+        - A store pointed at a directory that does not exist is legal; the first write
+          creates it.
     """
 
     def __init__(self, root: Path):
@@ -209,9 +188,7 @@ class ResultStore:
                 None if there is no such result.
 
         Notes:
-            - Metadata lives in its own file beside the parquet precisely so this is cheap.
-              Reaching it through the result itself pulls every row off disk to reach a
-              dictionary of a few entries.
+            - Metadata is a file of its own beside the parquet, so this reads no rows.
         """
         _, metadata_path = self._paths(owner, key)
         if not metadata_path.is_file():
@@ -226,8 +203,8 @@ class ResultStore:
             new (str): The name to file them under instead.
 
         Notes:
-            - Results already written under the new name win, because they were produced by
-              the object as it is now. The old directory is removed rather than merged.
+            - Results already under the new name win; the old directory is removed, not
+              merged.
         """
         source, target = self.root / old, self.root / new
         if not source.is_dir():
@@ -282,9 +259,7 @@ class ResultStore:
             pl.LazyFrame: Nothing is read until it is collected.
 
         Notes:
-            - This is the point of the whole format. A consumer that filters -- the visualizer
-              drawing one source, the exporter writing one telescope -- should filter here
-              rather than after loading everything.
+            - A caller that filters should filter here rather than after loading every row.
         """
         data_path, _ = self._paths(owner, key)
         if not data_path.is_file():
@@ -319,11 +294,8 @@ class ResultStore:
                 logger.warning("Dropping unserializable metadata '%s' for result '%s' of '%s'",
                                name, key, owner)
 
-        # **Both files are written beside the old ones, and only then moved over them.** The
-        # parquet was written in place, and `write_parquet` truncates before it encodes: a
-        # write that failed half way -- a full disk, a closed application, a column that would
-        # not encode -- left the saved result at zero bytes, unreadable, with its old metadata
-        # still describing it. In a saved project that was a calculation gone from disk.
+        # Beside the old ones and only then moved over them: `write_parquet` truncates
+        # before it encodes, so a write that fails half way would leave nothing readable.
         try:
             frame.write_parquet(_partial(data_path))
             _partial(meta_path).write_text(json.dumps(keepable, indent=2, allow_nan=False),
@@ -346,11 +318,8 @@ class ResultStore:
             OSError: If they could not be removed, after waiting out a pending delete.
 
         Notes:
-            - **It said it had cleared them and it had not.** This ignored every error, so a
-              file the machine had not let go of stayed on disk while the interface reported
-              the results gone -- and keys are answered from the filenames, so the next listing
-              showed them again, fingerprints and all. A clear that could not happen is worth
-              saying out loud; what is on disk and what is reported must not disagree.
+            - Errors are raised rather than swallowed: keys are answered from the filenames,
+              so a file that stayed would be listed again as a result.
         """
         if key is None:
             remove_tree(self.root / owner)
@@ -370,15 +339,9 @@ def derived_metadata(frame: "pl.DataFrame") -> Dict[str, Any]:
             time. Absent keys for a frame that has no such column, rather than nulls.
 
     Notes:
-        - These three used to be supplied by the caller, which made one fact have two sources
-          -- and they drifted. A real project held a result of 288 rows over one scan beside
-          metadata claiming `scan_count: 0`, because the caller built the metadata from the
-          object's state *before* the calculation and stored it beside a frame computed after.
-        - Computed here because this is the one moment the frame and its metadata are both in
-          hand, so a caller cannot supply a wrong value: whatever it passes is replaced.
-        - Not removed from metadata altogether, which was the other option. They live beside
-          the parquet so a caller can read them without reading the result, and that is worth
-          more than the tidiness of having them nowhere.
+        - Computed here, where the frame is in hand, and they replace whatever a caller
+          passed: the frame is the authority on itself.
+        - Kept in metadata so a caller can read them without reading the result.
     """
     derived: Dict[str, Any] = {}
     if frame is None or frame.height == 0:
@@ -389,10 +352,8 @@ def derived_metadata(frame: "pl.DataFrame") -> Dict[str, Any]:
 
     moment = next((column for column in ("time", "start") if column in frame.columns), None)
     if moment is not None:
-        # `min()` over a column of nulls is None, and `float(None)` raises -- inside the
-        # calculator's broad handler, so a frame whose times could not be worked out cost the
-        # whole result rather than the two entries describing it. Absent, like a frame that
-        # records no moment at all.
+        # `min()` over a column of nulls is None and `float(None)` raises, so a span that
+        # cannot be determined is left absent.
         first = frame[moment].min()
         last = frame["end" if "end" in frame.columns else moment].max()
         if first is not None and last is not None:
@@ -410,16 +371,12 @@ class ResidencyBudget:
             for tests, which need a budget small enough to overflow deliberately.
 
     Notes:
-        - A share rather than a fixed number, because the same project is opened on a laptop
-          and on a workstation, and a number that suits one wastes or exhausts the other. It
-          is a share of what is *available* rather than of what is installed, so a machine
-          already under pressure is not handed a budget it cannot honour.
-        - The budget governs what may be *kept*, never what may be read. A single result
-          larger than the whole budget is still read and still returned; it is simply evicted
-          as soon as anything else needs room. Refusing to read it would turn a memory
-          setting into a correctness one.
-        - Only results already on disk can be evicted, because a result not yet written has
-          nowhere to be read back from.
+        - A share of what is available rather than of what is installed, so the same project
+          suits a laptop and a workstation.
+        - It governs what may be kept, never what may be read: a result larger than the whole
+          budget is still returned, and evicted as soon as anything needs room.
+        - Only a result already on disk can be evicted; one not yet written has nowhere to be
+          read back from.
     """
 
     #: Used when nothing else says otherwise. Half of what is free leaves room for the plots,
@@ -431,23 +388,13 @@ class ResidencyBudget:
         self._explicit_limit = limit_bytes
         # (owner, key) in least-recently-used order.
         self._sizes: "OrderedDict[tuple, int]" = OrderedDict()
-        # Weakly, so that bookkeeping about a result is never the last thing holding it. An
-        # observation the project has let go of kept its results in memory for the rest of the
-        # session, which is what the ceiling exists to prevent rather than to cause; the
-        # eviction below already handles a holder that is gone.
+        # Weakly, so bookkeeping is never the last thing holding a result: an observation
+        # the project has let go of must not keep its results resident.
         self._holders: "weakref.WeakValueDictionary[str, Any]" = weakref.WeakValueDictionary()
         self._lock = RLock()
 
     def __deepcopy__(self, memo: Dict) -> "ResidencyBudget":
-        """Return the same budget rather than a copy of it.
-
-        Notes:
-            - The budget describes one machine's memory, so two of them would each believe
-              they had the whole ceiling and together use twice it. Copying an observation --
-              which the interface does when renaming one -- must not fork the budget.
-            - It also holds a lock, which cannot be copied at all, so the alternative was a
-              TypeError from deepcopy.
-        """
+        """Return the same budget: two would each claim the whole ceiling, and it holds a lock."""
         return self
 
     __copy__ = __deepcopy__
@@ -563,10 +510,8 @@ class CalculatedData:
                 than the one already in use is a rename, and the results move with it.
 
         Notes:
-            - Results on disk are filed under the owner's name, so renaming an observation
-              would otherwise strand them: the new name finds nothing, and the old directory
-              is left for the next save to delete. They are moved here instead, which is the
-              one moment both names are known.
+            - Results are filed under the owner's name, and this is the one moment both
+              names are known, so a rename moves them here.
         """
         renamed = (owner is not None and owner != self._owner
                    and self._store is not None and store.root == self._store.root)
@@ -632,13 +577,10 @@ class CalculatedData:
         """Hold a result, writing it through to the store at once if there is one.
 
         Notes:
-            - Written now rather than at save time. A result that exists only in memory is lost
-              to a crash and is invisible to the residency budget, which cannot evict what it
-              cannot read back. Writing on arrival fixes both at once: the result is safe, and
-              the moment it is on disk the ceiling governs it like any other.
-            - A store that fails to write is not fatal. The result stays held and unwritten,
-              which is exactly the old behaviour, so a full disk costs the protection rather
-              than the calculation.
+            - Written on arrival, not at save time: the budget cannot evict what it cannot
+              read back, and a result held only in memory is lost to a crash.
+            - A write that fails leaves the result held and unwritten rather than raising, so
+              a full disk costs the protection and not the calculation.
         """
         # Corrected here as well as in the store, so a project with nowhere to write yet is
         # described as truthfully as one that has been saved.
@@ -665,13 +607,7 @@ class CalculatedData:
             self._budget.note(self, key, frame.estimated_size() if frame is not None else 0)
 
     def items(self):
-        """Every result, loading each as it is reached.
-
-        Notes:
-            - This is the expensive way to read results and the only one the old dictionary
-              offered. Prefer `keys()` and then one `[key]`, or `scan(key)` where a filter can
-              be pushed into the read.
-        """
+        """Every result, loading each as it is reached. Prefer `keys()` and one `[key]`."""
         return [(key, self[key]) for key in self.keys()]
 
     def values(self):
@@ -772,12 +708,10 @@ class CalculatedData:
             int: How many results were copied.
 
         Notes:
-            - Copied rather than moved, and the scratch is cleared afterwards by whoever owns
-              it. A save that fails halfway must leave the results where they were, and the
-              scratch is the only copy until the new one is complete.
-            - A result already present in the destination is left alone. The destination is a
-              project the user is saving over, and what has just been calculated is written
-              through `attach` and `flush` afterwards.
+            - Copied, not moved: a save that fails halfway must leave the results where they
+              were. Whoever owns the scratch clears it afterwards.
+            - A result already in the destination is left alone; `attach` and `flush` write
+              what was calculated since.
         """
         if self._store is None or store.root == self._store.root:
             return 0
@@ -808,9 +742,8 @@ class CalculatedData:
             int: How many results were written.
 
         Notes:
-            - `flush` is the same write and moves in: it makes that store the one these results
-              live in from now on. This is for a copy of the project -- packing it to send --
-              where the results must appear in the copy and go on living where they were.
+            - `flush` writes the same results and moves in. This is for a copy -- packing a
+              project to send -- where they must also go on living where they are.
         """
         for key in sorted(self._unwritten):
             if writing is not None:
@@ -854,15 +787,8 @@ class CalculatedData:
             bool: True when both are `CalculatedData` and answer to the same keys.
 
         Notes:
-            - Compared on the keys rather than on the frames. A key is a result that exists,
-              whether it is in memory or on disk, which is the same rule `keys()` and `in`
-              already use -- and reading every frame off disk to answer `==` would make
-              comparing two projects load both of them.
-            - Without this, results compared by identity, so an observation restored from a
-              file was never equal to the one it was written from and neither was the project
-              holding it. msb_arch 2.0.0 made a `Project` compare by its contents precisely so
-              that `load(...) == project` holds; this is the half of that promise which lives
-              here.
+            - On the keys, not the frames: reading every frame to answer `==` would load
+              both projects. It is the rule `keys()` and `in` already use.
         """
         if not isinstance(other, CalculatedData):
             return NotImplemented
