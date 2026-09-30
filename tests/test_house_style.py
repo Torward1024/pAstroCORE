@@ -30,6 +30,30 @@ PARAGRAPH = 4
 
 DATE = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
 
+#: The Google sections, whose length a signature decides rather than a writer.
+SECTION = re.compile(r"^\s*(Args|Arguments|Returns|Yields|Raises|Attributes|Examples?):\s*$")
+
+
+def prose_of(text: str) -> int:
+    """Return how many lines of a docstring are written rather than owed to the signature.
+
+    Notes:
+        - The summary and `Notes` are written; `Args` and `Returns` follow from the
+          signature, and counting them held a ten-line function to a docstring of nine.
+    """
+    kept, inside = [], False
+    for line in text.splitlines():
+        if SECTION.match(line):
+            inside = True
+            continue
+        if inside:
+            if line.strip() and not line.startswith(" " * 8):
+                inside = False
+            else:
+                continue
+        kept.append(line)
+    return sum(1 for line in kept if line.strip())
+
 
 def modules():
     """Every hand-written module. Generated Qt output is not prose anybody chose."""
@@ -60,9 +84,9 @@ def _docstring_faults(node, found):
     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
         body = node.body[1:]
         written = (body[-1].end_lineno - body[0].lineno + 1) if body else 0
-        held = text.count("\n") + 1
+        held = prose_of(text)
         if held > max(written, 1):
-            found.append(f"line {where}: {held} lines of docstring over {written} of body")
+            found.append(f"line {where}: {held} lines of prose over {written} of body")
 
     if "Notes:" not in text:
         return
@@ -129,76 +153,75 @@ def long_paragraphs(path) -> list:
 #: down, and a module that owes nothing comes off the list -- a stale entry would make the
 #: ledger look like progress that has not happened.
 OWED = {
-    "app.py":                                 53,
-    "base/data_structure.py":                 23,
-    "base/frequencies.py":                    35,
-    "base/freshness.py":                      17,
-    "base/generation_plan.py":                9,
-    "base/observation.py":                    17,
-    "base/result_store.py":                   46,
+    "app.py":                                 46,
+    "base/data_structure.py":                 15,
+    "base/frequencies.py":                    22,
+    "base/freshness.py":                      13,
+    "base/generation_plan.py":                7,
+    "base/observation.py":                    11,
+    "base/result_store.py":                   27,
     "base/scans.py":                          13,
-    "base/scratch.py":                        10,
-    "base/sources.py":                        21,
-    "base/spacetelescope.py":                 12,
-    "base/telescope.py":                      20,
-    "base/telescopes.py":                     15,
+    "base/scratch.py":                        7,
+    "base/sources.py":                        18,
+    "base/spacetelescope.py":                 8,
+    "base/telescope.py":                      13,
+    "base/telescopes.py":                     10,
     "cli.py":                                 6,
-    "cli_request.py":                         7,
+    "cli_request.py":                         5,
     "formats/__init__.py":                    15,
     "formats/cfx.py":                         8,
-    "formats/vex.py":                         27,
-    "gui/icon_theme.py":                      3,
+    "formats/vex.py":                         24,
+    "gui/icon_theme.py":                      2,
     "gui/p_custom_model.py":                  9,
     "gui/p_dialog_about.py":                  1,
     "gui/p_dialog_add_observation.py":        1,
-    "gui/p_dialog_calculations.py":           17,
-    "gui/p_dialog_catalog.py":                4,
+    "gui/p_dialog_calculations.py":           16,
+    "gui/p_dialog_catalog.py":                2,
     "gui/p_dialog_edit_if.py":                6,
     "gui/p_dialog_edit_scan.py":              7,
     "gui/p_dialog_edit_source.py":            4,
     "gui/p_dialog_edit_space_telescope.py":   2,
-    "gui/p_dialog_edit_telescope.py":         3,
+    "gui/p_dialog_edit_telescope.py":         2,
     "gui/p_dialog_export_calculated_data.py": 4,
     "gui/p_dialog_generate_observations.py":  5,
     "gui/p_dialog_preferences.py":            2,
-    "gui/p_dialog_progress.py":               7,
+    "gui/p_dialog_progress.py":               6,
     "gui/p_dialog_run_report.py":             3,
     "gui/p_dialog_schedule_export.py":        2,
-    "gui/p_dialog_session.py":                6,
+    "gui/p_dialog_session.py":                5,
     "gui/p_dialog_visualize.py":              7,
     "gui/p_status_bar.py":                    3,
-    "gui/p_tab_analysis.py":                  7,
+    "gui/p_tab_analysis.py":                  6,
     "gui/p_tab_frequencies.py":               7,
-    "gui/p_tab_observation.py":               5,
+    "gui/p_tab_observation.py":               4,
     "gui/p_tab_project.py":                   3,
     "gui/p_tab_scans.py":                     5,
     "gui/p_tab_sources.py":                   7,
     "gui/p_tab_telescopes.py":                6,
-    "gui/p_tab_vis_base.py":                  17,
+    "gui/p_tab_vis_base.py":                  15,
     "gui/p_tab_vis_beam_pattern.py":          3,
     "gui/p_tab_vis_mollweide.py":             3,
     "gui/p_tab_vis_sensitivity.py":           1,
     "gui/p_tab_vis_spacecraft.py":            4,
     "gui/p_tab_vis_uv_coverage.py":           2,
-    "gui/p_table_models.py":                  4,
-    "gui/styling.py":                         2,
-    "paths.py":                               7,
-    "super/schedule_address.py":              3,
+    "gui/p_table_models.py":                  3,
+    "paths.py":                               5,
+    "super/schedule_address.py":              2,
     "super/schedule_analyzer.py":             15,
-    "super/schedule_calculator.py":           86,
-    "super/schedule_cfx.py":                  2,
+    "super/schedule_calculator.py":           79,
+    "super/schedule_cfx.py":                  1,
     "super/schedule_configurator.py":         7,
-    "super/schedule_data.py":                 38,
-    "super/schedule_format.py":               6,
-    "super/schedule_inspector.py":            3,
-    "super/schedule_manipulator.py":          13,
-    "super/schedule_project.py":              47,
-    "super/schedule_runner.py":               60,
-    "super/schedule_vex.py":                  2,
-    "super/schedule_visualizer.py":           42,
-    "theme.py":                               7,
-    "utils/catalogmanager.py":                23,
-    "utils/machine.py":                       2,
+    "super/schedule_data.py":                 31,
+    "super/schedule_format.py":               5,
+    "super/schedule_inspector.py":            2,
+    "super/schedule_manipulator.py":          11,
+    "super/schedule_project.py":              25,
+    "super/schedule_runner.py":               49,
+    "super/schedule_vex.py":                  1,
+    "super/schedule_visualizer.py":           40,
+    "theme.py":                               4,
+    "utils/catalogmanager.py":                11,
+    "utils/machine.py":                       1,
 }
 
 #: The same, for the markdown.
