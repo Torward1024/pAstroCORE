@@ -60,11 +60,9 @@ class ScheduleVEX(ScheduleFormat):
             TypeError: If `obj` is neither an observation nor a project.
 
         Notes:
-            - **The report is the point, not a courtesy.** A VEX file this writes is complete in
-              shape and partial in content by design, and the caller is told exactly which
-              blocks are waiting: the interface shows the list, and a command line prints it.
-            - Space telescopes appear under `excluded` rather than being dropped in silence.
-              VEX 1.5 has no orbiting station.
+            - A file written here is complete in shape and partial in content by design, and
+              the report names every block left for a station to fill.
+            - VEX 1.5 has no orbiting station, so a space telescope is reported as excluded.
         """
         path = attributes.get("path")
         if not path:

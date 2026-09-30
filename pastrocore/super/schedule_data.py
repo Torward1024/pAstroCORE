@@ -37,9 +37,8 @@ from pastrocore.super.schedule_project import ScheduleProject
 
 #: Results that can be drawn. Anything else is exported as text only.
 
-#: What `inspect(method="history")` adds to a journal row for showing it, and a session file
-#: does not hold: where the object lives, as text, whether the request only reads, and what it
-#: called. A saved session is the requests as they were recorded.
+#: What `inspect(method="history")` adds to a journal row for showing it, and a session
+#: file does not hold: a saved session is the requests as they were recorded.
 SHOWN_ONLY = ("where", "reads", "call")
 
 #: Filenames that do not follow from the calculation's name.
@@ -70,13 +69,10 @@ class DataQuestions:
                 answer rather than an error -- a source may simply not be observed.
 
         Notes:
-            - This existed ten times over, once in each visualization tab, and each copy needed
-              polars to filter and group and astropy to turn an MJD into something readable.
-              That is ten screens holding a query, and a command-line version would have had to
-              write an eleventh.
-            - A question, so `inspect` answers it. It was `export` until 1.13.0, as "getting data
-              out of a project", which put a read beside the requests that write files. The
-              interface uses it to fill a list; a script would use it to decide what to plot.
+            - Here rather than in each visualization tab, which otherwise each need polars
+              to filter and astropy to make an MJD readable.
+            - A question, so `inspect` answers it: the interface fills a list with it and a
+              script decides what to plot.
         """
         key = attributes.get("key")
         if not key:
@@ -95,17 +91,15 @@ class DataQuestions:
                 logger.error("Result '%s' is missing columns %s", key, missing)
                 return []
 
-        # Most results record the moment in "time"; time_on_source records an interval and
-        # calls its beginning "start". The question is the same either way, so the column is
-        # found rather than assumed.
+        # Most results call the moment "time"; `time_on_source` records an interval and
+        # calls its beginning "start". The column is found rather than assumed.
         moment = next((column for column in ("time", "start") if column in frame.columns), None)
         if moment is None:
             logger.debug("Result '%s' records no time", key)
             return []
 
-        # Narrow by whatever the caller named that this result actually has a column for --
-        # `source_name` for a result about a source, `target_code` for one about a spacecraft.
-        # Asking the frame means a new kind of result needs no case here.
+        # Narrowed by whatever the caller named that the result has a column for, so a
+        # new kind of result needs no case here.
         narrowing = {column: value for column, value in attributes.items()
                      if column in frame.columns and value is not None}
         filtered = frame
@@ -133,10 +127,8 @@ class DataQuestions:
                 second check.
 
         Notes:
-            - The other question every visualization tab asks for itself: which sources are in
-              this result, which baselines, which telescopes. Each copy read the frame, checked
-              it against the schema and called `unique()` -- which is why each needed polars to
-              fill a combo box.
+            - The other question a visualization tab asks: which sources are in this result,
+              which baselines, which telescopes.
         """
         key = attributes.get("key")
         columns = attributes.get("columns") or []
@@ -176,12 +168,9 @@ class DataQuestions:
             List[str]: Sorted store keys whose result has at least one row.
 
         Notes:
-            - The question the visualize dialog asks to decide what it can offer, and it used
-              to answer it by **reading every result** -- 142 ms and eleven frames held in
-              memory on a small project, to fill one combo box. On a project of any size that
-              is the memory problem all over again.
-            - Counted through a lazy scan, so a parquet file answers from its footer and the
-              rows are never read.
+            - What the visualize dialog asks to decide what it can offer.
+            - Counted through a lazy scan, so a parquet answers from its footer and the rows
+              are never read.
         """
         results = obj.calculated_data
         keys = attributes.get("keys") or (list(results.keys()) if hasattr(results, "keys") else [])
@@ -198,10 +187,8 @@ class DataQuestions:
             except Exception as e:                      # noqa: BLE001 - reported below
                 unreadable.append(f"{key}: {e}")
 
-        # Said out loud, at warning, and with the traceback of the first one. This answer is
-        # what the visualize dialog offers a user, so a key that cannot be read is a plot that
-        # silently disappears -- and a debug line nobody reads is how an empty combo box looks
-        # like "there is nothing to draw" rather than "something is wrong".
+        # At warning, with the traceback: this answer is what the visualize dialog
+        # offers, so a key that cannot be read is a plot that disappears.
         if unreadable:
             logger.warning("Cannot tell whether %s of %s result(s) hold anything: %s",
                            len(unreadable), len(keys), "; ".join(unreadable[:5]))
@@ -218,9 +205,8 @@ class DataQuestions:
             int: The count. Zero for a project saved since its last calculation.
 
         Notes:
-            - A request rather than a method call, because the window is not allowed to reach
-              the model: a command line ending a session and a server closing one ask this the
-              same way, and there is one answer for all three.
+            - A request rather than a method call: a command line ending a session asks it
+              the same way.
         """
         return obj.unsaved_results() if hasattr(obj, "unsaved_results") else 0
 
@@ -229,14 +215,10 @@ class ScheduleData(DataQuestions, Persistence, Loader):
     """Reading results out of a project and writing them somewhere else.
 
     Notes:
-        - `save` and `load` are **MSB's**, inherited rather than written again: the built-in
-          writes atomically -- a temporary file beside the target, then a rename -- refuses an
-          existing file when told to, and raises the framework's own error types. This module
-          carried its own from before MSB had them, and it did none of those things.
-        - What stays here is the two cases that are about this model rather than about files: a
-          project is a *directory*, and a telescope is read back as the kind the file says.
-          MSB reaches both on its own, since a handler named for the type wins over the general
-          one, so neither had to be wired to anything.
+        - `save` and `load` are MSB's: the built-in writes atomically, refuses an existing
+          file when told to, and raises the framework's own errors.
+        - What stays here is about this model rather than about files -- a project is a
+          directory, and a telescope is read back as the kind the file says.
 
     Args:
         manipulator (Manipulator): The orchestrator every operation is reached through.
@@ -280,9 +262,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         if not export_path:
             raise ValueError("No 'export_path' given; there is nowhere to write")
 
-        # What can be drawn is whatever the visualizer offers a handler for, and what each plot
-        # takes is what that handler reads. Both are asked rather than listed, so a new plot is
-        # exported the moment it exists and is given what it uses without a line here.
+        # What can be drawn and what each plot takes are both asked of the visualizer,
+        # so a new plot is exported the moment it exists.
         drawable = self._manipulator.describe_operations("visualize").get("visualize", {}) \
             if export_vis else {}
 
@@ -310,11 +291,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                     logger.info("Export cancelled during '%s'", obs_code)
                     return {"written": written, "cancelled": True}
 
-                # A calculation is named here by its label, and the key is that label spelled
-                # the way a key is -- which for one calculation is its *handler's* name rather
-                # than the key its result is filed under. `Time Arrays` is `time_arrays` and
-                # files under `times`, so ticking it in the dialog wrote nothing and said so at
-                # debug level. Resolved through the schema, which knows both spellings.
+                # A calculation is named here by its label, and for one of them the
+                # key that spells is the handler's name. The schema knows both.
                 key = CalculatedDataStructure.store_key_for(
                     calc_type.lower().replace(" ", "_").replace("/", "_"))
                 data = target.get_calculated_data_by_key(key).get("data", {})
@@ -337,9 +315,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                     if key not in drawable:
                         logger.debug("Nothing draws '%s'; exporting its data only", calc_type)
                         continue
-                    # Whether a result is per source is a fact about its columns: one that
-                    # names a `source_name` is drawn once per source, one that does not -- a
-                    # spacecraft is tracked, not observed -- is drawn once.
+                    # Per source is a fact about the columns: one naming `source_name`
+                    # is drawn once per source, one that does not is drawn once.
                     columns = set(CalculatedDataStructure.entry_for(key).get("columns") or [])
                     per_source = sources if "source_name" in columns else [None]
                     accepts = set(drawable[key].get("accepts") or ())
@@ -347,10 +324,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                         suffix = f"_{source_name}" if source_name else ""
                         png_path = os.path.join(
                             export_path, f"{obs_code}_{file_prefix}{suffix}.png")
-                        # Offered, not assigned: everything this observation can say about
-                        # itself, of which each plot takes what it reads. The five lists this
-                        # replaces were a second copy of that, and one plot was missing from two
-                        # of them.
+                        # Offered, not assigned: everything the observation can say
+                        # about itself, of which each plot takes what it reads.
                         offered = {"source_name": source_name, "sources": sources,
                                    "telescopes": telescopes, "scans": scans,
                                    "frequencies": frequencies, "baselines": baselines,
@@ -363,10 +338,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                         except Exception as e:
                             raise ValueError(
                                 f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
-                        # **Reported because it is there, not because it was asked for.** A plot
-                        # with nothing to draw -- a filter that selects no row -- returns an
-                        # empty answer and writes no file, and this named the file anyway: the
-                        # caller was handed a path to something that does not exist.
+                        # Reported because it is there: a plot with nothing to draw
+                        # writes no file, and naming one hands back a path to nothing.
                         if not os.path.isfile(png_path):
                             logger.warning("Nothing was drawn for %s in %s, so no file was "
                                            "written", calc_type, obs_code)
@@ -376,11 +349,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                     report(int(current_step / total_steps * 100),
                            f"Exported vis for {calc_type} in {obs_code}")
 
-            # Every result read here stays in memory, and an export walks all of them for every
-            # observation. Without this the exporter ends holding the entire project -- which
-            # for a year of observing is the whole reason the results moved out of the model
-            # file. Only results already on disk are released; anything not yet written has
-            # nowhere to be read back from and is left alone.
+            # An export walks every result of every observation, so without this it ends
+            # holding the whole project. Only what is already on disk is released.
             if hasattr(target.calculated_data, "release"):
                 target.calculated_data.release()
 
@@ -399,13 +369,9 @@ class ScheduleData(DataQuestions, Persistence, Loader):
             Dict[str, Any]: `{"path": str}`.
 
         Notes:
-            - A facade, not a second implementation: the model still serialises itself and this
-              only puts an operation in front of it. What that buys is uniformity -- a caller
-              mapping commands to requests needs no special case for save, the journal records
-              the save that ended a session as well as the calculations in it, and a server
-              needs no endpoint outside the request model.
-            - Which is why it matters more than it looks: a journal that replays every
-              calculation and then saves nothing is a rehearsal, not a pipeline.
+            - A facade, not a second implementation: the model still serialises itself.
+            - What it buys is that a save is a request like any other, so the journal records
+              it and a replay performs it.
         """
         path = self._destination(attributes)
         obj.save(path, progress=attributes.get("progress"))
@@ -440,10 +406,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
             Dict[str, Any]: `{"object": Telescope | SpaceTelescope}`.
 
         Notes:
-            - A ground station and a spacecraft are written to the same kind of file and are
-              told apart by what is in it. The general `_load` builds whatever type it was
-              given, which cannot answer this -- so the answer lives here, where MSB finds it
-              by the type of the container being imported into.
+            - A ground station and a spacecraft share a file format and are told apart by
+              what is in it, which the general `_load` cannot do.
         """
         from pastrocore.base.spacetelescope import SpaceTelescope
         from pastrocore.base.telescope import Telescope
@@ -451,9 +415,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         path = self._destination(attributes, verb="load")
         data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
-        # The same handler is reached whether a telescope is being imported *into* a container
-        # or the container itself is being read back, because MSB resolves on the type of the
-        # object the request runs on and both are `Telescopes`. The file says which it is.
+        # One handler for importing a telescope into a container and for reading the
+        # container back: MSB resolves on the type, and both are `Telescopes`.
         if "items" in data:
             restored = type(obj).from_dict(data)
             logger.info("Read %s from '%s'", type(restored).__name__, path)
@@ -534,9 +497,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
         """Return the observations an export covers.
 
         Notes:
-            - What a project holds is the project's own answer; the rest is what shapes of
-              request this operation accepts, which is its own business rather than shared
-              knowledge.
+            - What a project holds is the project's answer; which shapes of request are
+              accepted is this operation's.
         """
         if isinstance(obj, ScheduleProject):
             return obj.get_observations()
@@ -556,11 +518,10 @@ class ScheduleData(DataQuestions, Persistence, Loader):
             target (Observation): The observation, whose metadata some results need.
 
         Notes:
-            - Times are written in ISOT rather than as MJD floats, because the file is meant to
-              be read by a person. NaN is preserved as it stands: a gap is a gap, and writing
-              an empty field instead would let it read as zero.
-            - `mollweide_tracks` appends the source coordinates from its metadata as extra rows
-              with the time set to `-----`, which is how that file has always been written.
+            - Times in ISOT, because a person reads the file. NaN is written as it stands:
+              an empty field would read as zero.
+            - `mollweide_tracks` appends its source coordinates as rows whose time is
+              `-----`.
         """
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -652,14 +613,10 @@ class ScheduleData(DataQuestions, Persistence, Loader):
             ValueError: If no path was given.
 
         Notes:
-            - Writable at all only because a journal entry is plain data: what was asked, of
-              which object *by name*, and whether it worked. An entry holding the live object
-              could not leave the process -- and, worse, kept alive everything it recorded.
-            - What comes back is a session a later run can replay against whatever project is
-              open then, which is how a reported problem becomes a reproduction.
-            - **Cutting a session down changes the file, never the journal.** What the window
-              asked stays recorded, since that is what a bug report needs; the rows given are
-              written as they were recorded, without what a table added to show them.
+            - A journal entry is plain data -- what was asked, of which object by name -- so
+              it leaves the process and holds nothing alive.
+            - What comes back replays against whatever project is open then.
+            - Cutting a session down changes the file, never the journal.
         """
         path = attributes.get("path")
         if not path:
@@ -673,9 +630,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                        for step in given])
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Beside the old one and moved over it, as every other file this application writes is
-        # -- a session is what a bug report carries, and a write interrupted part way left a
-        # truncated one that reads as a session with a few steps rather than as a failure.
+        # Beside the old one and moved over it: a truncated session reads as a short one
+        # rather than as a failure.
         partial = target.with_name(target.name + ".partial")
         try:
             partial.write_text(
@@ -726,13 +682,11 @@ class ScheduleData(DataQuestions, Persistence, Loader):
             FileExistsError: If the file is there and `overwrite` is off.
 
         Notes:
-            - **The columns are whatever the answer carries**, in the order it gives them. A
-              handler that grows a field writes it here without this method being told, which
-              is the same reason the table in the interface holds no column list either.
-            - Tab-separated with a BOM and `NaN` for what is missing, exactly as a calculated
-              result is written: a person opens both in the same spreadsheet.
-            - Asking the question here rather than making the caller do it means a command
-              line is one command, and that the file and the screen cannot disagree.
+            - The columns are whatever the answer carries, so a handler that grows a field
+              writes it here untold.
+            - Tab-separated with a BOM and `NaN` for what is missing, as a result is.
+            - The question is asked here, so a command line is one command and the file
+              cannot disagree with the screen.
         """
         path = attributes.get("path")
         if not path:
@@ -784,17 +738,11 @@ class ScheduleData(DataQuestions, Persistence, Loader):
             FileExistsError: If the file exists and `overwrite` is off.
 
         Notes:
-            - **A project is a directory**, which is right for working in and wrong for sending:
-              a colleague gets a folder tree, and a bug report gets nothing at all. This is the
-              other half -- one file, which is what travels.
-            - Zip **as an exchange format, not as storage**. Packing the working project was
-              measured and rejected: parquet is already compressed so it saves 0.6%, and opening
-              becomes 46x slower. Neither cost applies to a file that is written once and
-              unpacked once.
-            - `results=False` writes the model alone, which is what a bug report wants: a few
-              kilobytes that reproduce the configuration without a gigabyte of frames.
-            - The project is saved first, so what is packed is the project as it is now rather
-              than as it was when it was last written to disk.
+            - A project is a directory, which is right for working in and wrong for sending.
+            - Zip as an exchange format, not as storage: on the working project it saves
+              0.6% and makes opening 46x slower.
+            - `results=False` writes the model alone, which is what a bug report wants.
+              The project is saved first, so what is packed is the project as it is now.
         """
         path = attributes.get("path")
         if not path:
@@ -808,13 +756,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
 
         with_results = attributes.get("results", True)
         source = Path(tempfile.mkdtemp(prefix="pastrocore_package_")) / "project.pastro"
-        # A copy, not a move: this directory is deleted a few lines below, and an ordinary save
-        # would leave the project pointing at it and clear the scratch that was holding its
-        # results. Packing a project took its results away from the person packing it.
-        #
-        # And without the results when they are not wanted, rather than copying every parquet
-        # into a temporary directory to leave it out of the zip afterwards -- which is the whole
-        # project's worth of writing for a package of a few kilobytes.
+        # A copy, not a move: this directory is deleted below. And without the results
+        # when they are not wanted, rather than copying every parquet in to leave it out.
         obj.to_directory(str(source), as_copy=True, with_results=with_results)
 
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -853,9 +796,8 @@ class ScheduleData(DataQuestions, Persistence, Loader):
                 way to find out is a project that opens with everything missing.
 
         Notes:
-            - Refuses anything whose entries would land outside the directory being unpacked
-              into. A zip is a file from somewhere else, and an entry named `../../...` is the
-              oldest trick there is against a program that unpacks one.
+            - Refuses an entry that would land outside the directory being unpacked into: a
+              zip is a file from somewhere else.
         """
         path = attributes.get("path")
         if not path:

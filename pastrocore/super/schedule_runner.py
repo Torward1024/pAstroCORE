@@ -46,9 +46,8 @@ class RunQuestions:
     inherits them too, to ask its own questions without a request of its own for each.
 
     Notes:
-        - They lived on `compute` beside the calculations. A session recorded a question as a
-          `compute`, so nothing could leave the questions out without keeping a list of which of
-          them were not calculations -- and the window asks `stale` after every edit.
+        - On `inspect` rather than `compute`, so a session can leave every question out
+          without a list of which of them are not calculations.
     """
 
     @staticmethod
@@ -56,9 +55,8 @@ class RunQuestions:
         """Return the observations a run covers.
 
         Notes:
-            - A project answers for itself what it holds. Reading `get_items()` and guessing
-              whether it came back as a mapping is how eight calculations ended up iterating a
-              project's keys.
+            - A project answers for itself what it holds, rather than a caller guessing
+              whether `get_items()` came back as a mapping.
         """
         if isinstance(obj, ScheduleProject):
             return obj.get_observations()
@@ -78,9 +76,8 @@ class RunQuestions:
         result = response.value
         return result or []
 
-    #: What this model calls its parts, keyed by the accessor that reaches each. MSB reports
-    #: the names a handler calls, without claiming to know what any of them mean; this is
-    #: where that is said, and it is the only application-shaped thing the catalogue needs.
+    #: What this model calls its parts, keyed by the accessor that reaches each. MSB
+    #: reports the names a handler calls without knowing what they mean.
     MODEL_PARTS = {"get_telescopes": "telescopes", "get_sources": "sources",
                    "get_scans": "scans", "get_frequencies": "frequencies"}
 
@@ -101,18 +98,14 @@ class RunQuestions:
             Dict[str, Dict[str, Any]]: A pipeline plan, keyed `<observation code>/<result>`.
 
         Notes:
-            - The edges come from `requirements_of`, which MSB derives from the handlers
-              themselves, so a calculation that gains a prerequisite gains an edge here without
-              anything being written down.
-            - A prerequisite nobody asked for is added to the plan: `telescope_visibility`
-              cannot run without `telescope_az_el`, and a caller naming only the first means
-              both.
-            - Building the plan is separate from running it so a caller can look at it -- a
-              command line printing what it is about to do, a test asserting the order.
+            - The edges come from `requirements_of`, which MSB derives from the handlers, so
+              a new prerequisite is an edge here untold.
+            - A prerequisite nobody asked for is added: naming `telescope_visibility` means
+              `telescope_az_el` as well.
+            - Built separately from being run, so a caller can look at it first.
         """
         targets = attributes.get("targets") or self._targets(obj)
-        # A target may be named rather than handed over. That is what a replayed session
-        # carries, and what a command line or a server would send -- a request is data, and an
+        # A target may be named rather than handed over: a request is data, and an
         # observation in a JSON body can only be a name.
         targets = [self._manipulator.find(target) if isinstance(target, str) else target
                    for target in targets]
@@ -125,46 +118,36 @@ class RunQuestions:
         if not wanted:
             raise ValueError("No 'calculations' given; there is nothing to run")
 
-        # Everything asked for, plus everything those need, in an order that satisfies them.
-        # MSB 1.7.0 does the join: these were six lines here, and the same six in anything else
-        # that orchestrates an operation.
+        # Everything asked for, plus what those need, in an order that satisfies them.
+        # MSB does the join.
         ordered = self._manipulator.plan_for("calculate", wanted)
 
         passed = {name: value for name, value in attributes.items()
                   if name not in ("calculations", "targets", "method", "force", "recalculate")}
 
-        # What a run recomputes, by default, is what has gone stale -- freshness already knows,
-        # and a run that reuses a result whose inputs have changed is the interface showing a
-        # number computed from a configuration that no longer exists. Worse, the reused frame
-        # was then re-stamped as current, so freshness stopped saying so.
-        #
-        # Forcing is a separate thing to ask for, because the only case it serves is a change
-        # freshness cannot see by construction: the calculation's own code.
+        # A run recomputes what has gone stale, which freshness already knows. Forcing
+        # is asked for separately: the only change freshness cannot see is the code.
         force = bool(attributes.get("force") or attributes.get("recalculate"))
 
         plan: Dict[str, Dict[str, Any]] = {}
         for target in targets:
             previous_by_key = {}
             for key in ordered:
-                # A step with nothing to do for this observation is not planned. Interpolating
-                # orbits for an array of ground stations ran, found nothing, stored an empty
-                # result and logged four warnings on every calculation. What it takes for a step
-                # to have something to do is declared beside its result and asked of the model.
+                # A step with nothing to do here is not planned. What it takes to have
+                # something to do is declared beside its result and asked of the model.
                 condition = CalculatedDataStructure.condition_for(key)
                 if condition and not self._manipulator.inspect(target, **{condition: None}):
                     logger.debug("Not planning '%s' for '%s': %s is not so", key, target.code, condition)
                     continue
                 name = f"{target.code}/{key}"
-                # Named by handler, filed under the schema's key. They are the same string for
-                # every calculation but one, and passing the handler's name for that one stored
-                # the result where nothing reads it.
+                # Named by handler, filed under the schema's key: the same string for
+                # every calculation but one.
                 store_key = CalculatedDataStructure.store_key_for(key)
                 step = {"operation": "calculate", "obj": target, "method": key,
                         "store_key": store_key}
                 step.update(passed)
-                # None means "cannot be told" -- a result predating the mechanism -- and that
-                # is left alone deliberately: calling it stale would make opening an old
-                # project a recomputation of everything in it.
+                # None means "cannot be told", and is left alone: calling it stale makes
+                # opening an old project a recomputation of everything in it.
                 step["recalculate"] = force or freshness.is_stale(target, store_key) is True
                 waits = [previous_by_key[prerequisite]
                          for prerequisite in self._manipulator.requirements_of("calculate", key)
@@ -189,12 +172,9 @@ class RunQuestions:
                 `needs_target`, and `available` when an observation was given.
 
         Notes:
-            - Discovered, not listed. The manipulator works out its own registry -- handlers
-              name themselves and call each other by name -- so adding a calculation means
-              writing `_calculate_x` and a schema entry, and nothing in any interface has to be
-              told about it.
-            - All this adds is what the framework cannot know: what this model calls its parts,
-              and how a few words are spelled.
+            - Discovered, not listed: adding a calculation means writing `_calculate_x` and
+              a schema entry, and no interface is told about it.
+            - All this adds is what the framework cannot know -- how a few words are spelled.
         """
         described = self._manipulator.describe_operations(
             interpret=self.MODEL_PARTS.get, acronyms=self.ACRONYMS)
@@ -214,20 +194,16 @@ class RunQuestions:
                 "requires": calculations[key]["requires"],
                 "can_plot": key in plots,
                 "offer": not CalculatedDataStructure.is_intermediate(key),
-                # A result recording a `target_code` is about something being tracked, so the
-                # request has to say what. Read from the columns rather than listed, so a new
-                # calculation of the same shape needs nothing added here.
+                # A result recording a `target_code` is about something being tracked,
+                # so the request says what. Read from the columns rather than listed.
                 "needs_target": "target_code" in (schema.get("columns") or []),
-                # What it takes beyond the model, read from what its result records. A dialog
-                # offering a detection threshold beside a beam pattern is a dialog that knows
-                # which calculation is which, which is knowledge about the model living in a
-                # window.
+                # What it takes beyond the model, read from what its result records, so
+                # no dialog has to know which calculation takes a threshold.
                 "parameters": list(CalculatedDataStructure.parameters_of(key)),
             }
             if observation is not None:
-                # By the key the result is filed under, not by the handler's name: they are the
-                # same string for every calculation but one, and for that one this said an
-                # observation did not hold a result it holds.
+                # By the key the result is filed under, not by the handler's name: for
+                # one calculation the two differ.
                 entry["available"] = CalculatedDataStructure.store_key_for(key) in held
             entries.append(entry)
         return entries
@@ -243,9 +219,7 @@ class RunQuestions:
             List[str]: The same keys, each after everything it needs.
 
         Notes:
-            - The calculations dialog used to carry this as a hardcoded table of which
-              calculation needs which. That is knowledge about the model, and the model's own
-              code states it already.
+            - Which calculation needs which is the model's own code to state.
         """
         return self._manipulator.order_handlers("calculate", attributes.get("keys") or [])
 
@@ -263,18 +237,13 @@ class RunQuestions:
                 whether the request only `reads`, and what it `call`ed.
 
         Notes:
-            - Plain data, all of it. MSB's journal records what was asked rather than the
-              request as it ran, so a session can be written to a file and read anywhere --
-              and, more to the point, so recording a session does not keep alive everything it
-              touched.
-            - **Everything is here, reads included.** What the window asked is what a bug report
-              needs; `reads` is what lets a person cut a session down to what changed something.
+            - Plain data: the journal records what was asked, not the request as it ran, so
+              recording a session keeps nothing it touched alive.
+            - Reads are here too; `reads` is what lets a session be cut down afterwards.
         """
         rows = self._manipulator.history(attributes.get("about"))
-        # `where` beside `object`: a name is unique inside a container rather than across a
-        # model, so two observations holding a source called `1228+126` gave two rows nothing
-        # could tell apart. The path says which. Read here rather than formatted in a window --
-        # a command line printing a session wants the same column.
+        # `where` beside `object`: a name is unique inside a container, so two
+        # observations holding `1228+126` need the path to tell their rows apart.
         for row in rows:
             path = row.get("path") or ([row["object"]] if row.get("object") else [])
             row["where"] = " / ".join(str(segment) for segment in path)
@@ -286,13 +255,9 @@ class RunQuestions:
         """Return what a request called, as a person reads it.
 
         Notes:
-            - **`method` in a request is the operation's handler**, not the model's method:
-              `compute(method="run")` is `_compute_run`. With none named, `configure` and `inspect`
-              run their defaults, which call the model's methods named in the attributes --
-              `configure(project, create_item={...})` is `create_item`. A column showing only the
-              handler was empty for nearly every request the window makes.
-            - The handler when there is one, the model's methods when there are, and nothing for
-              any other operation's default: its attributes are parameters, not calls.
+            - `method` is the operation's handler, not the model's.
+            - The handler where there is one, the model's methods where there are, and
+              nothing for another operation's default.
         """
         handler = self._asked(row)
         if handler:
@@ -304,14 +269,7 @@ class RunQuestions:
 
     @staticmethod
     def _asked(step: Dict[str, Any]) -> Any:
-        """Return the handler a step named: as the request's own key, or among its attributes.
-
-        Notes:
-            - A request built by hand says `"method"` beside `"operation"`; a facade call --
-              `compute(obj, method="run")`, which is every request the window makes -- is recorded
-              with it among the attributes. Reading only the first, `check` never checked the
-              handler of a recorded session at all, and the session table showed no handler.
-        """
+        """Return the handler a step named: its own `method`, or one among its attributes."""
         return step.get("method") or (step.get("attributes") or {}).get("method")
 
     def _read_session(self, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -337,11 +295,8 @@ class RunQuestions:
         """Return a session's steps with each question asked of the operation that answers it now.
 
         Notes:
-            - Until 1.13.0 the questions -- `catalogue`, `history`, `stale` and the rest -- were
-              `compute` and `export`, and a session written then says so. A step naming a method
-              its operation no longer has, which `inspect` does have, moved: it is read as
-              `inspect`. Derived from what the operations offer, so there is no list of what
-              moved to fall out of step.
+            - A step naming a method its operation no longer has, and `inspect` does, is read
+              as `inspect`. Derived from what the operations offer, so nothing lists it.
         """
         described = self._manipulator.describe_operations()
         questions = described.get("inspect", {})
@@ -358,9 +313,8 @@ class RunQuestions:
         """Return the object a step names, by path first and by name second.
 
         Notes:
-            - The path, because a name is unique inside a container rather than across a model
-              and `find` does not descend into an observation at all. The name is the fallback
-              for a session recorded before paths existed, and for one written by hand.
+            - The path, because a name is unique inside a container rather than across a
+              model. The name is the fallback for a session written by hand.
         """
         found = self._manipulator.locate(step["path"]) if step.get("path") else None
         named = step.get("object")
@@ -380,18 +334,10 @@ class RunQuestions:
                 stops a replay; a warning does not.
 
         Notes:
-            - A session is a file, and the moment a file exists somebody edits it. This is what
-              makes that safe: every step is checked before any step runs, because a session
-              that half ran is worse than one that refused.
-            - Everything it checks against is **derived**. Which operations exist, which methods
-              each has and what each reads are asked of the orchestrator, so an operation added
-              tomorrow is validated by this without a line changing.
-            - An attribute no handler reads is a *warning*. `accepts` is a lower bound by
-              construction -- a key read under a name computed at run time is invisible to it --
-              so refusing on it would refuse valid sessions.
-            - **A read is not checked**, because it is not run: replaying a question changes
-              nothing. A session keeps its reads -- what was asked is worth having -- and one
-              written before a read was renamed still replays.
+            - Every step is checked before any runs: a session that half ran is worse than
+              one that refused. A read is not checked, because it is not run.
+            - What it checks against is asked of the orchestrator.
+            - An attribute no handler reads is a warning: `accepts` is a lower bound.
         """
         steps = self._read_session(attributes)
         described = self._manipulator.describe_operations()
@@ -445,9 +391,8 @@ class RunQuestions:
             List[str]: The codes of the space telescopes there, sorted, without repeats.
 
         Notes:
-            - Asked by the calculation dialog before running anything that needs a target. It
-              used to walk the model itself -- which is the model reaching into a window, and
-              the reason a command line asking the same question would have to write it again.
+            - Asked by the calculation dialog before running anything that needs a target,
+              so the dialog does not walk the model itself.
         """
         from pastrocore.base.telescopes import SpaceTelescope
 
@@ -466,14 +411,11 @@ class RunQuestions:
             Dict[str, str]: Type name to part name -- `{"Telescopes": "telescopes", ...}`.
 
         Notes:
-            - Derived from `Observation`'s own annotations rather than written out here. The
-              names a result declares in `depends_on` are the names of those fields, so the
-              two halves of this answer are already the same vocabulary; a table here would be
-              a second place to update when the model grows a part.
+            - Derived from `Observation`'s annotations, which are the same names a result
+              declares in `depends_on`.
         """
-        # Containers only. `calculated_data` is annotated `Any`, which on this Python answers
-        # True to `isinstance(hint, type)` and would otherwise appear here as a part of the
-        # model that a change could reach.
+        # Containers only: `calculated_data` is annotated `Any`, which answers True to
+        # `isinstance(hint, type)`.
         parts = {}
         for field, hint in Observation._fields.items():
             if (not field.startswith("_") and isinstance(hint, type)
@@ -502,14 +444,9 @@ class RunQuestions:
                 model.
 
         Notes:
-            - **`stale` answers afterwards; this answers before.** Staleness compares a stored
-              fingerprint against the configuration in hand, so it can only speak about a change
-              that has already happened. A user about to move a telescope wants to know what it
-              will cost first.
-            - Both halves are derived and neither is written down here. MSB's model graph says
-              what reaching a type reaches -- a `Telescope` is held by `Telescopes` and named by
-              `Scan`, so editing one reaches scans too, which is the part nobody remembers. Each
-              calculation's schema says which parts it reads. The intersection is the answer.
+            - `stale` answers afterwards; this answers before a change is made.
+            - Both halves are derived: MSB's model graph says what reaching a type reaches --
+              a `Telescope` is named by `Scan` too -- and each schema says what it reads.
         """
         subject = attributes.get("subject")
         name = attributes.get("type") or (type(subject).__name__ if subject is not None else None)
@@ -572,9 +509,8 @@ class RunQuestions:
             List[Dict[str, Any]]: `{"bits": int, "efficiency": float}`, fewest bits first.
 
         Notes:
-            - Asked rather than listed. How much of the correlation quantising the signal leaves
-              is physics -- two-level keeps 2/pi of it -- and a dialog offering one bit and two
-              because somebody typed them into a combo box is that physics written down twice.
+            - Asked rather than listed: how much of the correlation quantising leaves is
+              physics -- two-level keeps 2/pi of it -- and not a combo box's to know.
         """
         from pastrocore.super.schedule_calculator import ScheduleCalculator
 
@@ -611,19 +547,10 @@ class ScheduleRunner(RunQuestions, Super):
                 the steps; with a concurrent stage the second is larger.
 
         Notes:
-            - The whole point of doing it here rather than in a dialog: an interface, a command
-              line and a server all send one request, and the ordering, the prerequisites and
-              the skipping of a branch below a failure are the framework's job.
-            - Progress, cancellation and timing ride on an interceptor, which is what the hook
-              is for. It sees each step as it goes past, so nothing has to be counted twice, and
-              a cancellation is a refused request -- which skips the branch below it exactly as
-              a failure does.
-            - Timing belongs here rather than in the caller: with a stage running several steps
-              at once, the wall clock between two progress callbacks is not any one
-              calculation's duration.
-            - Progress is reported when a step **finishes**. A bar advanced on starting sits at
-              80% through the longest step of the run and then jumps, which is the shape of a
-              bar that looks stuck.
+            - Here rather than in a dialog, so every caller sends one request.
+            - Progress, cancellation and timing ride on an interceptor: a cancellation is a
+              refused request, which skips the branch below it.
+            - Timing belongs here, and progress is reported when a step finishes.
         """
         plan = self._inspect_plan(obj, attributes)
         report = attributes.get("progress") or (lambda percent, message: None)
@@ -632,9 +559,8 @@ class ScheduleRunner(RunQuestions, Super):
         total = len(plan)
         seen = {"done": 0, "stopped": False}
         labels = {name: name.split("/", 1)[-1] for name in plan}
-        # A step is named by its handler and files its result under the schema's key, and for
-        # one calculation the two differ. The interceptor sees the request, which carries the
-        # store key, so this maps back to the step the plan named.
+        # A step is named by its handler and filed under the schema's key; the request
+        # carries the key, so this maps back to the step the plan named.
         step_of = {f"{getattr(step.get('obj'), 'code', '')}/{step.get('store_key')}": name
                    for name, step in plan.items()}
         measured: Dict[str, float] = {}
@@ -680,10 +606,8 @@ class ScheduleRunner(RunQuestions, Super):
         ran = [name for name in outcome if name not in outcome.failed]
         slowest = max(timings, key=timings.get) if timings else None
 
-        # One row per step, in plan order, labelled the way a person reads it. Assembled here
-        # rather than by whatever displays it: a window renders this, a command line prints it
-        # and a server serialises it, and none of the three should be joining three lists to
-        # find out what happened.
+        # One row per step, in plan order. Assembled here rather than by whatever
+        # displays it, so no caller joins three lists to find out what happened.
         spelled = {entry["key"]: entry["label"]
                    for entry in self._inspect_catalogue(obj, {})}
         rows = []
@@ -697,9 +621,8 @@ class ScheduleRunner(RunQuestions, Super):
                          "label": spelled.get(key, labels.get(name, key)),
                          "seconds": measured.get(name, 0.0),
                          "outcome": "failed" if failed else "ok",
-                         # **Why, not only that.** A step refused because an opacity was given
-                         # without the temperature of the air said so in the log and nowhere a
-                         # user looks; the report said "failed" and stopped there.
+                         # Why, not only that: "failed" alone leaves the reason in the
+                         # log, where nobody looks.
                          "error": self._why(outcome, name) if failed else ""})
 
         return {"ran": ran,
@@ -707,15 +630,8 @@ class ScheduleRunner(RunQuestions, Super):
                 "cancelled": seen["stopped"],
                 "timings": timings,
                 "report": rows,
-                # Summarised here rather than by whoever displays it. A window, a command line
-                # and a server all want the same three numbers, and the first of them worked
-                # them out for itself until this line existed.
-                # **`seconds` is the clock, not the sum.** Independent steps of a stage run
-                # together -- which is what `concurrent` is for, and both the window and the
-                # command line ask for it -- so adding their durations counts the same seconds
-                # several times: measured, 4.08 s reported against 2.51 s actually waited.
-                # `work` is that sum, which is a different and also useful fact: divided by
-                # `seconds` it says what the concurrency bought.
+                # Summarised here: `seconds` is the clock and `work` the sum of the steps,
+                # which with a concurrent stage counts the same seconds twice.
                 "summary": {"steps": len(ran), "failed": len(outcome.failed),
                             "seconds": elapsed,
                             "work": sum(timings.values()),
@@ -749,20 +665,15 @@ class ScheduleRunner(RunQuestions, Super):
             ValueError: If neither `path` nor `steps` was given.
 
         Notes:
-            - A step names its object, so replaying resolves the name here. A session recorded
-              against one project therefore runs against another, which is what makes it a
-              reproduction rather than a souvenir.
-            - Unresolved steps are reported rather than skipped in silence: a session that half
-              ran is worse than one that refused.
-            - **Reads are not run**, and are counted in `reads`. A question changes nothing, so
-              asking it again reproduces nothing -- and the window asks a great many: `stale`
-              after every edit, `catalogue` whenever a dialog opens.
+            - A step names its object, so a session recorded against one project runs
+              against another.
+            - Unresolved steps are reported rather than skipped in silence.
+            - Reads are not run, and are counted in `reads`: a question reproduces nothing.
         """
         steps = self._read_session(attributes)
 
-        # Checked whole before anything runs. A session is a file, and a file gets edited: one
-        # bad step among good ones must run none of them, because a session that half ran is
-        # worse than one that refused -- and worse than either, it looks like it worked.
+        # Checked whole before anything runs: one bad step among good ones must run none
+        # of them, because a session that half ran looks like it worked.
         report = self._inspect_check(obj, {"steps": steps})
         if report["problems"]:
             logger.warning("Refusing a session with %s problem(s)", len(report["problems"]))
@@ -786,16 +697,8 @@ class ScheduleRunner(RunQuestions, Super):
                 where = " / ".join(step["path"]) if step.get("path") else named
                 unresolved.append(f"{name}: nothing here at '{where}'")
                 continue
-            # A journal cannot record a callable, so it records what it was -- `<function>`.
-            # Handing that back would have the handler call a string: a run carries one
-            # callable to report progress and one to ask whether to stop, and both come back
-            # like this. Dropping them is right, since neither can be replayed and their
-            # absence means "report to nobody, stop for nobody".
-            #
-            # Named apart from this method's own `attributes`, which it used to overwrite:
-            # from the second step onwards `skip_failures` was then read out of the *step's*
-            # attributes rather than the request's, so asking to replay failures too was
-            # honoured for one step and silently dropped for the rest.
+            # A journal records a callable as `<function>`, so these are dropped rather
+            # than handed back as strings: absent means report to nobody, stop for nobody.
             asked = {key: value
                      for key, value in (step.get("attributes") or {}).items()
                      if not (isinstance(value, str) and value.startswith("<")
@@ -852,9 +755,8 @@ class ScheduleRunner(RunQuestions, Super):
             Dict[str, Any]: `{"released": int}` -- how many observations were let go.
 
         Notes:
-            - A request, because the window is not the only caller: a command line opening one
-              project after another wants the same, and this is how it asks without importing
-              anything of the model.
+            - A request, so a command line opening one project after another asks the same
+              way without importing anything of the model.
         """
         released = obj.release()
         return {"released": released}

@@ -75,12 +75,8 @@ class ScheduleAnalyzer(Super):
         """Return what a result is called in words: `telescope_visibility` is Telescope Visibility.
 
         Notes:
-            - Asked of the catalogue, which is where the calculation dialog gets the same
-                labels. A table here would be a second set of names to keep in step, and the
-                two would disagree the first time one was reworded.
-            - `times` is the only key with no calculation of its own -- its handler is called
-              `time_arrays` -- so it falls through to being title-cased, like anything else the
-              catalogue has not heard of.
+            - Asked of the catalogue, which is where the calculation dialog gets them too.
+            - `times` has no calculation of its own, so it falls through to title case.
         """
         if not self._labels:
             try:
@@ -121,11 +117,8 @@ class ScheduleAnalyzer(Super):
             if isinstance(wanted, (list, tuple, set)):
                 view = view.filter(pl.col(column).is_in(list(wanted)))
             elif isinstance(wanted, dict):
-                # A range: {"from": x, "to": y}, either end optional. NaN is dropped first,
-                # because a calculation writes NaN for a moment it has no answer for -- the
-                # source was below the horizon -- and comparing NaN against a bound answers
-                # neither True nor False reliably. "Elevation above 20" means the moments
-                # where there *is* an elevation and it is above 20.
+                # A range, either end optional. NaN is dropped first: "elevation above
+                # 20" means the moments where there is an elevation and it is above 20.
                 view = view.filter(pl.col(column).is_not_nan())
                 low, high = self._bound(wanted.get("from")), self._bound(wanted.get("to"))
                 if low is not None:
@@ -156,11 +149,9 @@ class ScheduleAnalyzer(Super):
                 and -- when asked for -- `values`, plus `rows` and which observations hold it.
 
         Notes:
-            - **This is what makes the interface hold no list of its own.** The analysis tab
-              offers the columns this reports, so a calculation added tomorrow appears there
-              with its own columns and nobody edits a combo box.
-            - Distinct values come from the results rather than from the model: a filter should
-              offer the stations a result actually mentions, not every station in the project.
+            - What lets the analysis tab hold no list: it offers the columns this reports.
+            - Distinct values come from the results, so a filter offers the stations a result
+              mentions rather than every station in the project.
         """
         observations = self._targets(obj)
         wanted = [attributes["key"]] if attributes.get("key") else None
@@ -180,11 +171,8 @@ class ScheduleAnalyzer(Super):
                 if view is None:
                     continue
 
-                # **Counted and sampled lazily.** This used to `collect()` every result of
-                # every observation just to describe them, which reads the whole project into
-                # memory -- the one thing the parquet store exists to avoid. A count is
-                # answered from the file's own metadata, and the distinct values of one column
-                # read that column and no other.
+                # Counted and sampled lazily: a count comes from the file's metadata,
+                # and the distinct values of one column read that column and no other.
                 try:
                     entry["rows"] += int(view.select(pl.len()).collect().item())
                     entry["observations"].append(observation.code)
@@ -197,9 +185,8 @@ class ScheduleAnalyzer(Super):
                             found = seen.setdefault(column, set())
                             found.update(distinct[column].explode().to_list())
 
-                    # The span of each number, so a filter can offer the range that exists
-                    # rather than an empty box the user has to guess at. NaN is excluded, or
-                    # every column with a gap in it would report a bound of NaN.
+                    # The span of each number, so a filter offers the range that exists.
+                    # NaN is excluded, or a column with a gap reports a bound of NaN.
                     if with_values and entry["numeric"]:
                         spans = entry.setdefault("ranges", {})
                         bounds = view.select(
@@ -216,9 +203,8 @@ class ScheduleAnalyzer(Super):
                             known = spans.setdefault(column, {})
                             known["min"] = min(float(low), known.get("min", float(low)))
                             known["max"] = max(float(high), known.get("max", float(high)))
-                            # Written out as well, for a time. The interface shows a calendar
-                            # and hands the dates straight back as filter bounds, so it never
-                            # has to know what an MJD is.
+                            # Written out as well, so a calendar can hand the dates
+                            # straight back as filter bounds.
                             if column in self.TIME_COLUMNS:
                                 known["min_iso"] = self._iso(known["min"])
                                 known["max_iso"] = self._iso(known["max"])
@@ -256,11 +242,8 @@ class ScheduleAnalyzer(Super):
             ValueError: If no `key` was given, or it names no calculation.
 
         Notes:
-            - `range` is there because it is the question: the longest baseline a project
-              achieves is `max(projection) - min(projection)` away from the shortest, and
-              nobody wants to subtract two numbers out of two separate answers.
-            - Grouping is done by polars over the filtered frame, so "per station" costs one
-              pass rather than one read per station.
+            - `range` is `max - min`, which is the question asked of a baseline.
+            - Grouping is polars over the filtered frame, so "per station" is one pass.
         """
         key = attributes.get("key")
         if not key:
@@ -313,12 +296,8 @@ class ScheduleAnalyzer(Super):
         """Return the statistics of one column, with ISO times where the column is a time.
 
         Notes:
-            - **NaN is not a number and is not averaged.** A calculation writes NaN for a moment
-              it has no answer for -- an elevation while the source is below the horizon, a
-              position outside what the orbit file covers -- and including those would make the
-              mean elevation of a source meaningless and the median come out NaN, which is what
-              polars does with them. They are counted and reported as `missing`, because *how
-              many moments have no answer* is itself worth knowing.
+            - NaN is not averaged. A calculation writes it for a moment it has no answer
+              for, and those are counted and reported as `missing`.
         """
         clean = series.drop_nulls().drop_nans() if series.dtype.is_float() else series.drop_nulls()
         missing = int(series.len() - clean.len())
@@ -346,10 +325,8 @@ class ScheduleAnalyzer(Super):
         """Return a filter bound as a number, accepting a written date as well as an MJD.
 
         Notes:
-            - A moment is stored as an MJD, which is the right thing to compute with and the
-              wrong thing to type or to put in a file. Accepting `2026-08-10 15:20:00` here is
-              what lets the interface hand over what the user picked in a calendar without
-              converting it -- and converting a date is model work, not interface work.
+            - A moment is stored as an MJD, which is the wrong thing to type. Accepting
+              `2026-08-10 15:20:00` keeps the conversion out of the interface.
         """
         if value is None or isinstance(value, (int, float)):
             return None if value is None else float(value)
@@ -391,13 +368,10 @@ class ScheduleAnalyzer(Super):
             ValueError: If no `key` was given, or the calculation has no boolean column.
 
         Notes:
-            - **This is the primitive the rest of the analysis is made of.** A window of
-              visibility, a gap in it, the longest run and the total are all runs of consecutive
-              `True` in a boolean column grouped by station.
-            - A run is bounded by the samples that make it, so its duration is the time between
-              the first and last sample plus one sampling step -- a single sample is a window of
-              one step, not of zero. The step is taken from the data rather than from the
-              request, since a result may have been calculated with a different one.
+            - The primitive the rest of the analysis is made of: a window, a gap, the longest
+              run and the total are all runs of consecutive `True` grouped by station.
+            - A duration is first to last sample plus one step, so a single sample is a
+              window of one step. The step is measured from the data, not the request.
         """
         key = attributes.get("key")
         if not key:
@@ -428,9 +402,8 @@ class ScheduleAnalyzer(Super):
             frame = frame.sort("time")
             for labels, part in self._grouped(frame, [c for c in by if c in frame.columns]):
                 part = part.sort("time")
-                # The step is measured *within* the group. Taken across the whole frame it is
-                # measured over two stations' samples interleaved -- the same instant twice --
-                # so the spacing came out wrong and every window was short by a few steps.
+                # Measured within the group: across the whole frame it is measured over
+                # two stations' samples interleaved, which is the same instant twice.
                 step = self._sampling_step(part["time"])
                 windows.extend(
                     {"observation": observation.code, **labels, **run}
@@ -499,11 +472,9 @@ class ScheduleAnalyzer(Super):
                 and whether it `meets` the threshold, collapsed into windows.
 
         Notes:
-            - **Joining these frames by hand is what this replaces.** "Visible from at least
-              two" is a real question -- it is the least that makes a baseline -- and answering
-              it meant pivoting a frame per station and lining the moments up.
-            - A moment counts a station once. Two scans sampling the same instant do not make
-              an array of two.
+            - "Visible from at least two" is the least that makes a baseline, and answering
+              it by hand means pivoting a frame per station.
+            - A moment counts a station once: two scans at one instant are not two stations.
         """
         key = attributes.get("key") or "source_visibility"
         columns_of = self._columns_of(key)
@@ -537,9 +508,8 @@ class ScheduleAnalyzer(Super):
                 part = part.sort("time")
                 times = part["time"].to_list()
                 for run in self._consecutive(times, step):
-                    # Counted inside this window, not across the whole source. The maximum
-                    # over every window said "5 stations" of a window that had two, and the
-                    # number of stations is the answer this analysis exists to give.
+                    # Counted inside this window: the maximum over every window reports
+                    # five stations of a window that had two.
                     within = part.filter((pl.col("time") >= run["start"])
                                          & (pl.col("time") <= run["end"]))
                     rows.append({"observation": observation.code, **labels,

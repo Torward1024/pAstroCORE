@@ -38,15 +38,12 @@ class ScheduleManipulator(Manipulator):
         >>> manipulator.get_methods_for_type(Source)
         {'get_name': <function ...>, 'set_name': <function ...>, ...}
     """
-    #: The operations that only read. A session leaves them out when it is cut down to what
-    #: changed something, and a replay does not run them. `catalogue` is msb_arch's own, registered
-    #: on every orchestrator to describe what is registered -- not `inspect(method="catalogue")`,
-    #: which is this application's answer to what can be calculated.
+    #: The operations that only read: a session leaves them out and a replay does not run
+    #: them. `catalogue` here is msb_arch's own, not `inspect(method="catalogue")`.
     READING = frozenset({"inspect", "visualize", "analyze", "catalogue"})
 
-    #: The operations whose attributes name the model's own methods when no handler is named --
-    #: `configure(project, create_item={...})` calls `create_item`. msb_arch's built-in pair; every
-    #: other operation takes its attributes as parameters.
+    #: The operations whose attributes name the model's own methods when no handler is
+    #: named: `configure(project, create_item={...})` calls `create_item`.
     CALLING = frozenset({"inspect", "configure"})
 
     #: The operations that change the project in hand, which a command line saves after. A file
@@ -73,12 +70,8 @@ class ScheduleManipulator(Manipulator):
                 Defaults to 500. Pass None to record nothing.
 
         Notes:
-            - Registers base classes: ScheduleProject, Observation, IF, Frequencies, Source, Sources,
-            Telescope, SpaceTelescope, Telescopes, Scan, Scans.
-            - Registers operations: configure (ScheduleConfigurator), inspect (ScheduleInspector),
-            calculate (ScheduleCalculator), visualize (ScheduleVisualizer),
-            export/save/load (ScheduleData), compute (ScheduleRunner).
-            - Logs initialization upon completion.
+            - Registers every model class, and the operations `configure`, `inspect`,
+              `calculate`, `visualize`, `export`, `save`, `load` and `compute`.
         """
         from pastrocore.super.schedule_project import ScheduleProject
         from pastrocore.base.observation import Observation
@@ -100,39 +93,26 @@ class ScheduleManipulator(Manipulator):
         
         self.register_operation(ScheduleConfigurator(self))
         self.register_operation(ScheduleInspector(self))
-        # Deferred: between them these two import matplotlib, astropy.coordinates and scipy,
-        # which is 2.3 s of a start-up that happens whether or not anyone calculates or plots.
-        # They are registered from here -- the catalogue lists them, a facade exists, a plan may
-        # name them -- and built when something first asks. `app.main` warms them in the
-        # background once the window is up.
+        # Deferred: between them these two import matplotlib, astropy.coordinates and
+        # scipy, which is 2.3 s of start-up. Registered here and built when first asked.
         self.register_deferred("calculate", self._make_calculator)
         self.register_deferred("visualize", self._make_visualizer)
-        # One Super, three operations. MSB binds an instance to one operation name, so an
-        # instance is registered per name and each resolves its own `_export`, `_save` or
-        # `_load`. Keeping them in one class is deliberate: they are the same concern -- data
-        # in and data out -- and a caller mapping commands to requests needs no special case
-        # for the one that happens to be a save.
+        # One Super, three operations. MSB binds an instance to one operation name, so
+        # one is registered per name; data in and data out is one concern.
         self.register_operation(ScheduleData(self), operation="export")
         self.register_operation(ScheduleData(self), operation="save")
         self.register_operation(ScheduleData(self), operation="load")
 
-        # `calculate` does one, `compute` orchestrates many, `export` writes the results
-        # somewhere. Running a set of calculations lived on `export` because that is where the
-        # plumbing already was, and it is not exporting anything. It cannot go on the calculator
-        # either: a Super's handlers *are* its operation's methods, so a `_calculate_run` would
-        # appear in the catalogue as a calculation called "Run".
+        # `calculate` does one, `compute` orchestrates many, `export` writes them out.
+        # Not on the calculator: `_calculate_run` would be a calculation called "Run".
         self.register_operation(ScheduleRunner(self), operation="compute")
 
-        # `analyze` reads results rather than producing them, which is why it is neither
-        # `calculate` nor `compute`: a `_calculate_windows` would appear in the catalogue as a
-        # calculation called "Windows", offered in the dialog beside UV Coverage. Deferred like
-        # the calculator, since summarising is not what a session that only edits a model does.
+        # `analyze` reads results rather than producing them, so `_calculate_windows`
+        # would be a calculation called "Windows". Deferred, like the calculator.
         self.register_deferred("analyze", self._make_analyzer)
 
-        # One operation per format, named after the format rather than after a verb: writing a
-        # VEX file, reading one back and checking one are three things done to one contract, and
-        # `vex(method="export")` keeps them together. `export` stays what it is -- writing what
-        # a person wants to look at -- and knows nothing about any format.
+        # One operation per format, named after the format: writing a VEX file, reading
+        # one and checking one are three things done to one contract.
         self.register_deferred("vex", self._make_vex)
         self.register_deferred("cfx", self._make_cfx)
 
@@ -140,9 +120,8 @@ class ScheduleManipulator(Manipulator):
         # wearing. Light, because that is what a plot saved to a file for a paper wants.
         self._plot_theme = "light"
 
-        # Every request that reaches this orchestrator is recorded. It costs one interceptor
-        # and answers the question a bug report never can: what was actually asked for.
-        # Bounded, because a session that runs for a day should not accumulate without end.
+        # Every request is recorded, which answers what was actually asked for. Bounded,
+        # so a session running for a day does not accumulate without end.
         self._journal = RequestJournal(limit=journal_limit) if journal_limit else None
         if self._journal is not None:
             self.add_interceptor(self._journal)
@@ -174,11 +153,9 @@ class ScheduleManipulator(Manipulator):
             str: The theme now in force.
 
         Notes:
-            - **Asked of the orchestrator rather than of the visualizer**, which the interface
-              has no handle on -- and which does not exist yet at start-up, being deferred. The
-              choice is remembered and applied when it is built.
-            - A plot already on screen keeps the palette it was drawn in until it is redrawn.
-              Nothing repaints a figure behind the back of the tab that owns it.
+            - Asked of the orchestrator, because the visualizer is deferred and does not
+              exist at start-up; the choice is applied when it is built.
+            - A plot on screen keeps the palette it was drawn in until it is redrawn.
         """
         self._plot_theme = theme.resolve(name)
         visualizer = self._operations.get("visualize")
@@ -212,13 +189,9 @@ class ScheduleManipulator(Manipulator):
                 without one.
 
         Notes:
-            - Read backwards it answers what produced a result: `journal.touching(name)` gives
-              everything that ever touched an object, in order.
-            - Read forwards it replays: `manipulator.replay(journal)` runs the same session
-              again, which is how a reported problem becomes a reproduction.
-            - **A session is portable.** `journal.entries` is plain data -- each step names its
-              object by the path it sat at -- so it writes to a file and comes back:
-              `RequestJournal.from_entries(...)`, or `replay` given the entries themselves.
-              That is what `export(method="journal")` and `compute(method="replay")` are.
+            - Backwards it answers what produced a result: `journal.touching(name)`.
+            - Forwards it replays: `manipulator.replay(journal)` runs the session again.
+            - `journal.entries` is plain data, so a session writes to a file and comes back
+              -- which is what `export(method="journal")` and `compute(method="replay")` do.
         """
         return self._journal

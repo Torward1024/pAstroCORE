@@ -55,9 +55,8 @@ class ScheduleCFX(ScheduleFormat):
             TypeError: If `obj` is neither an observation nor a project.
 
         Notes:
-            - **A file is named for its band when there is more than one**, because a CFX file
-              is a frequency setup: the examples this was written against are one experiment in
-              C band and in K band, as two files.
+            - A CFX file is a frequency setup, so a file is named for its band when there is
+              more than one.
         """
         path = attributes.get("path")
         if not path:

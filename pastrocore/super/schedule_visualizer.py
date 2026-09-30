@@ -33,12 +33,8 @@ from erfa import ErfaWarning
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-#: How a baseline may be measured: the key a request carries, what a person is offered for it,
-#: and what an axis is labelled with. Named once because two places offered it and spelled the
-#: same unit two ways -- `earth diameters` from the visualization tab and `earth_diameters`
-#: from the export dialog -- while the baseline plots put whichever string they were handed
-#: straight on the axis, so one plot came out labelled two different ways depending on which
-#: door it was drawn from.
+#: How a baseline may be measured: the key a request carries, what a person is offered,
+#: and what an axis is labelled with. Named once, because two places spelled it two ways.
 UV_UNITS = {"wavelengths": {"label": "Wavelengths", "axis": "wavelengths"},
             "earth_diameters": {"label": "Earth Diameters", "axis": "xED"}}
 
@@ -53,10 +49,8 @@ def uv_units(units: Any) -> str:
         str: A key of `UV_UNITS`; `wavelengths` for anything not recognised.
 
     Notes:
-        - **Anything that was not wavelengths meant Earth diameters**, because that is what
-          `else` does: a misspelling, and a unit added later, were both drawn to the Earth's
-          diameter and labelled `xED`. An unrecognised unit is said out loud and falls back to
-          what the operation documents as its default.
+        - An unrecognised unit is said out loud and falls back to wavelengths, rather than
+          being drawn to the Earth's diameter because that is what `else` does.
     """
     key = str(units or "wavelengths").strip().lower().replace(" ", "_")
     if key not in UV_UNITS:
@@ -70,11 +64,8 @@ class SkyMollweideAxes(MollweideAxes):
     """matplotlib's Mollweide axes, with an inverse that knows where the sky ends.
 
     Notes:
-        - **Outside the ellipse there is no longitude or latitude.** matplotlib inverts any
-          point it is handed, and it is handed one outside each time the cursor leaves the
-          axes -- the leave event asks where the cursor is. Above the ellipse that is `arcsin`
-          of more than one (`invalid value encountered in arcsin`); in the corners of the box
-          beside it, a longitude of twenty radians. Such a point answers NaN instead.
+        - Outside the ellipse there is no longitude or latitude, and such a point answers
+          NaN: matplotlib inverts one each time the cursor leaves the axes.
     """
     name = "sky_mollweide"
 
@@ -194,9 +185,8 @@ class ScheduleVisualizer(Super):
             (ScheduleProject, Observation): self._visualize_project_or_observation
         }
 
-        # Every `_visualize_<key>` method, found rather than listed: a plot that exists is a
-        # plot that can be asked for, drawn in a tab and written by an export, without three
-        # tables agreeing about it. `project_or_observation` is the entry point, not a plot.
+        # Every `_visualize_<key>` method, found rather than listed, so a plot that exists
+        # can be asked for. `project_or_observation` is the entry point, not a plot.
         self._plot_types: Dict[str, Callable] = {
             name[len("_visualize_"):]: getattr(self, name)
             for name in dir(self)
@@ -272,9 +262,8 @@ class ScheduleVisualizer(Super):
                 raise ValueError("colors must be a list or tuple")
             if 'colormaps' in config and not isinstance(config['colormaps'], dict):
                 raise ValueError("colormaps must be a dictionary")
-            # A colour is `#1f6feb` as readily as it is `(0.12, 0.44, 0.92)`: every other colour
-            # in this configuration is a string, and a theme generated from tokens hands over
-            # the same hex the window is styled in.
+            # A colour is `#1f6feb` as readily as a triple, and a theme hands over the
+            # same hex the window is styled in.
             if 'intersection_color' in config and not isinstance(config['intersection_color'],
                                                                  (tuple, list, str)):
                 raise ValueError("intersection_color must be a colour: a name, a hex string or "
@@ -343,10 +332,7 @@ class ScheduleVisualizer(Super):
         """The names of the scans pointed at any of `sources`.
 
         Notes:
-            - A track is drawn per scan and per telescope, and it is the scan that carries the
-              source, so a result whose rows name only the scan is narrowed to a source through
-              its scans. A `source_name` column would repeat one name down every row of a track
-              and say nothing the scan does not already say.
+            - The scan carries the source, not the row.
         """
         wanted = set(sources)
         return [scan.name for scan in obj.get_scans().get_items()
@@ -358,12 +344,9 @@ class ScheduleVisualizer(Super):
         """Put a legend to the right of the plot, with the plot given the rest of the width.
 
         Notes:
-            - **The room it needs is reserved rather than guessed.** A legend anchored to the
-              figure's edge extends leftwards as far as its longest label, so a plot whose margin
-              was set to a fixed fraction had "from parameters" written across its bars. A
-              constrained layout measures the legend and leaves the axes what is left.
-            - The layout engine stays on the figure, which is why `_visualize` clears it before
-              drawing into a borrowed one.
+            - The room is reserved rather than guessed: a constrained layout measures the
+              legend, where a fixed margin lets a long label cross the plot.
+            - The layout engine stays on the figure, which `_visualize` clears first.
         """
         fig.set_layout_engine("constrained")
         named = {"labels": labels} if labels is not None else {}
@@ -382,9 +365,7 @@ class ScheduleVisualizer(Super):
         """Label a time axis in MJD with as much of the fraction as the ticks need.
 
         Notes:
-            - It was `int(x)`: every tick of a plot spanning a day read `61298` or `61299`, so
-              five ticks said two things. Plain numbers, no offset, and matplotlib chooses the
-              places.
+            - Plain numbers, no offset: rounded to whole days, five ticks say two things.
         """
         formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
         formatter.set_scientific(False)
@@ -434,13 +415,8 @@ class ScheduleVisualizer(Super):
             plt.show()
 
         if not return_figure:
-            # `Figure(...)` rather than `plt.figure(...)`, so pyplot never registered it: it is
-            # released when the last reference goes, and `plt.close(fig)` on one is a no-op.
-            #
-            # What was here counted `plt.get_fignums()` and called `plt.close('all')` above ten
-            # -- a count this class contributes nothing to, of figures belonging to whoever did
-            # use pyplot. It could only ever have closed *someone else's* figures, and the
-            # figures a visualization tab holds are exactly what it would have found.
+            # `Figure(...)` rather than `plt.figure(...)`, so pyplot never registers it: it
+            # goes when the last reference does, and `plt.close(fig)` on one is a no-op.
             logger.debug("Releasing figure %s", id(fig))
             fig.clf()
 
@@ -455,20 +431,14 @@ class ScheduleVisualizer(Super):
             logger.error("No 'plot_type' specified in attributes")
             return {}
 
-        # **A caller may own the figure.** A tab passes the one its canvas was built with, so
-        # the canvas keeps a single figure for its whole life instead of having a new one
-        # swapped into it on every redraw -- which is not something matplotlib supports, and
-        # which left the navigation toolbar holding axes that had been cleared.
-        # Journaling is safe: MSB records a request's objects by name, never by reference.
+        # A caller may own the figure: a tab passes the one its canvas was built with, so
+        # the canvas keeps one figure for its whole life. MSB journals objects by name.
         borrowed = attributes.get("figure")
         fig = borrowed if borrowed is not None else Figure(
             figsize=attributes.get("figsize", self._style_config['figure']['figsize']))
         if borrowed is not None:
-            # **A borrowed figure still holds the last drawing, so it is emptied first.** Nothing
-            # did: every redraw added its axes, its labels and its legend on top of the last. With
-            # the same number of panels they lay exactly over each other and looked fine; untick
-            # a station and a stack of tick labels, titles and legends appeared. The margins go
-            # back to the defaults too, so one layout's `subplots_adjust` is not the next one's.
+            # A borrowed figure still holds the last drawing, so it is emptied first --
+            # margins included, or one layout's `subplots_adjust` becomes the next one's.
             fig.clf()
             # A plot that lays itself out with an engine leaves it on the figure; the next
             # drawing starts from none, as a new figure would.
@@ -480,10 +450,8 @@ class ScheduleVisualizer(Super):
             """Leave the figure empty. A borrowed one is the caller's to keep.
 
             Notes:
-                - **No forced collection.** Closing the figure is what frees the arrays; a
-                  a forced collection here changed only *when* the cycles went, and the nine tabs
-                  above had already measured what that costs -- 14.60 s against 6.92 s over
-                  sixty redraws, to save 1.4 MB of 90.
+                - No forced collection: closing the figure frees the arrays, and a
+                  collection here cost 14.60 s against 6.92 s to save 1.4 MB of 90.
             """
             logger.debug("%s", why)
             fig.clf()
@@ -524,29 +492,19 @@ class ScheduleVisualizer(Super):
         logger.debug("Using dpi=%s for visualization of plot_type=%s", dpi, plot_type)
 
         if isinstance(obj, ScheduleProject):
-            # This branch once asked for `get_observations` while the method was `observations`,
-            # so plotting a whole project raised AttributeError on its first line. It is
-            # `get_observations` now: msb_arch 3.0 lets `inspect` call only what is named as a read.
+            # `inspect` may call only what is named as a read.
             observations = obj.get_observations()
             if not observations:
                 logger.warning("No observations in ScheduleProject '%s'", obj.get_name())
                 return {}
-            # **One at a time.** This ran the observations through a `ThreadPoolExecutor`, and
-            # matplotlib is not thread-safe: figures share global state, and drawing several at
-            # once is a crash waiting for a busy enough project. It was invisible because the
-            # call was `self._visualize(obs, attributes, None)` against a two-argument method,
-            # so every observation raised TypeError, the loop below logged it, and a whole
-            # project drew nothing at all -- for as long as this branch has existed.
-            #
-            # Each observation gets a figure of its own: a figure the caller lent us is one
-            # figure, and it belongs to whichever plot is on screen.
+            # One at a time: matplotlib is not thread-safe. Each observation gets its own
+            # figure, since a borrowed one belongs to whichever plot is on screen.
             each = dict(attributes, figure=None)
             results = {}
             for observation in observations:
                 code = observation.get_observation_code()
-                # One observation that cannot be drawn used to take the whole project with it,
-                # and the message named nothing, so a project of twenty plots produced none and
-                # said only what went wrong, never where. Each is reported and the rest drawn.
+                # One observation that cannot be drawn is reported by name, and the rest
+                # are drawn.
                 try:
                     drawn = self._visualize(observation, each)
                 except Exception as e:                  # noqa: BLE001 - one plot frees the rest
@@ -568,24 +526,19 @@ class ScheduleVisualizer(Super):
             logger.error("Plot function %s returned invalid result: %s", plot_type, type(result))
             return {"status": False, "message": f"Invalid result from {plot_type}"}
         
-        # **The file is written once, by `_finalize_plot`, at the resolution asked for.** A
-        # second save stood here, guarded by `result.get("status")` -- and a plot handler
-        # answers with what it drew, never with a status, so the guard was true of nothing and
-        # the branch never ran. What it was for was honouring `dpi`, which the save that does
-        # run therefore did not: asking for 300 gave the same 76-dpi picture as the default.
+        # The file is written once, by `_finalize_plot`, at the resolution asked for.
         return result
 
     def _visualize_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """
-        Plot UV coverage for an Observation with flexible filtering and frequency scaling using Polars DataFrame.
+        """Draw what the array samples of the sky: the (u,v) plane, per baseline and band.
 
         Args:
-            obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (source_name, baselines, scans, frequencies, units).
-            fig: Matplotlib Figure object for plotting.
+            obj: The observation to draw.
+            attributes: `source_name`, `baselines`, `scans`, `frequencies` and `units`.
+            fig: The figure to draw on.
 
         Returns:
-            Dict[str, Any]: Dictionary with visualization results (baselines, points, frequencies).
+            Dict[str, Any]: How many `baselines`, `points` and `frequencies` were drawn.
         """
         with self._lock:
             logger.debug("Plotting UV coverage for %s with attributes: %s", obj.get_observation_code(), attributes)
@@ -712,12 +665,8 @@ class ScheduleVisualizer(Super):
                         u_scaled = u / wavelength / scale  # Apply scale for plotting
                         v_scaled = v / wavelength / scale
                     else:
-                        # **An Earth diameter is a length.** This divided by the wavelength
-                        # first and then by the Earth's diameter measured in wavelengths *at
-                        # the lowest frequency drawn*, which leaves a factor of
-                        # `ref_wavelength / wavelength`: the same baseline came out twice as
-                        # long at twice the frequency, so ticking a second band drew an array
-                        # the schedule does not have.
+                        # An Earth diameter is a length, so the metres are divided by it
+                        # directly and no wavelength enters.
                         u_scaled = u / self.EARTH_DIAMETER
                         v_scaled = v / self.EARTH_DIAMETER
 
@@ -826,9 +775,8 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: `scans`, `telescopes` and `points` drawn.
 
         Notes:
-            - Azimuth and elevation share the left axis, in degrees; range is drawn against a
-              right axis in thousands of kilometres, because a spacecraft's range moves over
-              four orders of magnitude more than its angles do.
+            - Azimuth and elevation share the left axis in degrees; range has a right axis
+              in thousands of kilometres, moving over four more orders of magnitude.
         """
         with self._lock:
             store_key = attributes.get("store_key", "telescope_az_el")
@@ -1117,16 +1065,15 @@ class ScheduleVisualizer(Super):
             return result
         
     def _visualize_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """
-        Plot Azimuth/Elevation or Hour Angle/Declination for an Observation with flexible filtering using Polars DataFrame.
+        """Draw where each station points: azimuth and elevation, or hour angle and declination.
 
         Args:
-            obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (coord_type, source_name, telescopes, scans, time_range, etc.).
-            fig: Matplotlib Figure object for plotting.
+            obj: The observation to draw.
+            attributes: `coord_type`, `source_name`, `telescopes`, `scans`, `time_range`.
+            fig: The figure to draw on.
 
         Returns:
-            Dict[str, Any]: Dictionary with visualization results (scans, telescopes, points).
+            Dict[str, Any]: How many `scans`, `telescopes` and `points` were drawn.
         """
         with self._lock:
             logger.debug("Plotting az_el for %s with attributes: %s", obj.get_observation_code(), attributes)
@@ -1235,10 +1182,8 @@ class ScheduleVisualizer(Super):
 
                 ax = axes[0] if n_tels == 1 else axes[tel_idx]
 
-                # Broken where there is nothing to join. Where the angle wraps, 360 to 0 or 180
-                # to -180, a line drawn through crossed the whole panel for a step the dish never
-                # took; and where the source was below the horizon those samples are gone, so a
-                # line drawn through showed an elevation for hours nothing was seen.
+                # Broken where there is nothing to join: at a wrap, 360 to 0 or 180 to -180,
+                # and over a gap where the source was below the horizon.
                 steps = np.diff(valid_times_mjd)
                 usual = np.median(steps) if len(steps) else 0.0
                 gaps = set(np.flatnonzero(steps > 1.5 * usual) + 1) if usual > 0 else set()
@@ -1271,9 +1216,8 @@ class ScheduleVisualizer(Super):
 
                 self._time_axis(ax)
                 if n_tels > 1:
-                    # Inside the panel rather than above it: a title needs a row of its own, and
-                    # stacked panels with titles either overlap -- the name sat on the plot
-                    # above -- or spend the height the plots need on gaps.
+                    # Inside the panel: a title above needs a row of its own, which stacked
+                    # panels pay for either in overlap or in height.
                     ax.text(0.005, 0.92, tel, transform=ax.transAxes, ha="left", va="top",
                             fontsize=self._style_config["font"]["tick_size"],
                             bbox=dict(facecolor="white", alpha=0.75, edgecolor="none", pad=1.5))
@@ -1289,10 +1233,8 @@ class ScheduleVisualizer(Super):
 
             # Adjust layout and labels
             if n_tels > 1:
-                # Margins for what is actually around the panels -- a three-line title above, the
-                # time label below, the legend to the right -- and panels close together now that
-                # their names are inside them. `tight_layout` was called and then overridden by
-                # fixed margins that left a third of the figure empty.
+                # Margins for what is around the panels -- three-line title, time label,
+                # legend -- and panels close together, their names being inside them.
                 fig.subplots_adjust(left=0.07, bottom=0.08, right=0.90, top=0.88, hspace=0.12)
                 fig.text(0.5, 0.02, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
                 fig.text(0.015, 0.48, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
@@ -1454,20 +1396,12 @@ class ScheduleVisualizer(Super):
                     for start, end, _ in all_blocks[tel]:
                         time_points.append((start, "start", tel))
                         time_points.append((end, "end", tel))
-                # Sorted so that at the same instant a start is processed before an end.
-                # A plain sort orders the tuples, and "end" < "start" alphabetically -- so a
-                # block of zero length, which is what a source visible for less than one time
-                # step produces, was removed from the active set before it was ever added.
-                # That raised KeyError and took the whole plot with it.
+                # At the same instant a start comes before an end: a plain sort puts "end"
+                # first, and a zero-length block is then removed before it is added.
                 time_points.sort(key=lambda point: (point[0], point[1] != "start", point[2]))
 
-                # Find intervals where all telescopes are active.
-                #
-                # **Counted, not collected in a set.** A telescope can hold two blocks at once
-                # -- two scans touching end to start, or one antenna on two frequencies -- and a
-                # set forgets the second: at the seam the start of B was a no-op, the end of A
-                # removed the telescope, and "Total" stopped at the first scan. Two stations
-                # seeing a source for two hours across two scans were reported as one hour.
+                # Intervals where every telescope is active, counted rather than kept in a
+                # set: a telescope holds two blocks at once where two scans touch end to start.
                 intersection_times = []
                 open_blocks = {tel: 0 for tel in tel_list}
                 start_time = None
@@ -1527,16 +1461,15 @@ class ScheduleVisualizer(Super):
             return result
 
     def _visualize_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """
-        Plot beam patterns for an Observation with one subplot per telescope and a shared frequency legend using Polars DataFrame.
+        """Draw each dish's beam, one panel per station and one legend of bands for all.
 
         Args:
-            obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (telescopes, frequencies, etc.).
-            fig: Matplotlib Figure object for plotting.
+            obj: The observation to draw.
+            attributes: `telescopes` and `frequencies`.
+            fig: The figure to draw on.
 
         Returns:
-            Dict[str, Any]: Dictionary with visualization results (telescopes, frequencies).
+            Dict[str, Any]: How many `telescopes` and `frequencies` were drawn.
         """
         with self._lock:
             logger.debug("Plotting beam pattern for %s with attributes: %s", obj.get_observation_code(), attributes)
@@ -1632,15 +1565,11 @@ class ScheduleVisualizer(Super):
                             logger.warning("Invalid frequency %s MHz for %s", freq_mhz, tel_code)
                             continue
 
-                        # **The stored curve is the same at every frequency; this is where it is
-                        # given one.** The calculation keeps `x = D sin(t)` in the `theta` column,
-                        # and the Airy pattern is `x = pi D sin(theta) / lambda`, so
-                        #     sin(theta) = lambda sin(t) / pi.
-                        # What was here drew `theta = t * lambda`: no division by pi and no sine,
-                        # so every beam came out pi times as wide as it is -- a 70 m dish at 1 GHz
-                        # at 0.79 degrees half-power where it has 0.25. Past the horizon, which a
-                        # wavelength longer than pi metres reaches, there is no angle to draw.
+                        # The curve holds `x = D sin(t)`, and the Airy pattern is
+                        # `x = pi D sin(theta) / lambda`, so `sin(theta) = lambda sin(t) / pi`.
                         reach = wavelength * np.sin(theta) / np.pi
+                        # Past the horizon, which a wavelength longer than pi metres reaches,
+                        # there is no angle to draw.
                         seen = np.abs(reach) <= 1.0
                         angle = np.degrees(np.arcsin(reach[seen]))
                         drawn = normalised[seen]
@@ -1671,11 +1600,8 @@ class ScheduleVisualizer(Super):
                     ax.set_xlim(-extent, extent)
                 plotted_telescopes.add(tel_code)
 
-            # **Laid out by what is actually there, not by fractions of the figure.** Every panel
-            # has its own angle labels -- the scales differ -- and fixed margins left no room for
-            # them between rows, while the legend, anchored by its right edge, lay across the
-            # last panel of the top row. The constrained engine measures the labels, the title
-            # and the legend, and keeps measuring as the tab is resized.
+            # Laid out by what is there: the constrained engine measures the angle labels,
+            # the title and the legend, and keeps measuring as the tab is resized.
             for ax in axes:
                 ax.set_xlabel("")
                 ax.set_ylabel("")
@@ -1710,16 +1636,17 @@ class ScheduleVisualizer(Super):
             return result
 
     def _visualize_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """
-        Plot baseline projections for an Observation with flexible filtering, frequency scaling, and grouped legend using Polars DataFrame.
+        """Draw how long each baseline is as the Earth turns, per band.
 
         Args:
-            obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (store_key, baselines, source_name, scans, time_range, frequencies, units).
-            fig: Matplotlib Figure object for plotting.
+            obj: The observation to draw.
+            attributes: `store_key`, `baselines`, `source_name`, `scans`, `time_range`,
+                `frequencies` and `units`.
+            fig: The figure to draw on.
 
         Returns:
-            Dict[str, Any]: Dictionary with visualization results (scans, baselines, projections, frequencies).
+            Dict[str, Any]: How many `scans`, `baselines`, `projections` and `frequencies`
+                were drawn.
         """
         with self._lock:
             logger.debug("Plotting baseline projections for %s with attributes: %s", obj.get_observation_code(), attributes)
@@ -1900,16 +1827,16 @@ class ScheduleVisualizer(Super):
             return result
 
     def _visualize_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """
-        Plot Mollweide tracks for an Observation with flexible filtering and grouped legend using Polars DataFrame.
+        """Draw where each station's line of sight goes, all-sky.
 
         Args:
-            obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (telescopes, scans, sources, max_points, etc.).
-            fig: Matplotlib Figure object for plotting.
+            obj: The observation to draw.
+            attributes: `telescopes`, `scans`, `sources` and `max_points`.
+            fig: The figure to draw on.
 
         Returns:
-            Dict[str, Any]: Dictionary with visualization results (scans, telescopes, sources, points).
+            Dict[str, Any]: How many `scans`, `telescopes`, `sources` and `points` were
+                drawn.
         """
         with self._lock:
             logger.debug("Plotting Mollweide tracks for %s with attributes: %s", obj.get_observation_code(), attributes)
@@ -2239,13 +2166,11 @@ class ScheduleVisualizer(Super):
                 table, how many were computed from the dish, and how many there are none of.
 
         Notes:
-            - **A measured SEFD and a computed one are not the same claim**, so the bars say which:
-              a plain bar was measured over a range covering the band, a hatched one was worked out
-              from the dish, its efficiency and its system temperature.
-            - **Log scale**, because an array mixes a 25-metre dish with a 100-metre one, and on a
-              linear axis the sensitive half is a line along the bottom.
-            - A station with no SEFD in a band gets no bar and is named under the axis. A bar of
-              zero would read as an infinitely sensitive station.
+            - A measured SEFD and a computed one are not the same claim: a plain bar was
+              measured, a hatched one worked out from the dish.
+            - Log scale, or the sensitive half of an array is a line along the bottom.
+            - A station with no SEFD in a band gets no bar: a bar of zero reads as
+              infinitely sensitive.
         """
         with self._lock:
             store_key = attributes.get("store_key", "sefd")
@@ -2329,11 +2254,10 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: How many stations, bands and scans were drawn, and how many samples.
 
         Notes:
-            - **A line per scan rather than per station**, so nothing is drawn across the gap
-              between two scans: a station's SEFD between them is not on the way from one to the
-              other, and a line there would invite reading a slew as a measurement.
-            - The zenith SEFD is drawn as a faint line behind each station's, because what the
-              elevation costs is the distance between the two.
+            - A line per scan rather than per station, so nothing is drawn across the gap
+              between two: a line there reads a slew as a measurement.
+            - The zenith SEFD is a faint line behind each station's, and what the elevation
+              costs is the distance between them.
         """
         with self._lock:
             store_key = attributes.get("store_key", "sefd_track")
@@ -2414,14 +2338,12 @@ class ScheduleVisualizer(Super):
                 detection, and the threshold they were held against.
 
         Notes:
-            - **A baseline by a scan is a grid, so it is drawn as one.** A schedule of fifty scans
-              over an array of ten stations is forty-five lines of fifty points, which no legend
-              saves.
-            - **Signal-to-noise spans orders of magnitude** across an array that mixes a 100-metre
-              dish with a 25-metre one, so the colours are logarithmic and the colour bar carries
-              the threshold as a line.
-            - A cell that reaches nothing -- no SEFD, no flux, no time together -- is left blank
-              rather than dark, which would read as a very poor baseline rather than as no answer.
+            - A baseline by a scan is a grid: ten stations over fifty scans is forty-five
+              lines of fifty points, which no legend saves.
+            - The colours are logarithmic and the colour bar carries the threshold as a
+              line, because signal-to-noise spans orders of magnitude across an array.
+            - A cell that reaches nothing is blank rather than dark, which would read as a
+              very poor baseline.
         """
         with self._lock:
             store_key = attributes.get("store_key", "baseline_sensitivity")
@@ -2474,9 +2396,8 @@ class ScheduleVisualizer(Super):
             ax.grid(False)
 
             reached = grid[np.isfinite(grid) & (grid > 0)]
-            # **Logarithmic only when it spans more than a decade.** One value, or one repeated,
-            # has no range to spread colours over and a logarithmic norm asked for one raises;
-            # over a narrow range it labels a signal-to-noise of two as "2 x 10^0".
+            # Logarithmic only over more than a decade: a single value has no range to
+            # spread colours over, and a narrow one labels a ratio of two as "2 x 10^0".
             norm = None
             if reached.size and reached.max() >= 10.0 * reached.min():
                 norm = LogNorm(vmin=float(reached.min()), vmax=float(reached.max()))
@@ -2490,10 +2411,8 @@ class ScheduleVisualizer(Super):
 
             ax.set_yticks(np.arange(len(baselines)) + 0.5)
             ax.set_yticklabels(baselines, fontsize=self._style_config["font"]["tick_size"])
-            # **A scan is shown by when it starts**, as every list of scans in the interface shows
-            # it: two scans of one source are told apart by their time, and a generated name is
-            # `scan_9167c64358014a2da61b9070687d1173`. At most twenty ticks, because fifty labels
-            # along an axis are a black band.
+            # A scan is shown by when it starts, as every list of scans shows it: a generated
+            # name is `scan_9167c64358014a2da61b9070687d1173`. At most twenty ticks.
             clock = [self._clock(when) for when in ordered["time"].to_list()]
             step = max(1, len(scans) // 20)
             ax.set_xticks(np.arange(len(scans))[::step] + 0.5)

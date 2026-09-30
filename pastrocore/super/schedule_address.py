@@ -88,10 +88,8 @@ class AddressQuestions:
                 is not part of the project.
 
         Notes:
-            - From the path MSB records, which is the ownership graph: each step that is an item
-              of what holds it is named as an item, and each field of an entity by the field. A
-              step the path names but nothing holds -- a project keeps its observations in a
-              mapping of its own -- locates to nothing and is passed over.
+            - From the ownership graph MSB records: an item is named as an item and a field
+              by the field. A step nothing holds is passed over.
         """
         target = attributes.get("object", obj)
         root = self._root()
@@ -179,11 +177,8 @@ class AddressQuestions:
         """Return `(segment, object)` for everything one step below an object.
 
         Notes:
-            - A container, or a project, holds items: each is named by its `code` when it has
-              one, which is what a person uses for an observation or a station, and by its name
-              otherwise.
-            - An entity holds what its annotations say it holds, read from MSB's model graph --
-              for an observation, its sources, telescopes, scans and frequencies.
+            - A container names its items by `code` where there is one and by name otherwise.
+            - An entity holds what its annotations say, read from MSB's model graph.
         """
         if isinstance(obj, BaseContainer) or hasattr(obj, "get_observations"):
             return [(self._item_segment(item), item) for item in obj.get_items()]

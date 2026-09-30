@@ -46,9 +46,7 @@ class ScheduleInspector(AddressQuestions, RunQuestions, DataQuestions, Inspector
         """How to reach one member of `obj` by name.
 
         Notes:
-            - A `ScheduleProject` holds observations and answers `get_observation(name)`,
-              where a container answers `get(name)`. That difference is the whole reason
-              msb_arch made the descent a hook rather than a convention.
+            - A project answers `get_observation(name)`, a container `get(name)`.
         """
         if isinstance(obj, ScheduleProject):
             return obj.get_observation

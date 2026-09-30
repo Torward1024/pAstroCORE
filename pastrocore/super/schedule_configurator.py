@@ -30,9 +30,7 @@ class ScheduleConfigurator(Configurator):
         """How to reach one member of `obj` by name.
 
         Notes:
-            - A `ScheduleProject` holds observations and answers `get_observation(name)`,
-              where a container answers `get(name)`. That difference is the whole reason
-              msb_arch made the descent a hook rather than a convention.
+            - A project answers `get_observation(name)`, a container `get(name)`.
         """
         if isinstance(obj, ScheduleProject):
             return obj.get_observation
@@ -62,7 +60,7 @@ class ScheduleConfigurator(Configurator):
 
 
     def _configure_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
-        """Configure a ScheduleProject object, supporting nested Observation configuration and observation generation."""
+        """Configure a project, an observation inside it, or a generation of observations."""
         try:
             if "generate_observations" in attributes:
                 logger.info("Generating observations for project %s.", project_obj.name)
@@ -120,11 +118,8 @@ class ScheduleConfigurator(Configurator):
         """
         generated_codes = []
         try:
-            # **A plan is a way of asking for all of it at once** (O1): the window sends what it is
-            # showing, rather than assembling these attributes itself and working out the end time
-            # with its own copy of the arithmetic below.
-            # Updated in place rather than replaced: the caller holds this dictionary and sets
-            # `cancelled` on it while the generation runs, and a copy would never hear the cancel.
+            # A plan asks for all of it at once (O1), so the window sends what it is
+            # showing. Updated in place: the caller sets `cancelled` on this dictionary.
             if attributes.get("plan") is not None:
                 attributes.update(GenerationPlan.of(attributes.pop("plan")).attributes())
 
@@ -190,9 +185,8 @@ class ScheduleConfigurator(Configurator):
                 telescopes = Telescopes(items={telescope_items[0].name: telescope_items[0].copy()})
                 logger.debug("SINGLE_DISH mode: selected telescope '%s'", telescope_items[0].name)
 
-            # **How long the pattern takes is the plan's to say** (O1). This worked it out here
-            # and the dialog worked the same formula out again to show an end time, which is two
-            # implementations of one thing; the dialog asks now, and both read this.
+            # How long the pattern takes is the plan's to say (O1), and the dialog asks
+            # rather than working the same formula out again.
             pattern_plan = GenerationPlan(
                 scan_duration=scan_duration, num_scans=num_scans, interval_sec=interval_sec,
                 add_off_source=add_off_source, parallel=parallel)
@@ -207,9 +201,8 @@ class ScheduleConfigurator(Configurator):
 
             for i, source in enumerate(source_items, 1):
                 if attributes.get("cancelled", False):
-                    # What was generated before the cancel is already in the project, so it is
-                    # what the answer names. `[]` here told the caller nothing had been added
-                    # while the project held every observation made so far.
+                    # What was generated before the cancel is in the project, so the
+                    # answer names it.
                     logger.info("Observation generation cancelled after %s observation(s)",
                                 len(generated_codes))
                     return {"status": False, "cancelled": True,
@@ -270,12 +263,8 @@ class ScheduleConfigurator(Configurator):
                 )
                 logger.debug("Created observation '%s' for source '%s'", obs_code, source.name)
 
-                # **The observation's own source, not the one that was handed in.** The
-                # telescopes and frequencies below already come from `obs`; the source did
-                # not, so a scan pointed at an object the observation did not hold. Turning
-                # the source off in the Sources tab then left every scan still pointed at a
-                # copy that was still active, and the calculations -- which ask
-                # `scan.get_source(observation).isactive` -- went on computing it.
+                # The observation's own source, as the telescopes and frequencies below
+                # are: a scan pointed at a copy never hears the source being turned off.
                 obs_source = obs.get_sources().get_items()[0]
 
                 scans_list = []

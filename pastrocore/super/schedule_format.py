@@ -28,9 +28,8 @@ class ScheduleFormat(Super):
         manipulator (Manipulator): The orchestrator every operation is reached through.
 
     Notes:
-        - No handler lives here. MSB resolves `_<operation>_<method>` on the instance, and the
-          operations are the formats' own -- so a subclass declares `_vex_export` or
-          `_cfx_import` and inherits everything underneath it.
+        - No handler lives here: MSB resolves `_<operation>_<method>` on the instance, so a
+          subclass declares `_vex_export` and inherits everything underneath it.
     """
 
     #: What a written file is called when the request does not say. Subclasses set it.
@@ -73,10 +72,8 @@ class ScheduleFormat(Super):
             FileExistsError: If the file is there and `overwrite` is off.
 
         Notes:
-            - Written beside the target and moved over it, as every other file this application
-              writes is. A schedule is a contract with a correlator: a write interrupted part
-              way -- a full disk, an application closed -- left half of one where the last
-              complete one had been, and half a VEX file is a file that parses until it stops.
+            - Written beside the target and moved over it: half a VEX file is a file that
+              parses until it stops.
         """
         if target.exists() and not overwrite:
             raise FileExistsError(f"'{target}' is already there")
@@ -97,11 +94,8 @@ class ScheduleFormat(Super):
         """Return one report over several files, in the shape a single file's report has.
 
         Notes:
-            - Adding up several reports is arithmetic about this operation's own output, so it
-              belongs here: a dialog and a command line would otherwise each work it out, and
-              differently.
-            - `to_complete` is the same list for every file, because it comes from what the
-              format needs rather than from what any one observation contains.
+            - Added up here, or a dialog and a command line would each do it differently.
+            - `to_complete` is the same for every file: it comes from the format.
         """
         combined: Dict[str, Any] = {"path": str(target), "files": written,
                                     "experiment": f"{len(written)} file(s)",
@@ -138,10 +132,8 @@ class ScheduleFormat(Super):
             TypeError: If `obj` is not a project.
 
         Notes:
-            - **What this model does not hold is read past, not carried** (V6). The hardware and
-              the session are the station's and the correlator's; an export leaves those blocks
-              empty for them to fill, so importing them would be keeping something nothing here
-              can use or check.
+            - What this model does not hold is read past, not carried (V6): an export leaves
+              those blocks for a station to fill.
             - A scan the model refuses is named rather than forced in.
         """
         path = attributes.get("path")
@@ -165,10 +157,8 @@ class ScheduleFormat(Super):
             "scans": len(observation.get_scans().get_items()),
             "channels": sum(band.get_channel_count()
                             for band in observation.get_frequencies().get_items()),
-            # What the file says and this reading does not carry: whole blocks the model cannot
-            # hold, entries it could not read, and what a scan named that the file never
-            # defines. One list, because a person reading the report wants one answer to "what
-            # did I not get".
+            # One list, because a reader of the report wants one answer to "what did I
+            # not get": whole blocks, unreadable entries, and what a scan named in vain.
             "passed_over": list(read.get("passed_over", [])) + reduced,
             "refused": refused,
         }

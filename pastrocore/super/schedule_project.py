@@ -34,11 +34,8 @@ class ScheduleProject(Project):
         'NewProject'
     """
 
-    # `SCHEMA_VERSION` and `migrate` are the base class's, and were reimplemented here to
-    # forward to it. Raise the version when the shape of what `to_dict` writes changes -- a
-    # renamed field, a field that means something new -- and override `migrate` to read the
-    # older shape. Version 1 is the only version there has been, and it is written into the
-    # file only once it is no longer 1, so nothing changes until it has to.
+    # Raise `SCHEMA_VERSION` when the shape of what `to_dict` writes changes, and
+    # override `migrate` to read the older shape. Both are the base class's.
     _item_type = Observation
 
     def __init__(self, name: str = "OBS_DEFAULT_PROJECT", items: Optional[Dict[str, Observation]] = None):
@@ -69,16 +66,10 @@ class ScheduleProject(Project):
             InvariantError: Naming the code and both observations that carry it.
 
         Notes:
-            - A rule about the project rather than about any one observation, which is what an
-              invariant is for. It was a `_validate_item` helper called by hand from four
-              places, each passing a different pair of exclusions to work out which item was
-              being replaced -- and `remove_item` and `set_project` could still leave a project
-              nobody had checked. msb_arch 1.10.0 checks the rule after anything that changes
-              what a project holds, and puts the items back when it refuses, so the exclusions
-              are not needed: the rule reads the project as it would be.
-            - The code, not the name. Names are unique because the container makes them so; the
-              code is what an observation is called on paper, and duplicating one makes two
-              observations indistinguishable everywhere a schedule is written out.
+            - A rule about the project, so msb_arch checks it after anything that changes
+              what the project holds and puts the items back when it refuses.
+            - The code, not the name: names are unique because the container makes them so,
+              and a duplicate code makes two observations indistinguishable on paper.
         """
         seen = {}
         for name, observation in self._items.get_all().items():
@@ -154,15 +145,10 @@ class ScheduleProject(Project):
                 observation keeps the code it had.
 
         Notes:
-            - **The rename belongs to the project, because the rule does.** `_codes_are_unique`
-              is checked whenever what the project *holds* changes -- an observation added,
-              replaced, removed -- and a rename changes none of those, so nothing ever checked
-              it. Renaming one observation onto another's code was accepted in the window,
-              written to the file, and then refused on the way back in by the rule that had
-              not run: the project could not be opened again.
-            - A container that re-checks its rules when a *held item* is written to is a thing
-              msb_arch does not offer, and this is the one field in this application where it
-              matters. G15 on the roadmap is the general case.
+            - The rename belongs to the project because the rule does: `_codes_are_unique` is
+              checked when what the project holds changes, and a rename changes none of that.
+            - msb_arch does not re-check a container's rules when a held item is written to.
+              G15 on the roadmap is the general case.
         """
         check_non_empty_string(code, "Observation code")
         observation = self.get_observation(name)
@@ -187,12 +173,9 @@ class ScheduleProject(Project):
                 and for one that has calculated nothing.
 
         Notes:
-            - Results are written to a scratch directory the moment they are calculated and
-              live there until the project is saved, so "in the scratch" means "not in the
-              project". A window that closes without asking about these destroys them, which is
-              what writing them through to disk exists to prevent.
-            - Here rather than in the window: a command line closing a session and a server
-              ending one ask the same question, and neither should be counting files.
+            - Results live in the scratch from the moment they are calculated until the
+              project is saved, so a window closing without asking about these destroys them.
+            - Here rather than in the window: a command line asks the same question.
         """
         try:
             scratch = self.scratch.path
@@ -211,12 +194,10 @@ class ScheduleProject(Project):
             bool: Whether it was removed.
 
         Notes:
-            - A project that is replaced -- by opening another, or by starting a new one --
-              took its scratch with it and nothing discarded it, so every open and every new
-              project left a directory that the next start offered to recover from a session
-              that had ended normally with nothing in it.
-            - One holding results is left where it is. That offer is the whole reason the
-              directory survives a crash: litter is worth clearing, a day of calculation is not.
+            - A replaced project takes its scratch with it, and an empty one left behind is
+              offered back at the next start as an interrupted session.
+            - One holding results is left where it is: litter is worth clearing, a day of
+              calculation is not.
         """
         if self.unsaved_results():
             logger.info("Leaving '%s' behind: it holds results nobody has saved",
@@ -237,16 +218,10 @@ class ScheduleProject(Project):
             List[Observation]: The observations themselves, never their names.
 
         Notes:
-            - `get_items()` was a dictionary on a project and a list on a container -- the same
-              method name in two shapes -- so every caller guessed which it had. One guessed
-              wrong for eight calculations: iterating a project yielded its *keys*, so
-              `o.get_scans()` was called on a string, and the broad handler downstream turned
-              that into an empty frame. Calculating for a whole project produced nothing and
-              said nothing.
-            - msb_arch 2.0.0 settled the shape -- a project answers with a list, exactly as a
-              container does, and `get_all()` is the mapping. This stays because it says
-              *observations* rather than items, which is what every caller here wants, and
-              because a request may name it: `inspect(project, get_observations=None)`.
+            - A project answers with a list, as a container does, and `get_all()` is the
+              mapping.
+            - Kept beside them because it says observations rather than items, and because a
+              request may name it: `inspect(project, get_observations=None)`.
         """
         return list(self.get_items())
 
@@ -303,9 +278,7 @@ class ScheduleProject(Project):
         super().set_project(name, items)
         logger.info("Set project '%s' with %s observations", name, len(items))
 
-    # `to_dict` is the base class's. The override here wrote the same two keys by hand, which
-    # msb_arch 2.0.0 made pure duplication when `Project` became a `Serializable`: the
-    # inherited one writes the schema version when there is one, and caches.
+    # `to_dict` is the base class's, which writes the schema version and caches.
 
     RESULTS_DIRECTORY = "results"
     MODEL_FILE = "project.json"
@@ -327,25 +300,17 @@ class ScheduleProject(Project):
                 alone, which is what a bug report wants; only sensible for a copy.
 
         Notes:
-            - The model is small -- under 7 KB for a project whose single-file form was 230 --
-              because the results are no longer inside it. Opening a project therefore reads
-              the model and nothing else.
-            - Each result is a parquet file, which is what lets a consumer that filters push
-              the filter into the read rather than loading a frame to discard most of it.
-            - A result already on disk and never loaded is left alone rather than rewritten.
-            - **A save moves the project in.** It points every observation at the directory just
-              written and clears the scratch, because that directory is where the project lives
-              from now on. `as_copy` is for the other case, and packing had no way to say it:
-              it saved into a temporary directory, deleted it, and left the project pointing
-              there. A project opened from disk with eleven results had none the moment it was
-              packed -- and an unsaved one, whose only copy was the scratch, lost them.
+            - The model is small because the results are not inside it, so opening a project
+              reads the model and nothing else.
+            - Each result is a parquet file, so a caller that filters pushes the filter into
+              the read. One already on disk and never loaded is not rewritten.
+            - A save moves the project in: it points every observation at the directory just
+              written and clears the scratch. `as_copy` is for packing, which must not.
         """
         check_non_empty_string(path, "Project directory")
         if self.__dict__.get("_released"):
-            # A released project has let go of its observations, and a save drops the results of
-            # observations a project no longer has: it would write an empty project over its own
-            # directory and delete a day of calculation. Nothing in the window does this; a
-            # request is data, and a command line can ask for `release` and then for a save.
+            # A released project has let go of its observations, and a save drops the
+            # results of observations a project no longer has.
             raise ValueError(f"Project '{self.name}' was released, so it holds nothing: saving it "
                              f"would empty '{path}' and delete its results. Open it again to save it")
         root = Path(path)
@@ -387,12 +352,8 @@ class ScheduleProject(Project):
         for observation in self._items.get_items():
             model["items"][observation.name] = observation.to_dict(with_results=False)
 
-        # allow_nan=False so an unrepresentable number fails here, loudly, rather than
-        # producing a file only a lenient parser can read.
-        #
-        # Written beside the old model and moved over it, like every result: this is the one
-        # file without which the project does not open at all, and writing it in place meant a
-        # save interrupted part way left nothing to open.
+        # `allow_nan=False`, so an unrepresentable number fails here rather than
+        # producing a file only a lenient parser reads. Written beside and moved over.
         text = json.dumps(json_safe(model), indent=4, allow_nan=False)
         model_path = root / self.MODEL_FILE
         partial = model_path.with_name(model_path.name + PARTIAL_SUFFIX)
@@ -403,10 +364,8 @@ class ScheduleProject(Project):
             partial.unlink(missing_ok=True)
             raise
 
-        # Results belonging to observations the project no longer has. Left in place they are
-        # not merely clutter: renaming an observation away and back would find the old results
-        # still sitting there and treat them as current, which is how a stale number gets
-        # reported as a fresh one.
+        # Results of observations the project no longer has: renaming one away and back
+        # would find them still sitting there and treat them as current.
         dropped = 0
         for directory in (root / self.RESULTS_DIRECTORY).iterdir():
             if directory.is_dir() and directory.name not in model["items"]:
@@ -415,14 +374,8 @@ class ScheduleProject(Project):
         if dropped:
             logger.info("Dropped results for %s observation(s) no longer in the project", dropped)
 
-        # **The copies in the scratch have somewhere better to be now.** `migrate_to` copies
-        # rather than moves -- a save that fails half way must leave the results where they were --
-        # and nobody cleared them afterwards, so every result stayed duplicated in the scratch for
-        # the rest of the session. `unsaved_results` counts what is in there, so a saved project
-        # went on reporting the same results as unsaved: closing the window asked about them, and
-        # answering "Save" left the count unchanged, so the window refused to close. Cleared here,
-        # after everything is written, and never before -- and never at all for a copy, whose
-        # scratch is still the project's only one.
+        # `migrate_to` copies rather than moves, so the scratch still holds them.
+        # Cleared after everything is written, and never at all for a copy.
         if not as_copy:
             self.scratch.discard()
 
@@ -455,11 +408,8 @@ class ScheduleProject(Project):
             if hasattr(observation.calculated_data, "attach"):
                 observation.calculated_data.attach(store, observation.name,
                                                    budget=project.residency_budget)
-        # Results calculated before fingerprints existed carry none, and answering "unknown"
-        # about them forever is honest and useless -- the user changes a scan, nothing is
-        # reported, and staleness never once fires for a project that already exists. Record
-        # what the configuration is now, so that changes from here on are visible. Metadata
-        # only: no result is read.
+        # Results calculated before fingerprints existed carry none, so the configuration
+        # is recorded now and changes from here on are visible. Metadata only.
         for observation in project._items.get_items():
             freshness.adopt_baseline(observation)
 
@@ -531,9 +481,7 @@ class ScheduleProject(Project):
         """Give results somewhere to live before the project has a directory of its own.
 
         Notes:
-            - Called once the project is in place rather than in the constructor, because
-              creating the scratch directory is what tells a later session that a session
-              existed. A project that is opened and closed without calculating leaves nothing.
+            - Called once the project is in place; the directory existing is the marker.
         """
         self.attach_results_store(self.scratch.store)
 
@@ -631,16 +579,9 @@ class ScheduleProject(Project):
             int: How many observations were released.
 
         Notes:
-            - A window closing a project, a command line opening the next one and a server
-              ending a session all want this, so it is here rather than in any of them. It was
-              in the window, which is why the window reached into the model to do it.
-            - **Nothing has to be unhooked.** This cleared `_project`, `_manipulator` and
-              `_parent` on each observation, each guarded by a `hasattr` that is true of none of
-              them -- as a `cleanup()` call here was before that, which nothing defines either.
-              The one back reference an observation has is msb_arch's `_parents`, and it is
-              weak, so letting go of the observations is the whole of letting go. The property
-              is held by a test rather than by a loop: after this, nothing the project held is
-              still reachable.
+            - Here rather than in the window, because a command line and a server want it too.
+            - Nothing has to be unhooked: the one back reference an observation has is
+              msb_arch's `_parents`, and it is weak. A test holds the property.
         """
         released = len(self.get_observations())
         self.remove_all()
@@ -653,17 +594,10 @@ class ScheduleProject(Project):
         """Remove every observation, letting go of the results each was holding first.
 
         Notes:
-            - This was called `clear`, which msb_arch 1.9.0 deprecated and 2.0.0 removed: one
-              name meant three different jobs depending on what it was called on. The name is
-              now the one the framework uses, and it does the same work.
-            - The results are let go of before the observations go, because an observation that
-              has already left the project cannot be asked to let go of anything.
-            - **Let go of, not deleted.** This called `clear_calculated_data`, which erases the
-              results *on disk* as well -- and `release`, which a window runs on every File ->
-              New Project and every Open, comes through here. So opening a second project
-              deleted the first one's results out of its directory, silently, after it had been
-              saved. Nothing changes the disk except a save, which removes the results of
-              observations the project no longer has, and the deliberate Clear Data.
+            - The results are let go of first: an observation that has left the project
+              cannot be asked to let go of anything.
+            - Let go of, not deleted: `release` comes through here on every File ->
+              New Project and every Open. Only a save and Clear Data change the disk.
         """
         for observation in self.get_observations():
             try:
