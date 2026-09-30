@@ -8,7 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## [Unreleased]
+## [1.17.0] - 2026-09-30
 
 A3, the fifth audit: every module in `pastrocore/` read once against what it is *for*. Twelve
 passes over eight days -- the entities, where results are kept, the calculator, the other
