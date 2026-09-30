@@ -52,12 +52,8 @@ def time_execution(func):
         duration = time.perf_counter() - start_time
         calc_type = func.__name__.replace('_calculate_', '')
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
-        # Debug, not info. This fires on every *call*, and a calculation that reads its
-        # prerequisite calls it too -- so a run of ten calculations wrote "Calculation
-        # 'time_arrays' completed" six times over, each of them a cache hit of four
-        # milliseconds, and it read exactly like six recomputations. What a run actually did is
-        # in the report `compute(method="run")` returns, timed on the interceptor; what was
-        # genuinely recomputed still says so at info, once, as "Calculating '...'".
+        # Debug, not info: this fires on every call, cache hits included. What a run did
+        # is in the report `compute(method="run")` returns; a recomputation says so at info.
         logger.debug("Calculation '%s' for '%s' returned in %.3f s", calc_type, obj_name, duration)
         return result
     return wrapper
@@ -68,20 +64,11 @@ class _InTurn:
     """Runs each piece of work where it stands, with an executor's vocabulary.
 
     Notes:
-        - **One place decides how work is spread, and it is the pipeline.** Every calculation
-          used to open a `ThreadPoolExecutor` of its own over the scans, and `_process_object`
-          another over the observations -- underneath a pipeline that is already running the
-          calculations in threads when asked to. Four workers under six concurrent steps is
-          twenty-four threads contending for the GIL and for cores.
-        - **It is not faster, and that is not the reason.** Measured on a 69-scan schedule,
-          interleaved six times each: 9.62 s at the median with the inner pools and 9.71 s
-          without, which is a wash. An earlier measurement said 6% faster and was a quiet
-          window on the machine rather than a fact. The reasons are that eleven copies of one
-          block are eleven places to change, and that a second policy for spreading work,
-          hidden under the one the pipeline applies, is how a whole project came to draw
-          nothing when the visualizer had the same shape.
-        - It keeps `submit` and `result` so the call sites read as they did. The name says what
-          it does, so nobody reads concurrency into it.
+        - One place decides how work is spread, and it is the pipeline: a pool per calculation
+          under six concurrent steps is twenty-four threads contending for the GIL.
+        - Measured on a 69-scan schedule it is a wash, 9.62 s at the median against 9.71 s, so
+          the reason is that one policy for spreading work is one place to keep right.
+        - It keeps `submit` and `result`, so the call sites read as they did.
     """
 
     class _Done:
@@ -123,11 +110,8 @@ class ScheduleCalculator(Super):
         """
         super().__init__(manipulator)
         self._lock = threading.Lock()
-        # An orbit file parsed once, keyed by path and what the file looked like when it was
-        # read. `_orbit_cache` was here before and nothing ever wrote to or read from it, while
-        # the lock named after it was held across the whole interpolation -- so the cache did
-        # nothing and the lock serialised work the pipeline runs in parallel. One scan of ten
-        # against one spacecraft re-read and re-parsed the same file ten times.
+        # An orbit file parsed once, keyed by path and by what the file looked like when
+        # read. The lock guards the dictionary, never the interpolation around it.
         self._orbit_cache: "OrderedDict[tuple, Dict[str, np.ndarray]]" = OrderedDict()
         self._orbit_bytes = 0
         self._orbit_cache_lock = threading.Lock()
@@ -156,15 +140,12 @@ class ScheduleCalculator(Super):
                 geodetic latitude at each sample.
 
         Notes:
-            - **Computed once, read by three steps.** Visibility, az/el and the parallactic
-              angle each rebuilt the station's location from its GCRS positions and transformed
-              the source into the same frame over the same samples: the same two erfa pipelines,
-              three times, and together more than half of a run's work.
-            - Keyed by what the answer is made of -- the frame, the source's position, the bytes
-              of the positions and the times -- so it has nothing to go stale against. A source
-              moved or a station moved is a different key.
-            - Bounded in bytes rather than entries, oldest first, because one entry of a day at
-              a one-second step weighs as much as a hundred of a short scan.
+            - Computed once and read by three steps: visibility, az/el and the parallactic
+              angle each ran the same two erfa pipelines over the same samples.
+            - Keyed by the frame, the source's position and the bytes of the positions and the
+              times, so it has nothing to go stale against.
+            - Bounded in bytes rather than entries, oldest first: one entry of a day at a
+              one-second step weighs as much as a hundred of a short scan.
         """
         key, positions, times_mjd = self._topocentric_key(source, positions, times_mjd, frame)
         with self._topocentric_lock:
@@ -234,10 +215,9 @@ class ScheduleCalculator(Super):
             int: How many station-scan position sets were computed.
 
         Notes:
-            - Going from ITRS to GCRS is a rotation that depends on the moment and not on the
-              station, so every station over every scan is one transform. It was one per scan per
-              station, each paying astropy's fixed cost: about three seconds for ten stations over
-              fifty scans. Filed under the keys `_compute_telescope_position` asks for.
+            - ITRS to GCRS depends on the moment and not on the station, so every station over
+              every scan is one transform: three seconds saved for ten over fifty scans.
+            - Filed under the keys `_compute_telescope_position` asks for.
         """
         if not hasattr(self, "_j2000_mjd"):
             self._j2000_mjd = Time("2000-01-01T12:00:00").mjd
@@ -289,14 +269,10 @@ class ScheduleCalculator(Super):
             int: How many station-scan views were transformed.
 
         Notes:
-            - **One transform for the whole observation instead of one per scan per station.**
-              Each astropy transform costs about twelve milliseconds before it touches a sample,
-              so ten stations over fifty scans spent six seconds on five hundred calls that do
-              the same thing to ten samples each. Array-valued coordinates carry each sample's own
-              source and station, so one call per frame covers them all.
-            - The results are filed under exactly the keys the per-scan code will ask for, built
-              from the same arrays read the same way, and the per-scan code is unchanged: this
-              only decides when the work is done.
+            - One transform per frame for the whole observation: array-valued coordinates carry
+              each sample's own source and station, where five hundred calls cost six seconds.
+            - Filed under exactly the keys the per-scan code asks for, that code being
+              unchanged: this only decides when the work is done.
         """
         chunks = {"altaz": [], "hadec": []}
         by_scan = position_df.partition_by("scan_name", as_dict=True)
@@ -350,9 +326,8 @@ class ScheduleCalculator(Super):
             int: The count, summed across observations for a project.
 
         Notes:
-            - Written out eleven times, identically, in the metadata of eleven calculations.
-              It is one line each time and it is the same line, which is how the *other* count
-              in this file came to be spelled differently from all of them.
+            - The same line was written out in the metadata of eleven calculations, which is
+              how one of them came to be spelled differently from the rest.
         """
         if isinstance(obj, Observation):
             return len(obj.get_scans().get_active_items())
@@ -387,11 +362,9 @@ class ScheduleCalculator(Super):
             Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]: Active components.
 
         Notes:
-            Logs warnings if required components are missing.
-            - **A beam pattern needs no source**, and this refused it when none was active --
-              then said "No active telescopes", because everything comes back empty together.
-              What each calculation reads is declared in its schema; what it requires here must
-              agree with that, or a result is withheld for want of something it never looks at.
+            - Logs a warning for each required component that is missing.
+            - A beam pattern needs no source: what a calculation requires here must agree with
+              what its schema declares, or a result is withheld for want of something unread.
         """
         scans = obj.get_scans().get_active_items() if require_scans else []
         telescopes = obj.get_telescopes().get_active_items()
@@ -428,16 +401,12 @@ class ScheduleCalculator(Super):
                 the stored result answers the question being asked.
 
         Notes:
-            - **The one place the rule lives.** It was written three times -- the cache compared
-              `time_step` by name, and two calculations compared the weather, the threshold and
-              the recording themselves -- so the next calculation to take a parameter would have
-              had none of it and would have handed back the previous numbers.
-            - Resolved values rather than what was passed: a caller that omits a parameter gets
-              the handler's default, and a default that matches what the result was worked out
-              with is the same question. `attributes` is the fallback for a parameter a handler
-              does not record.
-            - Compared with `same_metadata`, so a list read back from JSON compares equal to the
-              tuples it was written from rather than looking like a change on every open.
+            - The one place the rule lives, so a calculation that takes a new parameter is
+              covered by writing it into the schema.
+            - Resolved values rather than what was passed: an omitted parameter takes the
+              handler's default, and `attributes` is the fallback where none is recorded.
+            - Compared with `same_metadata`, so a list read back from JSON compares equal to
+              the tuples it was written from.
         """
         differing = []
         for name in CalculatedDataStructure.recorded_parameters(store_key):
@@ -460,13 +429,10 @@ class ScheduleCalculator(Super):
             pl.DataFrame: Calculated or cached data as Polars DataFrame.
 
         Notes:
-            - Returns cached result if "recalculate" is False and valid cache exists.
-            - Uses thread-safe caching with a lock.
-            - Logs warnings for empty or invalid results.
-            - **A stored result worked out with other parameters is another answer**, and is
-              recomputed rather than handed back. Which parameters those are comes from the
-              schema, so a calculation that takes a new one is covered by writing it down where
-              it is recorded anyway.
+            - Returns the stored result when "recalculate" is false and one is held, under a
+              lock, logging a warning for an empty or invalid one.
+            - A stored result worked out with other parameters is another answer and is
+              recomputed; which parameters those are comes from the schema.
         """
         if not store_key:
             logger.error("Empty store_key provided for caching")
@@ -481,9 +447,8 @@ class ScheduleCalculator(Super):
             another_question = self._parameters_asked_for(store_key, attributes, metadata,
                                                           existing_data["metadata"])
             if another_question:
-                # A different parameter is a different calculation, not a stale cache, so
-                # recomputing is right. Said out loud because the alternative is a caller who
-                # omitted one wondering why the call took 300 ms instead of one.
+                # A different parameter is a different calculation rather than a stale
+                # cache. Said out loud, or a caller wonders where 300 ms went.
                 logger.info("Stored '%s' for '%s' was worked out with %s; recalculating",
                             store_key, obj_name,
                             ", ".join(f"{name}={existing_data['metadata'].get(name)!r}, not "
@@ -526,9 +491,8 @@ class ScheduleCalculator(Super):
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
         
         if isinstance(obj, ScheduleProject):
-            # The project answers with its observations. `get_items()` hands back a mapping,
-            # and iterating that yields the *names* -- which is how a whole-project calculation
-            # called `get_observation_code()` on a string and came back empty.
+            # `get_items()` hands back a mapping, and iterating it yields the names, so
+            # the observations are taken from its values.
             observations = obj.get_observations()
             if not observations:
                 logger.warning("No observations in project '%s'", obj.name)
@@ -566,48 +530,34 @@ class ScheduleCalculator(Super):
             metadata (Dict[str, Any]): What is known about how it was produced.
 
         Notes:
-            - This replaces a guard that read "store it if recalculating, or if nothing is
-              stored yet", which could never correct anything: `_process_object` has already
-              stored the frame with the placeholder metadata by the time the guard is reached,
-              so the second condition is false exactly when the correction is needed. A real
-              project was found holding `times.parquet` with 288 rows over one scan beside
-              metadata saying `scan_count: 0` and `start_time: NaN`.
-            - Written only when the metadata actually differs, because a write now reaches the
-              disk and re-writing an unchanged result on every call would be a real cost.
+            - `_process_object` has already stored the frame under placeholder metadata by the
+              time this is reached, so a correction cannot wait on nothing being held yet.
+            - Written only where the metadata differs, a write now reaching the disk.
         """
-        # A result belongs to an observation. Asked for a whole project, `_process_object` has
-        # already stored one per observation and what it returns is the combination -- which
-        # has nowhere to live, since a project holds observations rather than results. Storing
-        # it was attempted and raised, and the broad handler above turned a whole-project
-        # calculation into an empty frame with a line in the log.
+        # A result belongs to an observation: for a project `_process_object` has already
+        # stored one apiece, and the combination it returns has nowhere to live.
         if not hasattr(obj, "get_calculated_metadata"):
             logger.debug("%s holds no results of its own; the observations hold theirs",
                          type(obj).__name__)
             return
 
-        # Stamped with a fingerprint of the inputs this calculation actually reads, so a later
-        # session can tell whether the configuration has moved underneath it. Taken over the
-        # subset in `freshness.DEPENDENCIES` rather than the whole observation: editing a scan
-        # must not make a beam pattern stale, or every edit would stale everything and
-        # "everything" would be all there is to recompute.
+        # Stamped with a fingerprint of the inputs this calculation reads -- the subset in
+        # `freshness.DEPENDENCIES` -- so that editing a scan does not stale a beam pattern.
         stamped = freshness.stamp(obj, store_key, metadata)
-        # Compared all the way down rather than with `==`: a metadata mapping may hold numpy
-        # arrays -- Mollweide records the source coordinates it draws against -- and comparing
-        # two of those gives an array rather than an answer.
+        # Compared all the way down rather than with `==`: metadata may hold numpy arrays,
+        # and comparing two of those gives an array rather than an answer.
         if freshness.same_metadata(stamped, obj.get_calculated_metadata(store_key)):
             return
 
-        # The frame is already where it belongs -- `_get_cached_or_calculate` put it there,
-        # with the metadata it had at the time. Only the stamp is missing, so only the stamp is
-        # written. Storing the frame again to carry a corrected sidecar wrote every result's
-        # parquet twice, and since 0.7.0 a store reaches the disk.
+        # `_get_cached_or_calculate` has already stored the frame, so only the stamp is
+        # written: storing it again writes every result's parquet twice.
         if freshness.record_metadata(obj, store_key, stamped):
             return
         obj.set_calculated_data_by_key(store_key, df, stamped)
 
     @time_execution
     def _calculate_time_arrays(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Calculate time arrays for active scans grouped by active sources with a configurable time threshold.
+        """Build each active scan's time grid, grouped by source.
 
         Args:
             obj: The object to calculate time arrays for (Observation or ScheduleProject).
@@ -688,9 +638,8 @@ class ScheduleCalculator(Super):
                 logger.info("Calculated time arrays for %s scans across %s sources in '%s', DF rows: %s", processed_scans, df['source_name'].unique().len(), obs.get_observation_code(), df.height)
                 return df
 
-            # No placeholders for anything the frame itself will answer. They were NaN and 0
-            # here, and a frame stored beside them kept them -- so a result with 288 rows over
-            # one scan advertised itself as covering nothing.
+            # No placeholders for what the frame itself will answer: a frame stored beside
+            # NaN and 0 keeps them, and then advertises itself as covering nothing.
             metadata = {
                 "time_step": time_step,
                 "time_threshold": time_threshold,
@@ -767,10 +716,8 @@ class ScheduleCalculator(Super):
                 z_list = []
                 excluded_telescopes = []
 
-                # No lock around this. It held `_orbit_cache_lock` for the whole loop -- every
-                # file read and every interpolation -- to guard a cache nothing used, which
-                # serialised exactly the work the pipeline runs in parallel. The cache guards
-                # itself now, around the dictionary access and nothing else.
+                # No lock around this: the cache guards its own dictionary access, and one
+                # held over the reads and interpolations serialises what the pipeline spreads.
                 for scan in scans:
                     scan_name = scan.name
                     source = scan.get_source(obs)
@@ -808,10 +755,8 @@ class ScheduleCalculator(Super):
                             positions = self._interpolate_orbit(tel, scan_times_mjd, start_time, end_time)
                             if positions.shape[0] != len(scan_times_mjd):
                                 logger.warning("Position data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, positions.shape[0], len(scan_times_mjd))
-                                # Keep what was computed and pad the rest. This read
-                                # `positions[:k] = positions[:k]` *after* rebinding `positions`
-                                # to all-NaN, so it copied NaN onto NaN and threw away every
-                                # position the interpolation had produced.
+                                # Keep what was computed and pad the rest: `positions`
+                                # is rebound to all-NaN, so the rows are held first.
                                 computed = positions
                                 positions = np.full((len(scan_times_mjd), 3), np.nan)
                                 keep = min(computed.shape[0], len(scan_times_mjd))
@@ -908,9 +853,8 @@ class ScheduleCalculator(Super):
             valid_mask = (interp_times >= t_start) & (interp_times <= t_end)
             valid_interp_times = interp_times[valid_mask]
 
-            # What the orbit file does not cover comes back NaN, and NaN reaches a plot as a
-            # blank rather than as a complaint -- the same silent-empty failure as the
-            # baseline projections defect. Say it once, plainly, naming both spans.
+            # What the orbit file does not cover comes back NaN, which reaches a plot as a
+            # blank rather than as a complaint. Said once, naming both spans.
             uncovered = int(np.sum(~valid_mask))
             if uncovered:
                 covered_from = j2000_mjd + data_times[0] / 86400.0
@@ -970,10 +914,8 @@ class ScheduleCalculator(Super):
         """Keep a parsed orbit file, dropping the least recently read once the ceiling is passed.
 
         Notes:
-            - **A cache with no ceiling is the memory that climbs.** Every parse was kept for the
-              life of the session, keyed by the file as it was when it was read -- so each save
-              of an orbit being edited left its previous parse behind, and a project of many
-              spacecraft kept every ephemeris it had ever opened.
+            - The key holds the file as it was when read, so each save of an orbit being
+              edited leaves its previous parse behind. That is what the ceiling is for.
         """
         size = sum(values.nbytes for values in parsed.values())
         with self._orbit_cache_lock:
@@ -985,8 +927,7 @@ class ScheduleCalculator(Super):
                 self._orbit_bytes -= sum(values.nbytes for values in dropped.values())
 
     #: Degree of each Chebyshev arc, and how many samples one arc spans. Twelve is what
-    #: ephemeris systems use per segment; the orbit is smooth over a short arc, and raising the
-    #: degree buys nothing while costing conditioning.
+    #: ephemeris systems use per segment; a higher degree costs conditioning and buys nothing.
     CHEBYSHEV_DEGREE = 12
     CHEBYSHEV_SAMPLES_PER_ARC = 2 * (CHEBYSHEV_DEGREE + 1)
 
@@ -1003,24 +944,12 @@ class ScheduleCalculator(Super):
             np.ndarray: Positions at `wanted`, shape (len(wanted), 3).
 
         Notes:
-            - **One polynomial over the whole file is what this replaces, and it was wrong by
-              kilometres.** The degree was capped at 30 and the fit spanned everything the file
-              covered, so a Molniya-type orbit -- fast through perigee, slow at apogee -- was
-              asked of a single polynomial that cannot describe both. Measured against a Kepler
-              orbit of eccentricity 0.94 sampled every 600 s: 846 km at worst and 44.7 km on
-              average, where linear interpolation of the same samples was 171 km and 1.0 km.
-              A space telescope 40 km from where it is said to be puts the same error into every
-              baseline, which is why `linear` agreed with an independent tool and this did not.
-            - Arcs are cut along the **samples**, a fixed number of them each, rather than along
-              the requested span. An arc is then the same number of samples wherever it sits --
-              short in time through perigee, where the orbit turns fastest, and long at apogee.
-              Cutting the requested span into equal pieces of time instead left 43 km at perigee.
-            - Each arc is fitted on its own samples plus half a degree either side, so the joins
-              are informed from both directions rather than extrapolated to.
-            - Now 19.5 km at worst and 0.063 km on average on that same orbit, which is a cubic
-              spline's accuracy (14.9 km, 0.016 km) and 700 times better on average than what it
-              replaces. What remains is at perigee and belongs to the sampling: no method
-              recovers a turn the file did not record.
+            - Arcs are cut along the samples, a fixed number each, so an arc is short in time
+              through perigee and long at apogee. Cutting by time left 43 km at perigee.
+            - Each arc is fitted on its own samples plus half a degree either side, so the
+              joins are informed from both directions rather than extrapolated to.
+            - On a Kepler orbit of eccentricity 0.94 sampled every 600 s: 19.5 km at worst and
+              0.063 km on average, against 846 km and 44.7 km for one polynomial over the file.
         """
         degree = self.CHEBYSHEV_DEGREE
         positions = np.full((len(wanted), 3), np.nan, dtype=float)
@@ -1080,13 +1009,10 @@ class ScheduleCalculator(Super):
                 `ORBIT_SAMPLE_MARGIN` samples on each side. Empty when the file covers none of it.
 
         Notes:
-            - **The margin is the point.** Every method here interpolates *between* samples, and
-              this used to cut the file to the scan exactly -- so the first and last moments of
-              a scan had nothing beyond them to lean on and every method extrapolated there.
-              That is the worst place to extrapolate and the hardest to notice, because the
-              numbers still come out.
-            - Separate from parsing so the parse can be cached: the file does not change between
-              one scan and the next, only the span asked of it does.
+            - The margin is the point: every method here interpolates between samples, and cut
+              to the scan exactly the first and last moments have nothing to lean on.
+            - Separate from parsing so the parse can be cached: only the span asked of the
+              file changes between one scan and the next.
         """
         times_mjd = orbit_data["times"]
         if start_time_mjd is None or end_time_mjd is None:
@@ -1147,10 +1073,8 @@ class ScheduleCalculator(Super):
                 if "COVARIANCE_START" in line:
                     break
                 parts = re.split(r'\s+', line.strip())
-                # An OEM line is an epoch, a position and a velocity, and **may** carry an
-                # acceleration after them. Exactly seven fields skipped every line of a file
-                # written with accelerations, and the file then failed as "at least 2 data
-                # points" -- a valid ephemeris refused, with the complaint about its length.
+                # An OEM line is an epoch, a position and a velocity, and may carry an
+                # acceleration after them: at least seven fields rather than exactly seven.
                 if len(parts) >= 7:
                     valid_lines.append(line)
 
@@ -1196,7 +1120,7 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Calculate telescope positions in GCRS (J2000) for all active scans using times from time_arrays and interpolated orbits.
+        """Place every active telescope in GCRS at every sample of every active scan.
 
         Args:
             obj: The object to calculate positions for (Observation or ScheduleProject).
@@ -1421,17 +1345,8 @@ class ScheduleCalculator(Super):
                 res = telescope.get(["vx", "vy", "vz"])
                 vx, vy, vz = res["vx"], res["vy"], res["vz"]
 
-                # **Years, because a station's velocity is metres per year.** That is what VEX
-                # writes as `site_velocity ... m/yr`, what CFX's `TLSC_PAR` carries, and what the
-                # editor holds. This multiplied it by *seconds* since J2000: a station moving
-                # 23 mm a year was placed 9 500 km from where it is -- Westerbork, Svetloe and
-                # Badary read from a RadioAstron schedule all sat inside the Earth, and every
-                # visibility, uv point and elevation computed for them was for nowhere. The
-                # fixture's stations do not move, so nothing had ever noticed.
-                #
-                # J2000 is taken as the epoch the coordinates hold at. A file states its own
-                # (VEX `site_position_epoch`, CFX's eighth field) and the model does not carry it;
-                # at these speeds the difference is centimetres.
+                # Years, a station's velocity being metres per year (VEX `site_velocity
+                # ... m/yr`, CFX `TLSC_PAR`), from J2000, the epoch the model takes them at.
                 dt = (times_mjd - self._j2000_mjd) / 365.25
 
                 itrs_coords = CartesianRepresentation(
@@ -1473,12 +1388,8 @@ class ScheduleCalculator(Super):
                 mu = kepler["mu"]
                 n = np.sqrt(mu / a**3)
 
-                # **The element is a true anomaly and what advances linearly in time is the mean
-                # one.** This carried `nu` forward as if it were already a mean anomaly, which is
-                # the same number only on a circle: at e = 0.6 and nu = 90 degrees the spacecraft
-                # stood 32 960 km from where its own elements put it, at twice the radius the
-                # orbit allows -- at the epoch itself, before any time had passed. The one
-                # Keplerian test in the suite used e = 0.01, where the two agree to a degree.
+                # The element is a true anomaly, and what advances linearly in time is the
+                # mean one: the two are the same number only on a circle.
                 E0 = 2.0 * np.arctan2(np.sqrt(1 - e) * np.sin(nu0 / 2),
                                       np.sqrt(1 + e) * np.cos(nu0 / 2))
                 M0 = E0 - e * np.sin(E0)
@@ -1725,10 +1636,8 @@ class ScheduleCalculator(Super):
             positions = tel_positions.select(["x", "y", "z"]).to_numpy()
             if len(positions) != n_times:
                 logger.warning("Position data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, len(positions), n_times)
-                # `positions` is all-NaN of length n_times by the time the slice is taken, so
-                # the left-hand side was always the full length while the right-hand side was
-                # however many rows there really were -- a shape mismatch whenever this branch
-                # was reached with fewer.
+                # Both sides are cut to however many rows there really are: `positions` is
+                # rebound to all-NaN of length n_times before the slice is assigned.
                 found = positions
                 positions = np.full((n_times, 3), np.nan)
                 keep = min(len(found), n_times)
@@ -1746,12 +1655,8 @@ class ScheduleCalculator(Super):
                     logger.warning("All positions are NaN for ground telescope '%s' in scan '%s'", tel_code, scan_name)
                     continue
 
-                # **Only the frame the mount is limited in.** Both transforms were computed for
-                # every station and one of them thrown away: an azimuthal dish is bounded in
-                # elevation and azimuth and never looks at the hour angle, and an equatorial one
-                # is the other way round. Each is an erfa transform over the whole time grid, so
-                # this is half the cost of the step for an array of one kind -- which every
-                # array in these examples is.
+                # Only the frame the mount is limited in: an azimuthal dish never looks at
+                # the hour angle, and each transform is a pass over the whole time grid.
                 if mount_type == "AZIM":
                     az, el, _ = self._topocentric(source, positions, times_mjd, "altaz")
                     el_range = tel.get_elevation_range()
@@ -1796,7 +1701,7 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Calculate (u,v,w) coverage for all scans in the observation or project in geometric coordinates (meters).
+        """Work out each baseline's (u,v,w) in metres, at every sample of every scan.
 
         Args:
             obj: The object to calculate UV coverage for (Observation or ScheduleProject).
@@ -1897,7 +1802,7 @@ class ScheduleCalculator(Super):
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
 
     def _process_uv_coverage(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame, visibility_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-        """Process UV coverage for a single scan using vectorized computations in geometric coordinates (meters).
+        """Work out one scan's (u,v,w) in metres, over the whole time grid at once.
 
         Args:
             scan (Scan): The scan to process.
@@ -1994,7 +1899,7 @@ class ScheduleCalculator(Super):
         )
 
     def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], times_mjd: np.ndarray, source: Optional[Source] = None, visibility: Optional[np.ndarray] = None, gcrs_positions: Optional[np.ndarray] = None) -> Dict[str, np.ndarray]:
-        """Compute UVW coordinates for multiple times in geometric coordinates (meters) using vectorized operations.
+        """Work out (u,v,w) in metres for every baseline over an array of times.
 
         Args:
             telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
@@ -2062,7 +1967,7 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Calculate angular separation between source and Sun for all active scans in geometric coordinates.
+        """Work out how far each source stands from the Sun, at every sample of every scan.
 
         Args:
             obj: The object to calculate sun angles for (Observation or ScheduleProject).
@@ -2195,18 +2100,11 @@ class ScheduleCalculator(Super):
         source_names = []
         sun_angles_list = []
 
-        # **Directions, subtracted and dotted -- once per scan, not three transforms per
-        # station.** An angle between two directions does not depend on the frame they are
-        # written in, so neither needs to reach AltAz. What being on a station does change is the
-        # Sun's parallax, and that is exactly the difference of two vectors this step already
-        # has: the Sun from the geocentre, and the station from the geocentre, both GCRS.
-        #
-        # Measured on the fixture at a 60 s step: 1.12 s to 0.18 s, and 0.21" from astropy's
-        # topocentric `get_body` against 0.013" before -- the difference is diurnal aberration,
-        # which a limit stated in degrees cannot see. For a spacecraft it is a correction: the
-        # Sun was taken from the geocentre, which for an orbit reaching 350 000 km is off by up
-        # to 0.13 degrees.
+        # Directions subtracted and dotted, both in GCRS: an angle between two does not
+        # depend on the frame, and a station's parallax is the difference of two vectors here.
         obstime = Time(times_mjd, format="mjd", scale="utc")
+        # 0.21" from astropy's topocentric `get_body`, which is diurnal aberration. For a
+        # spacecraft it is a correction, the Sun having been taken from the geocentre.
         sun_from_geocentre = get_sun(obstime).cartesian.xyz.to_value(u.m).T  # (n_times, 3)
         towards_source = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg,
                                   frame="icrs").transform_to(GCRS(obstime=obstime)).cartesian
@@ -2265,7 +2163,7 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Calculate azimuth/elevation or hour angle/declination angles for active ground telescopes in all active scans.
+        """Work out where each ground station points: azimuth/elevation or hour angle/declination.
 
         Args:
             obj: The object to calculate az/el or ha/dec angles for (Observation or ScheduleProject).
@@ -2483,13 +2381,10 @@ class ScheduleCalculator(Super):
                 "el", "range"], with angles in degrees and range in metres.
 
         Notes:
-            - A calculation of its own that the user asks for by name, never part of an
-              ordinary observation. Pointing at a spacecraft is a different question from
-              observing a source, and a project with no spacecraft in it must pay nothing.
-            - The target is named by a parameter rather than by a new kind of observation or a
-              time-dependent `Source`. An observation already holds its telescopes; asking when
-              one of them is visible from the others needs no new entity, and the request is
-              already data, so one more attribute is the shape the architecture has.
+            - Asked for by name, never part of an ordinary observation: a project with no
+              spacecraft in it must pay nothing for this.
+            - The target is a parameter rather than a new kind of observation or a
+              time-dependent `Source`, an observation already holding its telescopes.
         """
         try:
             time_step = attributes.get("time_step")
@@ -2612,24 +2507,18 @@ class ScheduleCalculator(Super):
                 range), or None if nothing could be computed.
 
         Notes:
-            - The direction is the *vector from station to spacecraft*, not a fixed sky
-              position. A source is far enough away that every station sees it in the same
-              direction; a spacecraft in Earth orbit is not, and two stations a baseline apart
-              point measurably differently at it. Using a source's geometry here would give
-              answers that look plausible and are wrong by degrees.
-            - Both positions are rotated into the Earth-fixed frame first, so the vector
-              between them is taken between two things that are stationary with respect to
-              each other's frame rather than between one that is and one that is not.
+            - The direction is the vector from station to spacecraft, not a fixed sky position:
+              two stations a baseline apart point measurably differently at an orbit.
+            - Both positions are rotated into the Earth-fixed frame first, so the vector is
+              taken between two things stationary with respect to each other.
         """
         target_code = target.get_code()
         n_times = len(times_mjd)
         if n_times == 0:
             return None
 
-        # The target need not take part in the scan. Asking when a station can see a spacecraft
-        # is a question about the spacecraft, not about the observation it may or may not be
-        # observing in -- so its position is computed here rather than read out of a result
-        # that only covers scan participants.
+        # The target need not take part in the scan, so its position is computed here
+        # rather than read out of a result that covers only the scan's participants.
         orbit_rows = orbit_df.filter(pl.col("telescope_code") == target_code)
         if orbit_rows.is_empty():
             spacecraft_xyz = self._compute_telescope_position(target, times_mjd)
@@ -2688,12 +2577,8 @@ class ScheduleCalculator(Super):
             np.ndarray: True where the angle is on the arc.
 
         Notes:
-            - **An hour angle runs -180 to 180 and a mount is created with limits of 0 to 360.**
-              Compared as a straight interval, every sample before transit fell outside them: a
-              station switched to an equatorial mount lost the whole approach to transit, and one
-              observing entirely before it saw nothing, with nothing said. The limits are an arc
-              on a circle, and that is how they are read here -- for the azimuth too, where it
-              agrees with the straight comparison for every range that does not wrap.
+            - An hour angle runs -180 to 180 and a mount's limits are 0 to 360, so they are
+              read as an arc on a circle rather than as a straight interval.
         """
         span = float(high) - float(low)
         if span >= 360.0:
@@ -2737,10 +2622,8 @@ class ScheduleCalculator(Super):
                 either position is unknown.
 
         Notes:
-            - The local east-north-up frame is built from the station's own geocentric
-              direction, so this is geocentric rather than geodetic elevation. The difference
-              reaches about 0.2 degrees at mid-latitudes, which matters for a horizon mask and
-              is why it is written down here rather than left to be discovered.
+            - The east-north-up frame is built from the station's geocentric direction, so the
+              elevation is geocentric: about 0.2 degrees from geodetic at mid-latitudes.
         """
         count = station.shape[0]
         azimuth = np.full(count, np.nan)
@@ -2788,9 +2671,8 @@ class ScheduleCalculator(Super):
                 "visibility"].
 
         Notes:
-            - Above the horizon is not enough: a station has an elevation range it can drive
-              to, and a spacecraft below that limit is as unreachable as one below the horizon.
-              The same rule a source is checked against.
+            - Above the horizon is not enough: a spacecraft below the station's own elevation
+              limit is as unreachable as one below it, the same rule a source is checked by.
         """
         try:
             time_step = attributes.get("time_step")
@@ -2986,11 +2868,8 @@ class ScheduleCalculator(Super):
         # One sample alone covers the whole scan and sits at its middle: that is how the grid
         # is built without a step. Otherwise each sample opens the spacing that follows it.
         if n_times > 1:
-            # Across the whole grid rather than between two neighbours: an MJD near 61000 is
-            # resolved to about a microsecond, and one neighbouring difference carries all of
-            # that error into every sample a block holds.
-            # To the microsecond, which is all an MJD this size resolves: what is left beyond
-            # it is float noise, and it reached the exported file as 32400.000000105138.
+            # Across the whole grid rather than between two neighbours, and rounded to the
+            # microsecond: an MJD near 61000 resolves no finer, the rest being float noise.
             spacing_seconds = round((times_mjd[-1] - times_mjd[0]) * 86400.0 / (n_times - 1), 6)
             opens_at = 0.0
         else:
@@ -3025,13 +2904,8 @@ class ScheduleCalculator(Super):
                 logger.debug("No visibility blocks for telescope '%s' in scan '%s'", tel_code, scan_name)
                 continue
 
-            # **A sample stands for one spacing of the grid, so a run of k samples lasts k
-            # spacings.** Measuring from the first visible sample to the last counted k - 1:
-            # every block lost one step, a source seen in a single sample was on source for
-            # zero seconds, and a scan visible throughout came out shorter than the scan. The
-            # grid is `linspace(0, duration, n, endpoint=False)`, so the spacing is read off
-            # the grid itself -- a scan whose length is not a multiple of the step is sampled
-            # more finely than `time_step`.
+            # A sample stands for one spacing of the grid, so a run of k samples lasts k
+            # of them; the spacing is read off the grid, which need not be a whole `time_step`.
             n_blocks = len(start_indices)
             blocks_start = times_mjd[start_indices] - opens_at / 86400.0
             blocks_duration = (end_indices - start_indices) * spacing_seconds
@@ -3059,9 +2933,8 @@ class ScheduleCalculator(Super):
             np.concatenate(durations_list)
         )
     
-    #: What the recording keeps of the signal, by bits per sample: the correlation lost to quantising
-    #: it. Two-level is 2/pi; four-level with the optimal threshold, 0.8825 (Thompson, Moran &
-    #: Swenson, table 8.1).
+    #: What the recording keeps of the signal, by bits per sample. Two-level is 2/pi;
+    #: four-level at the optimal threshold, 0.8825 (Thompson, Moran & Swenson, table 8.1).
     RECORDING_EFFICIENCY = {1: 2.0 / np.pi, 2: 0.8825}
 
     @time_execution
@@ -3079,12 +2952,10 @@ class ScheduleCalculator(Super):
                 there is none, and whether it was `filled` into the table.
 
         Notes:
-            - The physics is the telescope's own (`Telescope.get_sefd_estimate`): the table first,
-              then `2 k Tsys / A_eff` from rows covering the band's frequency.
-            - **Filling writes only what was computed, and only where nothing was measured.** The
-              row covers the band -- from its frequency up by its bandwidth -- and a row that would
-              overlap one already in the table is not written; the reason says so. What was
-              measured is never replaced.
+            - The physics is the telescope's own (`Telescope.get_sefd_estimate`): the table
+              first, then `2 k Tsys / A_eff` from rows covering the band's frequency.
+            - Filling writes only what was computed and only where nothing was measured: a row
+              covering the band, and never one overlapping a row already there.
         """
         try:
             store_key = attributes.get("store_key", "sefd")
@@ -3139,7 +3010,7 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_sefd_track(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Work out each station's SEFD at every sample of every scan, from where the source stands (E1).
+        """Work out each station's SEFD at every sample of every scan, where the source stands (E1).
 
         Args:
             obj: The observation or project.
@@ -3156,27 +3027,12 @@ class ScheduleCalculator(Super):
                 there, the `basis` saying what was applied, and the `reason` where there is no SEFD.
 
         Notes:
-            - **On the time grid** -- every sample `times` holds, whether the station sees the
-              source then or not. What the SEFD would be is worth drawing; when the source is seen
-              is `time_on_source`'s to say.
-            - **The zenith SEFD is the one seen at zenith, through the atmosphere there**: the
-              `sefd` result. Away from the zenith
-              `SEFD = SEFD_zenith e^(tau0 (A - 1)) Tsys / Tsys_zenith g(90) / g(el)` -- the source
-              dimmed through more air, the system warmed by what more air emits,
-              `Tsys = Tsys_zenith + T_atm (e^-tau0 - e^(-tau0 A))`, and the dish's gain there. The
-              airmass is a flat atmosphere's, `A = 1 / sin(el)`.
-            - **Nothing of this is written to a station.** The weather is the day's rather than the
-              dish's, so the opacity is a parameter and the same at every station; a gain curve is
-              given by the station's code.
-            - **A gain curve is taken as the ratio `g(90) / g(el)`**, so how it was normalised does
-              not matter: one peaking at 1 at 50 degrees and the same curve doubled give one answer.
-            - What is not given is not applied, and `basis` says so. With no system temperature at
-              zenith the atmosphere's emission cannot be added, and `basis` says that too.
-            - **No SEFD where the dish does not point** -- below the horizon, and outside its own
-              elevation range. A flat atmosphere's airmass runs away towards the horizon, so a
-              station observing above 15 degrees would otherwise carry SEFDs of tens of millions
-              of janskys at elevations it never uses. In space there is no atmosphere and no
-              elevation, and the SEFD is the zenith's.
+            - On every sample of the time grid, seen or not; when the source is seen is
+              `time_on_source`'s to say.
+            - `SEFD = SEFD_zenith e^(tau0 (A-1)) (Tsys / Tsys_zenith) (g(90) / g(el))`, with
+              `Tsys = Tsys_zenith + T_atm (e^-tau0 - e^(-tau0 A))` and airmass `A = 1 / sin(el)`.
+            - Nothing is written to a station; what is not given is not applied and `basis`
+              says what was. No SEFD where the dish cannot point; in space it is the zenith's.
         """
         try:
             time_step = attributes.get("time_step")
@@ -3238,11 +3094,8 @@ class ScheduleCalculator(Super):
                 if not columns["time"]:
                     logger.warning("No station and band to follow in '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=dtypes)
-                # **The text columns are handed over as lists.** A numpy array of objects that
-                # happen to be strings is an `Object` column to polars, and one holding nothing
-                # but None -- a scan where every sample worked out, so no row has a reason --
-                # cannot be cast to a string at all: `cannot cast 'Object' type`, and the whole
-                # calculation came back empty.
+                # The text columns are handed over as lists: a numpy array of objects is
+                # an `Object` column to polars, and one of all None casts to no string.
                 joined = {name: np.concatenate(parts) for name, parts in columns.items()}
                 return pl.DataFrame({name: values.tolist() if values.dtype == object else values
                                      for name, values in joined.items()},
@@ -3309,7 +3162,7 @@ class ScheduleCalculator(Super):
 
     @staticmethod
     def _frequency_rows(rows: Any, name: str, refuse: Callable[[Any], Optional[str]]) -> List[list]:
-        """Return rows of `[f_min, f_max, value]` given as a parameter, checked as a telescope's tables are.
+        """Return rows of `[f_min, f_max, value]` from a parameter, checked as a telescope's are.
 
         Raises:
             ValueError: A row that is not one, a range the wrong way round, rows that overlap, or
@@ -3343,7 +3196,12 @@ class ScheduleCalculator(Super):
 
     def _elevation_along(self, telescope: Telescope, source: Source, scan_positions: Optional[pl.DataFrame],
                          times_mjd: np.ndarray) -> Optional[np.ndarray]:
-        """Return a ground station's elevation of a source at each sample, NaN where it has no position, and None in space."""
+        """Return a ground station's elevation of a source at each sample.
+
+        Returns:
+            Optional[np.ndarray]: Degrees, NaN at a sample where the station has no position,
+                and None for a space telescope.
+        """
         if isinstance(telescope, SpaceTelescope):
             return None
         n = len(times_mjd)
@@ -3383,10 +3241,8 @@ class ScheduleCalculator(Super):
             return answer
 
         parts = []
-        # **Where the dish can actually point**, not merely above the horizon. A flat atmosphere's
-        # airmass runs away as the elevation goes to zero -- 1/sin(0.5 deg) is 115 -- so a station
-        # whose limit is 15 degrees was given SEFDs of tens of millions of janskys at elevations it
-        # never observes at, and every plot of the track was that spike.
+        # Where the dish can point, not merely above the horizon: a flat atmosphere's
+        # airmass runs away as the elevation goes to zero, 1/sin(0.5 deg) being 115.
         low, high = (float(value) for value in telescope.get_elevation_range())
         with np.errstate(divide="ignore", invalid="ignore"):
             above = (elevation >= max(low, 0.0)) & (elevation <= high) & (elevation > 0)
@@ -3449,7 +3305,7 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_baseline_sensitivity(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Work out each baseline's noise on each scan, the signal-to-noise it reaches, and the shortest scan that would detect the source (E1).
+        """Work out each baseline's noise, signal-to-noise and shortest detecting scan (E1).
 
         Args:
             obj: The observation or project.
@@ -3466,22 +3322,12 @@ class ScheduleCalculator(Super):
                 in seconds, and the `reason` where something could not be worked out.
 
         Notes:
-            - **The time is the time both stations see the source** -- the overlap of their
-              `time_on_source` blocks, not the scan's length.
-            - **Noise by the radiometer equation, summed over that time**: each piece of it adds
-              `2 dnu P dt eta^2 / (SEFD1 SEFD2)` to `1 / sigma^2`, with the SEFDs of the sample it
-              lies in (`sefd_track`), `eta` what the recording keeps, `dnu` the band's width and
-              `P` its polarizations, whose parallel hands add. With the SEFDs constant this is
-              `sqrt(SEFD1 SEFD2) / (eta sqrt(2 dnu tau P))`.
-            - **Detection** is `snr >= threshold`, and the shortest scan reaching it is
-              `(threshold sigma_1s / S)^2`, with `sigma_1s` the noise in one second at the SEFDs
-              the scan had.
-            - **All bands together** add as signal-to-noise does, `sqrt(sum snr_i^2)`, over the bands
-              with a flux and both SEFDs -- which is what fringe fitting across a recording gets.
-            - **The source is taken as unresolved**: the correlated flux is the total flux. On a
-              baseline that resolves it the flux is lower, and the result says what it assumed.
-            - A value that cannot be worked out -- no SEFD, no flux at that frequency, no time
-              together -- is left empty with the reason, never guessed.
+            - The time is the overlap of both stations' `time_on_source` blocks, not the scan's
+              length, and the source is taken as unresolved: correlated flux is total flux.
+            - Noise by the radiometer equation over that time, each piece adding
+              `2 dnu P dt eta^2 / (SEFD1 SEFD2)` to `1 / sigma^2` at the SEFDs of its sample.
+            - Detection is `snr >= threshold`, the shortest scan reaching it
+              `(threshold sigma_1s / S)^2`, and the bands together `sqrt(sum snr_i^2)`.
         """
         try:
             store_key = attributes.get("store_key", "baseline_sensitivity")
@@ -3582,7 +3428,12 @@ class ScheduleCalculator(Super):
 
     @staticmethod
     def _tracks_by_scan(track: pl.DataFrame) -> Dict[Tuple[str, str, str], Dict[str, Any]]:
-        """Return each station's SEFD along each scan in each band, in time order: NaN where there is none."""
+        """Return each station's SEFD along each scan in each band, in time order.
+
+        Returns:
+            Dict[Tuple[str, str, str], Dict[str, Any]]: By scan, station and band, with NaN at
+                a sample that has no SEFD.
+        """
         tracks: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
         if track.is_empty():
             return tracks
@@ -3605,15 +3456,12 @@ class ScheduleCalculator(Super):
                 `reason` there is none.
 
         Notes:
-            - **`1 / sigma^2` adds up over time**, each piece of the time together bringing
-              `dt / (SEFD1 SEFD2)`. The one SEFD giving the same noise over all of it is the one
-              above; with the SEFDs constant it is `sqrt(SEFD1 SEFD2)`, and the radiometer equation
-              is the whole scan's.
-            - Each piece takes the SEFDs of the sample it lies in: a sample stands for the time
-              from it to the next, as `time_on_source` counts it, and a lone sample for the scan.
-            - A piece shorter than a microsecond is not time but the float noise of an MJD, which
-              resolves no finer -- and it would put a block's end into the next sample, whose SEFD
-              may be one below the horizon.
+            - `1 / sigma^2` adds up over time, each piece bringing `dt / (SEFD1 SEFD2)`; with
+              the SEFDs constant the baseline's is `sqrt(SEFD1 SEFD2)`.
+            - Each piece takes the SEFDs of the sample it lies in, a sample standing for the
+              time from it to the next as `time_on_source` counts it.
+            - A piece shorter than a microsecond is the float noise of an MJD, and would put a
+              block's end into the next sample, whose SEFD may be one below the horizon.
         """
         answer = {"sefd_1": None, "sefd_2": None, "sefd": None, "reason": None}
         if not together:
@@ -3721,12 +3569,11 @@ class ScheduleCalculator(Super):
             pl.DataFrame: Columns ["telescope_code", "theta", "pattern"], pattern normalised.
 
         Notes:
-            - **`theta` is not an angle.** It is `t` in `x = D sin(t)`, over -pi/2..pi/2, and
-              the pattern is Airy's `(2 J1(x) / x)^2`. The Airy pattern has
-              `x = pi D sin(theta) / lambda`, so at any wavelength the angle is
-              `sin(theta) = lambda sin(t) / pi` -- which is what the visualizer applies. One
-              curve per dish, and the frequency is chosen when it is drawn.
-            - `x` reaches `D`, so a dish under 3.83 m does not reach its first null. The
+            - `theta` is not an angle but `t` in `x = D sin(t)`, over -pi/2..pi/2, the pattern
+              being Airy's `(2 J1(x) / x)^2`. One curve per dish, at no frequency.
+            - The Airy pattern has `x = pi D sin(theta) / lambda`, so the visualizer draws it
+              at `sin(theta) = lambda sin(t) / pi`.
+            - `x` reaches `D`, so a dish under 3.83 m does not reach its first null; the
               shipped catalogue starts at 6 m.
         """
         try:
@@ -3742,9 +3589,8 @@ class ScheduleCalculator(Super):
                     logger.warning("No active telescopes in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
-                # A guard against a third kind of observation used to stand here, naming the
-                # two there are. `observation_type` is annotated with `OBSERVATION_TYPES` and
-                # refused on every path in, so there has never been a third to guard against.
+                # `observation_type` is annotated with `OBSERVATION_TYPES` and refused on
+                # every path in, so nothing here needs to name the kinds there are.
                 theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
                 telescope_codes = []
                 theta_list = []
@@ -3910,16 +3756,10 @@ class ScheduleCalculator(Super):
                 holding NaN where the frame has no row for that time.
 
         Notes:
-            - Matching on time is the whole point. A calculation that covers only part of the
-              grid -- UV coverage covers only the times the source is up -- produces fewer rows
-              than the grid has, and the two are not aligned from the start. Copying such rows
-              into the first N positions puts every value at the wrong time. Where the source
-              rose partway through a scan, as it usually does, the result was that no value
-              survived the visibility mask at all and every projection came out NaN.
-            - **Matched in numpy, not joined in polars.** The same rule -- the first row at each
-              moment of the grid, NaN where there is none -- but a DataFrame built, deduplicated
-              and joined per call cost a fraction of a millisecond, and this is called three times
-              per baseline per scan: ten stations over fifty scans spent five seconds here.
+            - Matching on time is the whole point: a calculation covering only part of the grid
+              produces fewer rows, and copying them into the first N puts each at a wrong time.
+            - Matched in numpy rather than joined in polars -- the first row at each moment of
+              the grid, NaN where there is none -- this being called per baseline per scan.
         """
         grid = np.asarray(times_mjd, dtype=float)
         if frame.height == 0:
@@ -4392,12 +4232,8 @@ class ScheduleCalculator(Super):
 
             if np.any(is_visible):
                 try:
-                    # From the direction the mount already needed, rather than a transform of
-                    # its own. On the celestial sphere the angle at the source between the pole
-                    # and the zenith is the same spherical triangle written either way:
-                    #   q = atan2( sin H cos(phi), sin(phi) cos(dec) - cos(phi) sin(dec) cos H)
-                    #     = atan2(-sin A cos(phi), sin(phi) cos(h)   - cos(phi) sin(h)   cos A)
-                    # -- equal to 1e-13 degrees against astropy's own hour angle, measured.
+                    # From the direction the mount already needed: the same spherical
+                    # triangle, `atan2(-sin A cos(phi), sin(phi) cos(h) - cos(phi) sin(h) cos A)`.
                     if tel.get("mount_type").value == "EQUA":
                         hour, declination, latitude = self._topocentric(source, positions, times_mjd, "hadec")
                         hour, declination = np.radians(hour[is_visible]), np.radians(declination[is_visible])

@@ -203,7 +203,6 @@ OWED = {
     "gui/p_tab_vis_uv_coverage.py":           2,
     "gui/p_table_models.py":                  3,
     "paths.py":                               5,
-    "super/schedule_calculator.py":           79,
     "theme.py":                               4,
     "utils/catalogmanager.py":                10,
     "utils/machine.py":                       1,
