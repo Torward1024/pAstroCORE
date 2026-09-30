@@ -37,9 +37,8 @@ from pastrocore.formats import (Mode as _Mode, Skeleton, bands_of,
 #: The revision this writes. VEX 2 exists; the stations and correlators this file is for read 1.5.
 VEX_REV = "1.5"
 
-#: What VEX indents a statement by, what it indents a note by, and what it rules a block off
-#: with. Cosmetic, and worth matching: the people who read these files have read thousands
-#: written by `sched`, and a file that looks unfamiliar gets read less carefully.
+#: What VEX indents a statement by, what it indents a note by, and what it rules a block
+#: off with. Cosmetic, and matched to `sched`, which is what these files' readers have read.
 INDENT = "     "
 NOTE = "    "
 RULE = "*" + "-" * 78
@@ -49,9 +48,8 @@ RULE = "*" + "-" * 78
 UNKNOWN = "<not stated>"
 
 
-#: Blocks that describe one station's hardware. One `def` per station, referred to from
-#: `$STATION`, and empty. **This is the list the report is made of** -- there is no second copy
-#: of it anywhere, so a block cannot be written and go unreported, or reported and not written.
+#: Blocks that describe one station's hardware: one `def` per station, referred to from
+#: `$STATION`, and empty. The report is made of this list, there being no second copy.
 PER_STATION_BLOCKS = (
     Skeleton("$DAS", "the recorder and electronics rack in use at the station", (
         "record_transport_type = <Mark5B | Mark6 | Flexbuff | ...>;",
@@ -86,9 +84,8 @@ PER_MODE_BLOCKS = (
     )),
 )
 
-#: Statements left commented *inside* a block that otherwise carries real values, keyed by the
-#: block they belong to. Each is a field this model does not have rather than a whole subject it
-#: knows nothing about, and each is reported for the same reason as a whole block is.
+#: Statements left commented inside a block that otherwise carries real values, by block.
+#: Each is a field this model does not have, and each is reported as a whole block is.
 OPEN_LINES: Dict[str, Skeleton] = {
     "$SITE": Skeleton("$SITE", "the epoch the site coordinates were measured at", (
         "site_position_epoch = <MJD>;",
@@ -108,8 +105,7 @@ OPEN_LINES: Dict[str, Skeleton] = {
 
 
 #: Everything a VEX file leaves for a station to complete, in the order a reader meets it.
-#: **The report is made of this**, so a block cannot be written empty and go unreported, or
-#: reported and not written.
+#: The report is made of this, so a block cannot be written empty and go unreported.
 OUTSTANDING = PER_MODE_BLOCKS + PER_STATION_BLOCKS + tuple(OPEN_LINES.values())
 
 
@@ -119,8 +115,7 @@ def vex_epoch(moment: Time) -> str:
     """Return a moment as VEX writes one: `2012y323d13h50m00s`.
 
     Notes:
-        - Day of year, not month and day. Seconds are truncated rather than rounded, because a
-          scan that starts a second late is a scan that starts late.
+        - Day of year, and seconds truncated: a scan starting a second late starts late.
     """
     when = moment.datetime
     return (f"{when.year}y{when.timetuple().tm_yday:03d}d"
@@ -137,11 +132,7 @@ def _declination(source: Source) -> str:
     """Return a source's declination as `+11d43'50.903940"`.
 
     Notes:
-        - The sign is written explicitly. VEX accepts a bare number, and a reader skimming a
-          list of sources should not have to work out whether one is north or south.
-        - **Asked of the source, not formatted from its fields.** `int(de_d)` of `-0.0` is `0`,
-          and `+03d` wrote it as `+00`: every source between -1 and 0 degrees went to the
-          correlator on the wrong side of the equator, up to two degrees from where it is.
+        - Asked of the source rather than formatted from its fields, and signed explicitly.
     """
     sign, degrees, minutes, seconds = source.get_declination_parts(6)
     return f"{sign}{degrees:02d}d{minutes:02d}'{seconds:09.6f}\""
@@ -151,8 +142,7 @@ def _axis_type(telescope: Telescope) -> Optional[str]:
     """Return the mount as VEX's pair of axes, or None if the model does not say.
 
     Notes:
-        - `SPACE` is a mount this format has no word for, and a space telescope does not reach
-          here anyway: it is excluded before the antennas are written.
+        - `SPACE` has no word here: a space telescope is excluded before the antennas.
     """
     return {MountType.AZIMUTHAL: "az : el",
             MountType.EQUATORIAL: "ha : dec"}.get(telescope.mount_type)
@@ -188,9 +178,8 @@ def _skeleton(skeleton: Skeleton, names: Sequence[str]) -> List[str]:
         names (Sequence[str]): One `def` per name -- a station code, or a mode.
 
     Notes:
-        - A `def` holding only comments is legal VEX and `sched` writes them, which is what
-          makes this an empty form rather than a broken file: the `ref` that points here
-          resolves, and the reader finds the statements it has to fill in.
+        - A `def` holding only comments is legal VEX and `sched` writes them: the `ref` that
+          points here resolves, and the reader finds the statements to fill in.
     """
     lines = _block(skeleton.block)
     lines.append(_note(f"Not stated: {skeleton.needs}."))
@@ -251,9 +240,8 @@ def _describe(mode: _Mode) -> str:
     """Return a mode in one line of words, for the comment above its `def`.
 
     Notes:
-        - The covered span is written out beside the sky frequency, because that is the thing
-          a sideband decides and the thing two bands can silently agree on: 4828 U and 4844 L
-          are the same 16 MHz, and a reader should be able to see it here.
+        - The covered span is written beside the sky frequency, that being what a sideband
+          decides: 4828 U and 4844 L are the same 16 MHz.
     """
     bands = []
     for band in mode.bands:
@@ -281,10 +269,8 @@ def _site_block(stations: Sequence[Tuple[str, Telescope]]) -> List[str]:
     """Return `$SITE`: where each station is, and the epoch of that, which the model has not.
 
     Notes:
-        - **A velocity of zero is not written as a velocity.** The model's default is zero and
-          most projects never set it, so writing `0.000000 m/yr` would state that a station is
-          tectonically fixed -- which is false everywhere, and by millimetres a year that a
-          correlator cares about. A station that does carry one has it written.
+        - A velocity of zero is not written: the model defaults to zero, and stating it would
+          claim a station is tectonically fixed. One that carries a velocity has it written.
     """
     lines = _block("$SITE")
     for key, telescope in stations:
@@ -314,10 +300,8 @@ def _antenna_block(stations: Sequence[Tuple[str, Telescope]]) -> List[str]:
     """Return `$ANTENNA`: the mount, the horizon the schedule was made against, and no more.
 
     Notes:
-        - The horizon is written from `elevation_range`, and labelled as what it is. It is not
-          a survey of the local skyline -- it is the limit every visibility in this project was
-          calculated against, which is worth stating precisely because a station's real horizon
-          may be worse.
+        - The horizon is written from `elevation_range` and labelled as what it is: the limit
+          this project's visibilities were calculated against, not a survey of the skyline.
     """
     lines = _block("$ANTENNA")
     for _, telescope in stations:
@@ -368,14 +352,10 @@ def _freq_block(modes: Sequence[_Mode]) -> List[str]:
     """Return `$FREQ`: the sky frequency, sideband and bandwidth of every channel.
 
     Notes:
-        - **This is the block the model actually owns**, and the only one whose values are all
-          ours. A `chan_def`'s trailing fields -- the BBC link and the phase-cal link -- are
-          left off entirely rather than pointed at links that do not exist; VEX allows trailing
-          fields to be omitted, and a dangling `&BBC01` would fail a parser that checks them.
-        - `sample_rate` is Nyquist for the bandwidth, which is a fact about sampling rather
-          than about a rack. It is written only when every channel of the mode shares a
-          bandwidth, because VEX states it once per `def` and there would otherwise be no
-          single true answer.
+        - A `chan_def`'s trailing fields -- the BBC and phase-cal links -- are left off rather
+          than pointed at links that do not exist, VEX allowing trailing fields to be omitted.
+        - `sample_rate` is Nyquist for the bandwidth, written only where every channel of the
+          mode shares one, VEX stating it once per `def`.
     """
     lines = _block("$FREQ")
     lines.append(_note(f"Not stated: {OPEN_LINES['$FREQ'].needs}."))
@@ -408,10 +388,8 @@ def _if_block(modes: Sequence[_Mode]) -> List[str]:
     """Return `$IF`: the polarizations, which are ours, written as the form a station fills in.
 
     Notes:
-        - Every field of an `if_def` but the polarization belongs to the station -- which
-          physical IF, which local oscillator, what the phase-cal spacing is -- so the
-          statement is written commented with the polarization already in it. Half a statement
-          live and half invented would be worse than a whole one shown as a template.
+        - Every field of an `if_def` but the polarization belongs to the station, so the
+          statement is written commented with the polarization already in it.
     """
     skeleton = OPEN_LINES["$IF"]
     lines = _block("$IF")
@@ -438,12 +416,10 @@ def _sched_block(experiment: str, entries: Sequence[Dict[str, Any]]) -> List[str
     """Return `$SCHED`: when each scan starts, what it looks at, and who is on it.
 
     Notes:
-        - A station line states the two times it can: recording starts at the scan and stops
-          after its duration. The fields after that -- start position on the medium, pass,
-          sector, drive -- are about the recorder, and are left off.
-        - Scans are numbered rather than named. A scan's name in this model may be a UUID,
-          which is legal VEX and unreadable; the model's name goes in a comment so that a
-          person can still match a line here to a row in the interface.
+        - A station line states the two times it can, recording starting at the scan and
+          stopping after its duration; the recorder's own fields are left off.
+        - Scans are numbered rather than named, a name in this model being possibly a UUID,
+          and the model's name goes in a comment.
     """
     lines = _block("$SCHED")
     lines.append(_note(f"Schedule for experiment {experiment}"))
@@ -466,10 +442,8 @@ def _station_keys(telescopes: Sequence[Telescope]) -> Dict[str, str]:
     """Return the VEX station key for each telescope, by the telescope's name.
 
     Notes:
-        - The code, which is what a station is called everywhere else in VEX. Two telescopes
-          may carry one code in this model, and VEX keys have to be distinct, so a collision
-          falls back to the telescope's own name -- which is unique, because it is what the
-          container keys on.
+        - The code, which is what a station is called elsewhere in VEX. Two telescopes may
+          share one, and a collision falls back to the telescope's name, which is unique.
     """
     seen: Dict[str, int] = {}
     for telescope in telescopes:
@@ -495,9 +469,8 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
             of them.
 
     Notes:
-        - **Space telescopes are excluded, and named in the report.** VEX 1.5 describes a
-          station as a fixed position on the Earth; there is no honest way to write an orbit
-          in it. CFX is where a space telescope belongs, and it is an ordinary station there.
+        - Space telescopes are excluded and named in the report: VEX 1.5 describes a station
+          as a fixed position on the Earth, and CFX is where a moving one belongs.
     """
     scans = observation.get_scans().get_active_scans(observation)
     if not scans:
@@ -590,10 +563,8 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
 
 # --- reading one back (V5, V6) ------------------------------------------------------------
 
-#: The blocks this model holds. **Everything else is read past** (V6): the hardware and the
-#: session are not this model's to hold, an export leaves them empty for the station to fill,
-#: and an import that kept them would be keeping something nothing here can use or check. What
-#: was passed over is named in the answer, so a round trip is never mistaken for a lossless one.
+#: The blocks this model holds. Everything else is read past (V6) and named in the answer,
+#: so a round trip is not mistaken for a lossless one.
 MODELLED = ("$GLOBAL", "$EXPER", "$MODE", "$STATION", "$SITE", "$ANTENNA", "$SOURCE", "$FREQ",
             "$IF", "$SCHED")
 
@@ -610,10 +581,8 @@ def statements(text: str):
     Notes:
         - `*` starts a comment to the end of the line *outside a quoted string*, and `;` ends a
           statement. That is the whole grammar this needs.
-        - A quote opens a string only where a value may begin -- after `=`, `:` or `,`. VEX
-          also writes it as the arcsecond mark, and a declination ending in one would otherwise
-          open a string that swallows the rest of the file. That is `sched` output, not a quirk
-          of ours.
+        - A quote opens a string only where a value may begin -- after `=`, `:` or `,` --
+          VEX also writing it as the arcsecond mark at the end of a declination.
     """
     collected, quoted, commented, previous = [], False, False, ""
     for character in text:
@@ -713,10 +682,8 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
         ValueError: If the text is not VEX, or holds no schedule.
 
     Notes:
-        - **What is not modelled is read past** (V6), and named in `passed_over`. A station's
-          rack, its baseband converters, its recording format: an export leaves those blocks
-          empty for the station to fill in, so importing them would be carrying something this
-          model can neither use nor check.
+        - What is not modelled is read past (V6) and named in `passed_over`: a station's
+          rack, its baseband converters, its recording format.
         - Polarizations come from the `$IF` block of the mode a scan uses, since a `chan_def`
           does not carry one.
     """
@@ -727,10 +694,8 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
     if not blocks.get("$SCHED"):
         raise ValueError("The file holds no $SCHED, so there is no schedule in it")
 
-    # **Named, not merely dropped.** Blocks this model has no way to hold were reported and
-    # entries it could not *read* were not: a station whose site has no position, a source with
-    # no coordinates, a scan with no start were each passed over with a bare `continue`, so a
-    # file came in with fewer of them than it holds and the report called it a clean read.
+    # Named rather than merely dropped: a station whose site has no position, a source
+    # with no coordinates and a scan with no start are each reported, not passed over.
     passed_over = sorted(name for name in blocks if name not in MODELLED)
     unread: set = set()
 
@@ -762,9 +727,8 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
             "vx": speeds[0], "vy": speeds[1], "vz": speeds[2],
             "mount_type": "EQUA" if "ha" in axis else "AZIM"}
 
-    # A `$SCHED` line names the *station key*; the model keys a telescope on its code, and the
-    # two need not be the same word. Translated here, or a scan whose station key differs from
-    # its `site_ID` would come back with no stations at all and be dropped without a sound.
+    # A `$SCHED` line names the station key and the model keys a telescope on its code,
+    # which need not be one word. Translated here, or such a scan comes back with no stations.
     codes = {key: entry["code"] for key, entry in telescopes.items()}
 
     sources = {}

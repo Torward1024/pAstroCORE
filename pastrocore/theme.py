@@ -41,10 +41,8 @@ SHAPE = {
     "pad_x": "8px",
     "pad_y": "4px",
     "gap": "6px",
-    # **The content's height, not the control's.** Qt adds the padding and the border to this,
-    # so a token of 28 made every text box 40 pixels tall and a telescope editor grew past the
-    # screen. With the padding this comes to 32, which is what a spin box asks for as its
-    # minimum -- below it `test_form_layout` reports a control clipped by its own frame.
+    # The content's height, not the control's: Qt adds the padding and the border, which
+    # brings this to 32, the minimum a spin box asks for.
     "control": "22px",
     "scrollbar": "12px",
     "border": "1px",
@@ -143,11 +141,8 @@ RAMP = {
 }
 
 
-#: The glyphs Qt draws itself unless it is given a picture: the arrows of a spin box, the tick
-#: in a checkbox, the month arrows of a calendar, the branches of a tree. Qt's own are the
-#: platform's -- a green arrow on the calendar, a grey square where a spin box's arrow should be
-#: -- so they are the one part of a themed window that stays unthemed. Drawn here from the same
-#: tokens, so they follow the palette like everything else.
+#: The glyphs Qt draws itself unless given a picture: a spin box's arrows, a checkbox's
+#: tick, a calendar's month arrows, a tree's branches. Drawn here from the same tokens.
 GLYPHS = {
     "arrow-down": '<path d="M2.5 4l2.5 2.5L7.5 4"/>',
     "arrow-up": '<path d="M2.5 6L5 3.5 7.5 6"/>',
@@ -245,10 +240,8 @@ def plot_style(theme: str) -> Dict[str, Any]:
     }
 
 
-#: The stylesheet, in tokens. **Every widget class the application uses has a rule here** --
-#: including the ones nobody writes into a form and everybody sees: scrollbars, the buttons of a
-#: spin box, the calendar a date editor drops down, a progress bar, a tooltip. Half a styled
-#: application is worse than none, because the unstyled half looks broken rather than plain.
+#: The stylesheet, in tokens. Every widget class the application uses has a rule here, down
+#: to scrollbars, spin box buttons, a dropped-down calendar, a progress bar and a tooltip.
 TEMPLATE = """
 /* ---- the surface everything stands on ------------------------------------------------- */
 QWidget {{
@@ -593,10 +586,10 @@ def stylesheet(theme: str, assets: str = "") -> str:
         assets (str): Where `glyphs()` have been written, for the rules that need a picture.
 
     Returns:
-        str: Qt style sheet text, with every token filled in.
+        str: Qt style sheet text, with every token filled in. What a user puts beside their
+            settings replaces this whole.
 
     Notes:
-        - Generated rather than kept as a file, so a colour is changed in one place and both
-          themes follow. What a user puts beside their settings still replaces it whole.
+        - Generated rather than kept as a file, so a colour is changed in one place.
     """
     return TEMPLATE.format(**tokens(theme, assets))

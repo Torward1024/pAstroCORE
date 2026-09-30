@@ -27,13 +27,11 @@ class CatalogManager:
         telescope_catalog (Telescopes): Collection of Telescope objects.
 
     Notes:
-        - Logging is integrated via `msb_arch.utils.logging_setup.logger`.
-        - **A catalogue is JSON** (C1): the same `Sources` and `Telescopes` a project writes, so a
+        - A catalogue is JSON (C1): the same `Sources` and `Telescopes` a project writes, so a
           space telescope, an SEFD table and any field added later have somewhere to go.
-        - A `.dat` catalogue still opens, and is saved as JSON. Source file format:
-          `name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss`, the names separated by
-          tabs; telescope file format: `number short_name full_name x y z diameter`.
-        - Lines starting with '#' or empty lines are skipped when reading a `.dat`.
+        - A `.dat` catalogue still opens and is saved as JSON: sources as
+          `name j2000_name alt_name ra dec`, telescopes as `number code name x y z diameter`.
+        - Blank lines and lines starting with `#` are skipped when reading a `.dat`.
 
     Examples:
         >>> cm = CatalogManager(source_file="sources.json", telescope_file="telescopes.json")
@@ -131,8 +129,7 @@ class CatalogManager:
         """Report whether a catalogue holds something its file does not.
 
         Notes:
-            - By content, not by counting writes: an item edited and edited back is not a change,
-              and an item written to in place is one, which a container's own revision misses.
+            - By content rather than by counting writes, which a container's revision misses.
         """
         return self.catalog(kind).fingerprint() != self._saved[kind]
 
@@ -204,13 +201,8 @@ class CatalogManager:
         """Read a catalogue, tolerating the byte order mark a Windows editor puts in front.
 
         Notes:
-            - **A catalogue is the file this application invites a person to edit**, and an
-              editor offering "UTF-8 with BOM" adds three bytes before the first brace. JSON or
-              not is decided by that brace, so such a file was read as the old `.dat` format,
-              matched nothing, and came back as no sources at all -- which looks like the
-              catalogue was lost rather than like a file saved in another encoding.
-            - `utf-8-sig` reads a file without one exactly as `utf-8` does, so this is the
-              encoding every file a person may have written is read with.
+            - JSON or not is decided by the first brace, and `utf-8-sig` reads a file with no
+              byte order mark exactly as `utf-8` does.
         """
         try:
             return Path(path).read_text(encoding="utf-8-sig")
@@ -249,13 +241,10 @@ class CatalogManager:
         """Read the text format: `name j2000_name alt_name ra dec`, one source a line.
 
         Notes:
-            - **The names are separated by tabs** where the line has any, because a name may hold
-              a space: split on every space, `Mrk 1419` became a source called `Mrk` with the
-              J2000 name `1419`. A line with no tab is split on spaces, as before.
-            - `$` in a name column is no name. It was read as one, so 138 of the shipped sources
-              had an alternative name of `$`.
-            - Right ascension and declination are the last two fields whichever way the line is
-              separated, and neither holds a space.
+            - The names are separated by tabs where the line has any, a name being able to hold
+              a space; a line with no tab is split on spaces.
+            - `$` in a name column is no name.
+            - Right ascension and declination are the last two fields either way, holding none.
         """
         catalogue = Sources(name=Path(source_file).stem)
         failed_count = 0
@@ -377,8 +366,7 @@ class CatalogManager:
                 continue
             parts = re.split(r'\s+', line)
             # Seven, not six: the diameter is `parts[6]`, so a line of exactly six
-            # fields passed this guard and then failed on the read below -- reported
-            # as a line that could not be parsed rather than one that is too short.
+            # fields passes the guard and then fails on the read below.
             if len(parts) < 7:
                 logger.warning("Skipping invalid telescope format: %s", line)
                 failed_count += 1
@@ -428,11 +416,8 @@ class CatalogManager:
         Returns:
             List[Telescope]: List of Telescope objects matching the specified type.
         """
-        # `SpaceTelescope` is a `Telescope`, so asking by class alone cannot tell them apart:
-        # this read `telescope_type == "Telescope" and isinstance(t, Telescope)`, which returned
-        # every telescope including the spacecraft for one spelling and an empty list for every
-        # other -- so the one type the caller would actually want to single out was the one it
-        # could never return.
+        # `SpaceTelescope` is a `Telescope`, so asking by class alone cannot tell them
+        # apart: each type names what it excludes as well as what it takes.
         wanted = {"Telescope": lambda t: not isinstance(t, SpaceTelescope),
                   "SpaceTelescope": lambda t: isinstance(t, SpaceTelescope)}.get(telescope_type)
         if wanted is None:
@@ -445,8 +430,7 @@ class CatalogManager:
         """Empty the source catalogue, keeping the telescopes.
 
         Notes:
-            - One catalogue is reloaded on its own when its path changes in Preferences, and
-              the window emptied it by reaching into `source_catalog` to do so.
+            - One catalogue is reloaded on its own when its path changes in Preferences.
         """
         self.source_catalog.remove_all()
 
@@ -468,7 +452,5 @@ class CatalogManager:
         return (f"CatalogManager(sources={len(self.source_catalog)}, "
                 f"telescopes={len(self.telescope_catalog)})")
 
-    # `clear()` was here and did nothing: it set `_sources` and `_telescopes`, while the
-    # catalogues are held in `source_catalog` and `telescope_catalog` -- so it created two
-    # attributes nobody reads and left both catalogues full. Nothing called it. `clear_catalogs`
-    # is the method that does the job, and `clear` is the name msb_arch 2.0.0 removed anyway.
+    # `clear_catalogs` is the method that empties both. `clear` is the name msb_arch
+    # 2.0.0 removed, and what stood here set two attributes nobody reads.

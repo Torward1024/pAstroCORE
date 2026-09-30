@@ -17,8 +17,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from pastrocore.utils.catalogmanager import CatalogManager
 # UI files. The dialogs are imported where they are opened rather than here: between them
-# they pull in matplotlib and every visualization tab, which is 570 ms of a start-up that
-# happens whether or not anyone opens a dialog.
+# they pull in matplotlib and every visualization tab, which is 570 ms of every start-up.
 from pastrocore import theme
 from pastrocore.gui import icon_theme
 from pastrocore.gui.p_custom_model import listening
@@ -108,9 +107,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 passes its own so it never reads or deletes anything of the user's.
 
         Notes:
-            - Offered, never swept. A scratch directory from a previous run is not litter: it
-              is whatever was calculated before the crash, which is the only reason the
-              directory exists. Deleting it at startup would be the failure it prevents.
+            - Offered, never swept: a scratch directory from a previous run holds whatever was
+              calculated before the crash.
             - Sessions belonging to a window that is still running are not listed, which is
               why each session gets a directory of its own.
         """
@@ -136,9 +134,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Tell the current project how much memory its results may occupy.
 
         Notes:
-            - Called whenever the project changes, not only when the setting does, because a
-              newly opened project starts with the default and would otherwise ignore what the
-              user chose until they opened the preferences again.
+            - Called whenever the project changes, not only when the setting does: a newly
+              opened project starts with the default.
         """
         if self.project is None:
             return
@@ -154,12 +151,10 @@ class PAstroCoreMainWindow(QMainWindow):
             str: The theme now in force -- `light` or `dark`.
 
         Notes:
-            - **One choice, two places.** The stylesheet and the visualizer's colours are
-              generated from the same tokens, so a window in the dark theme does not hold a
-              white rectangle where a plot is.
-            - A plot already drawn keeps the palette it was drawn in until it is redrawn; a
-              figure belongs to the tab showing it, and repainting one from here is how a
-              toolbar came to hold axes that had been cleared.
+            - One choice, two places: the stylesheet and the visualizer's colours are
+              generated from the same tokens.
+            - A plot already drawn keeps its palette until it is redrawn, a figure belonging
+              to the tab that shows it.
         """
         choice = self.settings.get("theme", "system")
         application = QApplication.instance()
@@ -185,17 +180,10 @@ class PAstroCoreMainWindow(QMainWindow):
             is_initial_setup (bool): True on the first pass, when there is nothing to take back.
 
         Notes:
-            - **What is disconnected is what was connected**, from a register, exactly as the
-              actions above already do. What was here asked `receivers(QtCore.SIGNAL("..."))`
-              whether a signal had any connection at all and then disconnected one particular
-              slot. Those are different questions: the count includes connections made by Qt
-              and by anything else, and the old string spelling does not see connections made
-              in the new one. So the guard passed while the disconnect did nothing, silently.
-            - It accumulated. `setup_connections` runs again on New Project, Open Project and
-              Open Package, and every run added another `tabCloseRequested` connection that
-              was never taken away. Closing one tab then called `handle_tab_close` twice with
-              the same index -- and after the first call removed that tab, the index belonged
-              to its neighbour. **Two projects opened, one tab closed, two tabs gone.**
+            - What is disconnected is what was connected, from a register: a count of
+              receivers includes connections made by Qt and by anything else.
+            - `setup_connections` runs again on New Project, Open Project and Open Package, so
+              a connection left in place is another call on every later signal.
         """
         if is_initial_setup:
             logger.debug("Skipping UI signal disconnection during initial setup")
@@ -235,10 +223,8 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.info("Catalog initialized with %s sources and %s telescopes", sources_count, telescopes_count)
             return catalog_manager
         except Exception as e:
-            # Logged, not shown. A modal dialog inside a constructor waits for a click that
-            # nobody is there to give: on a build machine this hung for ten minutes, and to a
-            # user with a bad catalog path it would look like an application that will not
-            # start. Degrading to empty catalogs is what the next line already did anyway.
+            # Logged, not shown: a modal dialog inside a constructor waits for a click
+            # nobody is there to give. The next line degrades to empty catalogs anyway.
             logger.error("Failed to initialize CatalogManager with sources='%s', telescopes='%s': %s",
                          sources_path, telescopes_path, str(e), exc_info=True)
             self._catalog_error = str(e)
@@ -275,11 +261,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
 
-        # Both registers start empty, so a second pass records this pass rather than adding to
-        # the last one. The actions have always been rebuilt wholesale a few lines down; the
-        # widget signals were appended to, and a caller that connects twice without clearing in
-        # between -- which is what building a window and then calling this does -- left the
-        # register holding each pair twice and `clear_connections` disconnecting it twice.
+        # Both registers start empty, so a second pass records this pass rather than adding
+        # to the last: a pair held twice is a pair `clear_connections` disconnects twice.
         self._signal_connections = []
         self._action_connections = {
             self.ui.actionNewProject: self.new_project,
@@ -344,15 +327,13 @@ class PAstroCoreMainWindow(QMainWindow):
             # reads its staleness labels from the project.
             dialog.project_changed.connect(self.project_updated)
             dialog.exec()
-            # Kept so the report can be opened again. A run that ended twenty minutes ago is
-            # exactly when somebody wants to know which step failed, and the answer used to be
-            # in `output.log` or nowhere.
+            # Kept so the report can be opened again: which step failed is asked long
+            # after the run, and the answer was in `output.log` or nowhere.
             self.last_run = getattr(dialog, "outcome", None) or self.last_run
             self.ui.actionLast_Run_Report.setEnabled(self.last_run is not None)
             if getattr(dialog, "outcome", None):
-                # A run changes what the project holds, and the explorer's staleness labels are
-                # read from it. Without this the label that sent the user here to recompute
-                # survived the recomputation, which is worse than having no label.
+                # A run changes what the project holds, and the explorer's staleness
+                # labels are read from it: one surviving its own run is worse than none.
                 self.project_updated.emit()
                 self.open_last_run_report()
         except Exception as e:
@@ -627,9 +608,8 @@ class PAstroCoreMainWindow(QMainWindow):
                         obs_name = obs.name
                         try:
                             obs_code = self.manipulator.inspect(obs, get_observation_code=None)
-                            # A label, never a dialog. Staleness is a state the user can see
-                            # and act on when they choose; announcing it after every edit
-                            # would be worse than not detecting it.
+                            # A label, never a dialog: staleness is a state to act on
+                            # when the user chooses, not a word after every edit.
                             answer = self.manipulator.inspect(obj=obs, method="stale",
                                                               raise_on_error=False)
                             stale = answer.value or ()
@@ -673,8 +653,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
         Notes:
             - Rows are hidden rather than a model filtered through a proxy: the tree is three
-              levels and a dozen rows, and a proxy would put a second model between the click
-              handler and the item it reads the observation's name off.
+              levels and a dozen rows.
         """
         tree = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         model = tree.model() if tree is not None else None
@@ -718,27 +697,22 @@ class PAstroCoreMainWindow(QMainWindow):
         Notes:
             - Static so that the entry point can read the settings before the window
               exists, which is where logging is configured.
-            - A `settings.pastro` in the working directory is what anybody upgrading has, so it
-              is read once and kept in the user's directory. Reading it and then writing
-              somewhere else would look like the settings had been forgotten.
+            - A `settings.pastro` in the working directory is what anybody upgrading has,
+              so it is read once and then kept in the user's directory.
         """
         default_settings = {
             **{setting: str(shipped_catalog(shipped)) for setting, shipped in CATALOGUES.values()},
             "log_level": "INFO",
             "time_step": 600,
             "clear_log_on_start": False,
-            # The projects opened before, most recent first. Written when one is opened and
-            # read when the menu is built, so it survives a restart by being a setting rather
-            # than something the window remembers.
+            # The projects opened before, most recent first. A setting rather than
+            # something the window remembers, so it survives a restart.
             "recent_projects": [],
-            # What share of available memory the calculated results in hand may occupy before
-            # the least recently used are dropped. They can always be read back from the
-            # project directory, so this costs a read rather than a recalculation.
+            # What share of available memory the results in hand may occupy before the
+            # least recently used are dropped, which costs a read, not a recalculation.
             "results_memory_share": 0.5,
-            # Recording every request costs 10.4 us each and 75.6 KB per 500 entries, measured
-            # after MSB 1.6.0 stopped holding what it recorded. Worth it by default: it answers
-            # the question a bug report never can -- what was actually asked for -- and it is
-            # what a session is saved and replayed from. Turn it off and none of that exists.
+            # Recording every request costs 10.4 us each and 75.6 KB per 500 entries. On
+            # by default: it is what a session is saved and replayed from.
             "record_session": True,
             # A sliding window: the oldest go first. Which means an overflowed journal is not a
             # complete session any more, so this is the number to raise before saving one.
@@ -767,9 +741,8 @@ class PAstroCoreMainWindow(QMainWindow):
         for setting, shipped in CATALOGUES.values():
             was = default_settings[setting]
             default_settings[setting] = existing_or_shipped(was, shipped)
-            # A relative path is from before the catalogues moved into the package, and a shipped
-            # `.dat` is from before they became JSON; neither can resolve again. Corrected once,
-            # rather than warned about on every start about something the user cannot act on.
+            # A relative path, or a shipped `.dat`, is from before the catalogues moved
+            # into the package and became JSON: corrected once rather than warned about.
             leftovers = leftovers or is_leftover(was)
 
         if leftovers and source is not None:
@@ -782,11 +755,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Write the settings where `load_settings` will look for them.
 
         Notes:
-            - Beside the file and moved over it, as everything else this application writes is.
-              These are written often -- every preference, every project opened, every
-              catalogue saved -- and a write interrupted part way left a file that is not JSON,
-              which the next start reads, fails on, and replaces with the defaults: the recent
-              projects, the catalogue paths and the theme all gone at once.
+            - Beside the file and moved over it, as everything else this application writes
+              is: these are written often, and a half-written one is not JSON.
         """
         destination = settings_file()
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -831,9 +801,8 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_project(self):
         """Open a project from a file, cleaning up the old one."""
         try:
-            # A project is a directory, so the dialog asks for one. It used to ask for a
-            # file, which meant navigating into the project and picking project.json --
-            # a workaround that worked only because `open` was written to tolerate it.
+            # A project is a directory, so the dialog asks for one rather than for the
+            # `project.json` inside it.
             file_name = QFileDialog.getExistingDirectory(
                 self, "Open Project", "", QFileDialog.Option.ShowDirsOnly
             )
@@ -911,10 +880,8 @@ class PAstroCoreMainWindow(QMainWindow):
         Notes:
             - Built from the list rather than kept in step with it: the menu is a view of the
               setting, and there is one place the setting is written.
-            - An entry naming a folder that is no longer a project is **removed when it is
-              clicked**, with a word about why. Checking every entry when the menu is built
-              would touch the disk for ten paths on every open, and a network share makes that
-              a pause with no cause a user can see.
+            - An entry naming a folder that is no longer a project is removed when it is
+              clicked: checking all ten on every open would touch the disk, or a share.
         """
         menu = self.ui.menuRecent_Projects
         menu.clear()
@@ -949,10 +916,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Save the current project.
 
         Notes:
-            - **Off the window's thread, and the progress is the save's own** (G9): each result
-              file as it is written, then the model. What was here was a progress bar made on
-              the window's thread and never moved -- the save ran on that thread, so nothing
-              was painted and the window stopped answering until it finished.
+            - Off the window's thread, and the progress is the save's own (G9): each
+              result file as it is written, then the model.
             - No Cancel. The model is written last, over the old one in a single move; a save
               stopped half way would leave the directory half new.
         """
@@ -961,9 +926,8 @@ class PAstroCoreMainWindow(QMainWindow):
 
             path = self.current_project_path
             try:
-                # Saves a directory: the model in one small file and each result in its
-                # own parquet beside it. Through the orchestrator, like everything else the
-                # window wants of the model.
+                # Saves a directory: the model in one small file and each result in
+                # its own parquet beside it, through the orchestrator as always.
                 run_with_progress(
                     self, "Saving Project", f"Saving to {path}",
                     lambda progress: self.manipulator.save(obj=self.project, path=path,
@@ -980,12 +944,10 @@ class PAstroCoreMainWindow(QMainWindow):
         """Save the current project to a directory the user chooses.
 
         Notes:
-            - A directory chooser rather than a file chooser, because a project is a directory.
-              Use the dialog's "New Folder" button to make one; an existing empty folder or an
-              existing project may also be chosen.
+            - A directory chooser rather than a file chooser, a project being a directory; an
+              empty folder or an existing project may also be chosen.
             - Writing into a folder that already holds something else is the one case worth
-              stopping for: the results directory would land beside a stranger's files, and
-              nothing about the dialog would have warned of it.
+              stopping for: the results directory would land beside a stranger's files.
         """
         directory = QFileDialog.getExistingDirectory(
             self, "Save Project As -- choose or create a folder", "",
@@ -1059,11 +1021,8 @@ class PAstroCoreMainWindow(QMainWindow):
             label (str): What to call it in the window and the file filter.
 
         Notes:
-            - **What this model cannot hold is named, not carried** (V6). A station's rack and
-              the correlator's settings belong to the station and the correlator; an export
-              leaves those blocks empty for them to fill, so importing them would be keeping
-              something nothing here can use or check. The list is shown rather than logged,
-              because "this file said more than came in" is the one thing a reader has to know.
+            - What this model cannot hold is named, not carried (V6), and the list is shown
+              rather than logged: "this file said more than came in" has to be read.
         """
         if not self.project or not self.manipulator:
             return
@@ -1112,12 +1071,9 @@ class PAstroCoreMainWindow(QMainWindow):
             splits (str): What makes a second file, for the directory chooser's title.
 
         Notes:
-            - **A file in either format is one thing**: a VEX file is one experiment, a CFX
-              file is one frequency setup. Where a project makes more than one the operation
-              takes a directory, and where it makes exactly one it takes a filename. What
-              splits into how many files is the format's business rather than this window's,
-              which is why one method serves both.
-            - The report is shown rather than a "written successfully" box. The file is
+            - A file in either format is one thing -- a VEX file one experiment, a CFX file
+              one frequency setup -- so the operation takes a directory where there are more.
+            - The report is shown rather than a "written successfully" box: the file is
               deliberately incomplete, and which sections are waiting is the useful part.
         """
         if not self.project or not self.manipulator:
@@ -1141,10 +1097,8 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("%s export cancelled", label)
             return
 
-        # The project, whether it holds one observation or twenty. Picking the observation here
-        # would mean reaching into the model to find it. The operation is named rather than
-        # called by hand, because a format is a facade on the orchestrator like any other and
-        # the next one will need no change here.
+        # The project, whether it holds one observation or twenty, and the operation is
+        # named rather than called: a format is a facade on the orchestrator like any other.
         answer = getattr(self.manipulator, operation)(
             obj=self.project, method="export", path=destination, overwrite=True,
             raise_on_error=False)
@@ -1325,9 +1279,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
 
-            # The built-in `save` writes it: atomically, refusing a directory, and raising
-            # the framework's own errors. Writing the JSON here was a second implementation of
-            # something MSB has had since 1.3.0.
+            # The built-in `save` writes it: atomically, refusing a directory, and
+            # raising the framework's own errors, all of it MSB's since 1.3.0.
             self.manipulator.save(obj=observation, path=file_path)
             logger.info("Observation '%s' exported to '%s'", obs_code, file_path)
         except Exception as e:
@@ -1416,9 +1369,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Point the settings at the file a catalogue was just saved to.
 
         Notes:
-            - Otherwise a catalogue saved under a new name -- which is every catalogue that came
-              with the application, or was a `.dat` -- would be read from the old file at the next
-              start, and the edits would look lost.
+            - Otherwise a catalogue saved under a new name would be read from the old file at
+              the next start, and the edits would look lost.
         """
         setting = CATALOGUES[kind][0]
         if self.settings.get(setting) == path:
@@ -1452,10 +1404,8 @@ class PAstroCoreMainWindow(QMainWindow):
         if item_type == "project":
             self.open_project_info_tab()
         elif item_type == "observation":
-            # The name the item carries, never the text it shows. A label is for a reader: this
-            # one says how many results have gone stale, and looking the observation up by it
-            # meant that the moment staleness had anything to report, the observation could no
-            # longer be opened -- while the label is what sends a user to open it.
+            # The name the item carries, never the text it shows: the text says how many
+            # results have gone stale, which is when the observation must still open.
             obs_name = item.data(Qt.UserRole + 1)
             try:
                 observation = self.manipulator.inspect(self.project, get_observation=obs_name)
@@ -1496,9 +1446,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
         Notes:
             - A tab rather than a dialog: analysis is a filter changed and the question asked
-              again, and a modal dialog makes that a matter of reassembling the choice each
-              time. It is closable, unlike Project, because it is a place to work rather than
-              part of the project.
+              again. Closable, unlike Project, being a place to work rather than the project.
         """
         from pastrocore.gui.p_tab_analysis import AnalysisTab
 
@@ -1657,34 +1605,24 @@ class PAstroCoreMainWindow(QMainWindow):
     def _cleanup_project(self):
         """Clean up the current project and its dependencies."""
         try:
-            # Before the orchestrator goes: the project being replaced took a scratch directory
-            # with it and nothing discarded it, so every File -> New Project and every Open
-            # left one behind for the next start to offer as an interrupted session. Discarded
-            # only when it holds nothing -- litter is worth clearing, a day of calculation is
-            # not, and the project itself decides which of the two it has.
+            # Before the orchestrator goes, or the project being replaced leaves its
+            # scratch behind. Discarded only when it holds nothing, which the project says.
             if self.project is not None and self.manipulator is not None:
                 self.manipulator.export(obj=self.project, method="tidy", raise_on_error=False)
 
             self._cleanup_tabs()
             
-            # Asked first: disconnecting a signal nothing listens to is not an error, it is a
-            # `RuntimeWarning` and a False. The `except RuntimeError` that stood here, and the
-            # `except TypeError` in the project tab, were each guarding against an exception
-            # Qt does not raise -- and `isSignalConnected` is the question the comment beside
-            # this one said Qt does not offer.
+            # Asked first: disconnecting a signal nothing listens to is not an error but
+            # a `RuntimeWarning` and a False, so there is nothing to catch.
             if listening(self, self.project_updated):
                 self.project_updated.disconnect()
-            # That took back every connection to the signal, this window's included, so the
-            # register must stop claiming it: `clear_connections` runs a few lines later on
-            # each of the three paths through here, and would disconnect it a second time.
+            # That took back every connection to the signal, this window's included, so
+            # the register must stop claiming it before `clear_connections` runs below.
             self._signal_connections = [entry for entry in self._signal_connections
                                         if entry[1] != self.update_project_explorer]
 
-            # Asked of the project, before the orchestrator that carries the request is taken
-            # down. The window used to do this itself -- walk the observations, call `cleanup`,
-            # null three back references and empty the project -- which is model work in the
-            # interface, and it ran in the wrong order besides: the project was emptied first,
-            # so the loop that followed had nothing left to walk and had never once run.
+            # Asked of the project, before the orchestrator that carries the request is
+            # taken down. Walking the observations here would be model work in the interface.
             if self.project is not None and self.manipulator is not None:
                 self.manipulator.compute(obj=self.project, method="release",
                                          raise_on_error=False)
@@ -1692,10 +1630,8 @@ class PAstroCoreMainWindow(QMainWindow):
             if self.manipulator:
                 self.manipulator.clear_cache()
                 self.manipulator.clear_base_classes()
-                # There was a `manipulator._project = None` here behind a `hasattr` true of
-                # nothing: the orchestrator's attribute is `_managing_object`, and MSB has
-                # never had a `_project`. Letting go of the orchestrator is the whole of it,
-                # and a test holds the property the line was there for.
+                # Letting go of the orchestrator is the whole of it: its attribute is
+                # `_managing_object`, and MSB has never had a `_project` to null.
                 self.manipulator = None
 
             self.project = None
@@ -1729,13 +1665,10 @@ class PAstroCoreMainWindow(QMainWindow):
         """Close the window, taking this session's scratch directory with it.
 
         Notes:
-            - Only on this path. A session removed here is one that ended normally, which is
-              exactly the case where nothing needs recovering. Anything else leaves its
-              directory behind on purpose.
-            - **Unless it holds results nobody has saved.** The scratch is where a calculation
-              lives until the project is saved, so discarding it on a tidy exit destroyed the
-              day's work -- the very thing writing results through to disk exists to protect.
-              A crash was survivable and closing the window was not.
+            - Only on this path: a session removed here is one that ended normally, which is
+              where nothing needs recovering.
+            - Unless it holds results nobody has saved: the scratch is where a calculation
+              lives until the project is saved.
         """
         held = self._ask_what_is_unsaved()
         if held:
@@ -1787,16 +1720,13 @@ def system_is_dark(application=None) -> bool:
 
 
 def _warm_coordinate_tables() -> None:
-    """Do one throwaway coordinate transform, so the user's first calculation is not the one
-    that pays for loading astropy's reference tables.
+    """Warm astropy's reference tables, so the first calculation does not pay for loading them.
 
     Notes:
-        - Measured: the first `transform_to` in a process costs about 760 ms and every one
-          after it about 3, because the first pulls in the IERS and leap-second tables. That
-          made the first calculation 1 077 ms against 290 for the rest, and the difference was
-          entirely this.
-        - Runs on a daemon thread so the window still appears immediately, and swallows
-          everything: a warm-up that fails must never stop the application starting.
+        - The first `transform_to` in a process costs about 760 ms and every one after it
+          about 3, the first pulling in the IERS and leap-second tables.
+        - Runs on a daemon thread and swallows everything: a warm-up that fails must never
+          stop the application starting.
     """
     def warm():
         try:
@@ -1818,14 +1748,11 @@ def main() -> None:
     """Start the application.
 
     Notes:
-        - Logging is configured first: `msb_arch` does not configure it on import, so any
-          record emitted before this would be swallowed by the package `NullHandler`.
-          Defaults come first because reading the settings already logs.
+        - Logging is configured first, `msb_arch` not configuring it on import; defaults come
+          before the settings, because reading them already logs.
     """
-    # Configure logging first: msb_arch 0.2.0 no longer configures it on import, so any
-    # record emitted before this line would be swallowed by the package NullHandler.
-    # Defaults come first because reading the settings already logs; the level and the
-    # clear-on-start flag are applied as soon as the settings are known.
+    # Configure logging first: msb_arch does not configure it on import, so a record
+    # emitted before this line is swallowed by the package NullHandler.
     setup_logging(log_file="output.log")
     _startup_settings = PAstroCoreMainWindow.load_settings()
     _startup_level_name = _startup_settings.get("log_level", "INFO")
@@ -1836,24 +1763,18 @@ def main() -> None:
     _warm_coordinate_tables()
 
     app = QApplication(sys.argv)
-    # One palette, generated from the tokens in `pastrocore.theme` (U1). 224 `styleSheet`
-    # properties across 24 forms and 131 lines inline here made "what does this application look
-    # like" a question with no answer; a stylesheet answered that and then held the same rule
-    # twice itself. The theme follows the desktop unless the settings say otherwise, and a user's
-    # own sheet still replaces ours whole.
+    # One palette, generated from the tokens in `pastrocore.theme` (U1). It follows the
+    # desktop unless the settings say otherwise, and a user's own sheet still replaces it.
     app.setStyleSheet(load_stylesheet(_startup_settings.get("theme", "system"),
                                       system_is_dark(app)))
     window = PAstroCoreMainWindow(_startup_settings)
     window.show()
-    # Build the deferred operations, and then read the catalogue once, while the user is
-    # looking at the window rather than at the first dialog. Deriving the catalogue parses the
-    # source of every registered Super, which is 550 ms for the calculator alone; MSB keeps the
-    # answer, so every dialog afterwards costs milliseconds.
+    # Build the deferred operations and read the catalogue once, here rather than in the
+    # first dialog: parsing every registered Super is 550 ms, and MSB keeps the answer.
     threading.Thread(target=window._warm_manipulator, name="warm-operations",
                      daemon=True).start()
-    # After the window is up, never from the constructor. A modal dialog raised before there
-    # is a window to own it blocks with nothing on screen to dismiss it -- which is how the
-    # build hung for ten minutes once already, and why a test forbids it.
+    # After the window is up, never from the constructor: a modal dialog raised before
+    # there is a window to own it blocks with nothing on screen to dismiss it.
     QtCore.QTimer.singleShot(0, window._offer_abandoned_sessions)
     sys.exit(app.exec())
 

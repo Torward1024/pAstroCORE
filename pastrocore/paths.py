@@ -49,8 +49,7 @@ def is_shipped(path: str) -> bool:
     """Report whether a path is in the folder the application's own catalogues are in.
 
     Notes:
-        - That folder is part of the install: an upgrade replaces it and an install may not be
-          writable at all, so a catalogue there is read and never written.
+        - That folder is part of the install, so a catalogue there is read and never written.
     """
     return bool(path) and Path(portable(path)).resolve().parent == CATALOGS.resolve()
 
@@ -59,8 +58,7 @@ def user_catalogs() -> Path:
     """Return the folder a catalogue the user edited is saved to, creating it.
 
     Notes:
-        - Beside the settings, so an upgrade that replaces the shipped catalogues leaves the
-          user's own alone.
+        - Beside the settings, so an upgrade replacing the shipped catalogues leaves it.
     """
     folder = data_home() / "catalogs"
     folder.mkdir(parents=True, exist_ok=True)
@@ -99,10 +97,7 @@ def portable(path: str) -> str:
         str: The same path with separators the running platform understands.
 
     Notes:
-        - Settings are saved with the separator of whichever platform wrote them, and the file
-          the repository shipped was written on Windows. On Linux `catalogs\sources.dat` is not
-          a directory and a file: it is one filename containing a backslash, so the catalogs
-          silently failed to load.
+        - Settings are saved with the separator of whichever platform wrote them.
     """
     return os.path.normpath(path.replace("\\", "/")) if path else path
 
@@ -118,9 +113,8 @@ def existing_or_shipped(path: str, name: str) -> str:
         str: A path to a file that exists, unless nothing does.
 
     Notes:
-        - A settings file records absolute paths, so an install that moves invalidates them.
-          Starting with empty catalogues and one line in the log is how that used to present,
-          and it looks like data loss rather than like a stale setting.
+        - A settings file records absolute paths, so an install that moves invalidates them;
+          empty catalogues and a line in the log look like data loss.
     """
     resolved = portable(path)
     if resolved and Path(resolved).is_file():

@@ -31,10 +31,7 @@ def seconds(length: float) -> str:
     """Return a length of time as either format writes one: whole where it is whole.
 
     Notes:
-        - `int(round(...))` was what both writers did, and a scan of four tenths of a second
-          went to a correlator as `0 sec` -- a scan that records nothing, written as a fact.
-          Both formats accept a real number of seconds; a length that is not whole is written
-          as what it is.
+        - Both formats accept a real number of seconds; rounding writes a short scan as `0`.
     """
     value = float(length)
     return f"{int(round(value))}" if abs(value - round(value)) < 1e-9 else f"{value:g}"
@@ -60,9 +57,8 @@ class Skeleton(NamedTuple):
             the file has the shape in front of them.
 
     Notes:
-        - **A report is made of these**, so a block cannot be written empty and go unreported,
-          or reported and not written. Both formats had their own copy of this and CFX's report
-          then named its blocks in string literals a second time.
+        - A report is made of these, so a block cannot be written empty and go unreported,
+          or reported and not written.
     """
 
     block: str
@@ -111,8 +107,7 @@ def bands_of(scan) -> Tuple[Any, ...]:
     """Return a scan's active bands, ordered by frequency.
 
     Notes:
-        - Ordered rather than as the scan happens to hold them, so two scans with the same
-          setup written differently are one mode, and so a file written twice is the same file.
+        - Ordered, so two scans with one setup are one mode and a file written twice matches.
     """
     return tuple(sorted((band for band in scan.frequencies if band.isactive),
                         key=lambda band: (band.frequency, band.name)))
@@ -142,9 +137,8 @@ def collect_modes(scans: Sequence) -> List[Mode]:
     """Return the distinct frequency setups a set of scans uses, in a stable order.
 
     Notes:
-        - Numbered `MODE01` upwards. A generated name rather than a derived one: a setup of
-          four bands has no short name that is both readable and unique, and the comment above
-          each `def` says what it holds.
+        - Numbered `MODE01` upwards: a setup of four bands has no short name that is both
+          readable and unique, and the comment above each `def` says what it holds.
     """
     modes: List[Mode] = []
     seen = set()
@@ -163,12 +157,7 @@ def polarization_for(letter: str) -> Optional[str]:
     """Return the model's name for a polarization letter, or None for one it cannot hold.
 
     Notes:
-        - The inverse of `letter_for`, in one place. Both readers carried their own copy, and
-          both dropped a letter they did not know without a word: a VEX or CFX file of linear
-          feeds, `X` and `Y`, came in with no polarization at all and nothing said so. A caller
-          names what this returns None for, as it names every other thing it reads past.
-        - `X` and `Y` are held as themselves, not as `H` and `V`: a linear feed's orientation is
-          the station's, and equating them would put a plausible wrong answer in the model.
+        - `X` and `Y` are held as themselves, not as `H` and `V`; a caller names a None.
     """
     wanted = (letter or "").strip().upper()
     return next((name for name, spelled in POLARIZATION_LETTERS.items() if spelled == wanted), None)
@@ -178,8 +167,7 @@ def letter_for(polarization: str, unknown: str = "") -> str:
     """Return a polarization in the letter both formats use, or `unknown` if the model is silent.
 
     Notes:
-        - A band with no polarization at all is legal in this model and means nothing was
-          entered. Writing an empty field would read as an answer.
+        - A band with no polarization means nothing was entered, not an answer.
     """
     if not polarization:
         return unknown
@@ -203,19 +191,12 @@ def build_observation(read: dict, *, code: str = None):
         ValueError: If nothing usable was read.
 
     Notes:
-        - **One builder for both formats**, because both readers answer in the same shape. A
-          second one would be a second place for a scan to end up pointing at a source that is
-          not in the observation.
+        - One builder for both formats, both readers answering in the same shape, so a scan
+          cannot end up pointing at a source that is not in the observation.
         - What a reader passed over is passed over here too (V6): the hardware and the session
-          are not this model's, an export leaves them for the station and the correlator to
-          fill, and importing them would be carrying something nothing here can use or check.
-        - **A scan this model refuses is named rather than forced in.** The ones that fit are
-          imported and the rest are reported, so a partial reading is never mistaken for a
-          whole one.
-        - And a scan that is *reduced* is named too. A scan naming five stations of which two
-          the file never defines came in with three, in silence; only the case where none of
-          them was defined was reported. The same for a band a scan names and the file's modes
-          do not describe.
+          are not this model's, and nothing here could use or check them.
+        - A scan this model refuses, or takes in reduced, is named rather than forced in, so a
+          partial reading is not mistaken for a whole one.
     """
     from pastrocore.base.observation import Observation
 
@@ -237,9 +218,8 @@ def build_observation(read: dict, *, code: str = None):
     sources = observation.get_sources()
     for entry in read.get("sources", {}).values():
         if "ra_degrees" in entry:
-            # CFX states a position in degrees; the model keeps hours and arcseconds, and
-            # already knows how to convert. Built at zero and then set, so the one conversion
-            # in the model is the one used.
+            # CFX states a position in degrees and the model keeps hours and arcseconds:
+            # built at zero and then set, so the model's own conversion is the one used.
             source = sources.create_source(name=entry["name"])
             source = sources.get(entry["name"])
             source.set_ra_degrees(float(entry["ra_degrees"]))

@@ -113,10 +113,8 @@ def _sub_bands(bands: Sequence[IF]) -> List[float]:
     """Return the lower edge of every recorded piece of spectrum, for `[$OUTPAR]`.
 
     Notes:
-        - The example lists `IF = 4812.00` and `IF = 4828.00` for one band at 4828 MHz with
-          both sidebands: the two 16 MHz halves it covers. Asked of `IF.band_of` one sideband
-          at a time, so this does not become a second place that decides which way a sideband
-          runs.
+        - The example lists `IF = 4812.00` and `IF = 4828.00` for one 4828 MHz band with both
+          sidebands: the halves it covers, asked of `IF.band_of` one sideband at a time.
     """
     edges = []
     for band in bands:
@@ -135,12 +133,10 @@ def _station_section(telescope: Telescope, mode: _Mode) -> List[str]:
     """Return one `[$TLSC]`: where the station is, or where its orbit file is, and what it records.
 
     Notes:
-        - **A space telescope has no `TLSC_PAR` and does have an `ORB_FILE`**, which is exactly
-          how the example writes RadioAstron. It is the reason this format suits this model:
-          nothing has to be pretended about a station that moves.
+        - A space telescope has no `TLSC_PAR` and does have an `ORB_FILE`, which is how the
+          example writes RadioAstron and why this format suits this model.
         - `TLSC_PAR` is positional, so a field this model does not carry is written blank and
-          named in the comment above it. A velocity of zero would be a claim that a station is
-          tectonically fixed, and the model defaults it to zero.
+          named in the comment above it, a zero velocity being a claim of its own.
     """
     lines = ["[$TLSC]",
              f"{INDENT}name = {telescope.name}",
@@ -333,10 +329,8 @@ def _one_file(observation: Observation, experiment: str, mode: _Mode, scans: Seq
 
 # --- reading one back (V5, V6) --------------------------------------------------------------
 
-#: What this model holds of a CFX file. Everything else -- the recorded data, the delay model,
-#: the clock, the correlator's settings -- is read past, for the same reason an export leaves
-#: those lines commented: they are not a scheduler's, and carrying them would be carrying
-#: something nothing here can use or check.
+#: What this model holds of a CFX file. The recorded data, the delay model, the clock and
+#: the correlator's settings are read past: nothing here can use or check them.
 MODELLED_KEYS = ("name", "iam_name", "TLSC_PAR", "ORB_FILE", "IF", "RA", "DEC", "EPOCH",
                  "start", "source", "telescopes")
 
@@ -351,9 +345,8 @@ def read_sections(text: str) -> List[Tuple[str, List[Tuple[str, str]]]]:
     """Return `[(section, [(key, value), ...]), ...]`, comments dropped.
 
     Notes:
-        - `#` starts a comment, and a commented `IF` line is not a channel: that is exactly how
-          the K-band example writes a receiver whose polarizations were swapped, so reading one
-          as a channel would put two extra channels into an observation.
+        - `#` starts a comment, and a commented `IF` line is not a channel: that is how the
+          K-band example writes a receiver whose polarizations were swapped.
     """
     found: List[Tuple[str, List[Tuple[str, str]]]] = []
     section, pairs = None, []
@@ -414,13 +407,10 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
         ValueError: If the text is not CFX, or holds no scans.
 
     Notes:
-        - **A station with an `ORB_FILE` and no `TLSC_PAR` comes back a space telescope**, which
-          is the shape this model has and VEX has not. It is what makes a CFX file worth reading
-          here at all.
-        - A band is rebuilt from its `IF` lines: same sky frequency, one entry, with the
-          sidebands and polarizations they name. The bandwidth is not in the file -- CFX states
-          the sub-band edges in `[$OUTPAR]` instead -- so it is taken from the gap between them
-          when there is one, and left at the model's default when there is not.
+        - A station with an `ORB_FILE` and no `TLSC_PAR` comes back a space telescope, which
+          is the shape this model has and VEX has not.
+        - A band is rebuilt from its `IF` lines; the bandwidth is not in the file, so it is
+          taken from the gap between the `[$OUTPAR]` sub-band edges, or left at the default.
     """
     sections = read_sections(text)
     if not sections:
@@ -443,9 +433,8 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
 
     telescopes, sources, bands, scans, seen = {}, {}, {}, [], set()
     if spacing is None:
-        # **A bandwidth CFX never states.** `[$OUTPAR]` gives the sub-band edges and the gap
-        # between two of them is the width; with one edge there is no gap, and the model's
-        # default is a guess rather than a reading. Named, so it is not mistaken for a fact.
+        # CFX never states a bandwidth: `[$OUTPAR]` gives the sub-band edges and the gap
+        # is the width. With one edge there is no gap, and the default is named as a guess.
         seen.add("[$outpar] bandwidth: not stated, and no sub-band gap to take it from")
     experiment = ""
     for name, pairs in sections:

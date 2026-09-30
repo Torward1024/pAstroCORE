@@ -40,13 +40,8 @@ def split(line: str) -> List[str]:
     """Split a typed line into words, keeping quoted text together.
 
     Notes:
-        - A backslash is kept as it is: on Windows it is how a path is written, and a shell's
-          escape character would have turned `C:\\data\\re03fr.vex` into `C:datare03fr.vex`.
-        - **`#` is an address, not a comment.** `OBS001/scans/#3` is how a person names the
-          third scan -- a scan's own name is a UUID -- and the shell prints that syntax in its
-          own help, while a POSIX lexer dropped everything from the `#` onwards: the line
-          arrived as `inspect OBS001/scans/` and answered about the container. A request is
-          data; there is nothing in it for a comment to be.
+        - A backslash is kept as it is: on Windows it is how a path is written.
+        - `#` is an address, not a comment: `OBS001/scans/#3` names the third scan.
     """
     lexer = shlex.shlex(line, posix=True)
     lexer.whitespace_split = True
@@ -89,9 +84,8 @@ def locate(manipulator, address: str) -> Any:
     """Return the object at an address, or refuse with what the backend said is there.
 
     Notes:
-        - A misspelt address is expected here, and what the backend says about it is printed as
-          the refusal. msb_arch also logs every failed request, which put the same sentence on the
-          screen twice -- and in the shell, across the prompt -- so it is quiet for this question.
+        - A misspelt address is expected here, and what the backend says is printed as the
+          refusal; msb_arch is kept quiet for this question, or it is said twice.
     """
     framework = logging.getLogger("msb_arch")
     level = framework.level
@@ -126,9 +120,8 @@ def check(manipulator, operation: str, address: str, attributes: Dict[str, Any])
     """Refuse a request that cannot work, before it is sent, and return the object it is about.
 
     Notes:
-        - A request that names what the object does not have is not a failure of the request: it
-          is a typo, and the useful answer is what was meant. The nearest spelling is offered,
-          and what there is.
+        - A request naming what the object does not have is a typo rather than a failure: the
+          nearest spelling is offered, and what there is.
     """
     described = manipulator.describe_operations()
     if operation not in described:
@@ -237,9 +230,8 @@ def _abridged(value: Any, rows: int) -> Any:
     """Shorten every table in an answer to its size and first rows, however deep it sits.
 
     Notes:
-        - A result comes back as `{"data": <table>, "metadata": {...}}`, and a day of sampling is
-          thousands of rows: printed whole it scrolls the question off the screen. `--json` is
-          what gives all of it.
+        - A day of sampling is thousands of rows, and printed whole it scrolls the question
+          off the screen. `--json` is what gives all of it.
     """
     if hasattr(value, "to_dicts") and hasattr(value, "height"):
         return {"rows": value.height, "columns": list(value.columns),

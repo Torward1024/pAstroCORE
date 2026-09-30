@@ -162,12 +162,6 @@ def long_paragraphs(path) -> list:
 #: down, and a module that owes nothing comes off the list -- a stale entry would make the
 #: ledger look like progress that has not happened.
 OWED = {
-    "app.py":                                 46,
-    "cli.py":                                 6,
-    "cli_request.py":                         5,
-    "formats/__init__.py":                    14,
-    "formats/cfx.py":                         8,
-    "formats/vex.py":                         24,
     "gui/icon_theme.py":                      2,
     "gui/p_custom_model.py":                  9,
     "gui/p_dialog_about.py":                  1,
@@ -202,10 +196,6 @@ OWED = {
     "gui/p_tab_vis_spacecraft.py":            4,
     "gui/p_tab_vis_uv_coverage.py":           2,
     "gui/p_table_models.py":                  3,
-    "paths.py":                               5,
-    "theme.py":                               4,
-    "utils/catalogmanager.py":                10,
-    "utils/machine.py":                       1,
 }
 
 #: The same, for the markdown.

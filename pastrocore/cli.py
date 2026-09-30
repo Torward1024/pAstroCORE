@@ -66,10 +66,8 @@ def _open_to_save(path: str) -> ScheduleProject:
         SystemExit: For a package, before anything is calculated.
 
     Notes:
-        - A package can be read anywhere a project can, but it cannot be saved over: saving
-          writes a directory, and the package is a file. `run` calculated everything, then
-          failed with `FileExistsError` and a traceback on the save, and every result it had
-          just produced was gone. Refused first, with what to do instead.
+        - A package can be read anywhere a project can but cannot be saved over, saving writing
+          a directory. Refused first, with what to do instead, rather than after a run.
     """
     if Path(path).is_file() and zipfile.is_zipfile(path):
         raise SystemExit(f"'{path}' is a package, and this command saves the project back to "
@@ -196,13 +194,10 @@ def _slice(pairs: Optional[List[str]]) -> dict:
     """Turn `--where telescope_code=ALMA time=61262:61263` into a filter.
 
     Notes:
-        - `a=b` is a value, `a=b,c` is a set of them, and `a=x:y` is a range with either end
-          allowed to be empty. Nothing here knows which columns exist -- the analyzer refuses
-          one it does not have, and `analyze describe` is what lists them.
-        - **An end of a range is handed over as it was typed when it is not a number.** A
-          moment is stored as an MJD and written by people as a date, and the analyzer reads
-          both -- that conversion is the model's. `float()` here refused a date with a
-          traceback instead of the refusal every other mistake gets.
+        - `a=b` is a value, `a=b,c` a set of them and `a=x:y` a range with either end allowed
+          to be empty; nothing here knows the columns, and `analyze describe` lists them.
+        - An end of a range is handed over as typed where it is not a number: a moment is
+          stored as an MJD and written as a date, and reading both is the model's.
     """
     def end(text: str):
         text = text.strip()
@@ -333,9 +328,8 @@ def vex(arguments) -> int:
     """Write a schedule as VEX, and print what the file leaves for a station to finish.
 
     Notes:
-        - The outstanding blocks are printed every time rather than behind a flag. A VEX file
-          this writes is complete in shape and partial in content by design, and a command that
-          said only "written" would be hiding the half that matters.
+        - The outstanding blocks are printed every time rather than behind a flag: the file is
+          complete in shape and partial in content by design.
     """
     project = _open(arguments.project)
     manipulator = ScheduleManipulator(project, journal_limit=None)
@@ -475,10 +469,9 @@ def ask(arguments) -> int:
     """Send one request, typed as `<operation> <address> key=value`, and print the answer.
 
     Notes:
-        - **What changes the project is saved** back to where it came from, as `run` and `replay`
-          are; what reads, or reads and writes a file, leaves the project alone. `--dry-run`
-          sends a change and saves nothing.
-        - A package is refused before a change is sent, not after: it cannot be saved over.
+        - What changes the project is saved back to where it came from, as `run` and `replay`
+          are; what reads leaves it alone, and `--dry-run` sends a change and saves nothing.
+        - A package is refused before a change is sent: it cannot be saved over.
     """
     from pastrocore import cli_request
 

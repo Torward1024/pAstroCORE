@@ -6,9 +6,8 @@ stay in hand from what the machine has free, and the window's status bar says wh
 using -- and both would otherwise carry their own `import psutil` and their own fallback.
 
 Notes:
-    - **A guess rather than a refusal.** psutil is a declared dependency; if a stripped environment
-      lacks it, reporting a conservative number is better than an import error, because neither
-      caller is doing anything that depends on the number being right.
+    - A guess rather than a refusal: psutil is a declared dependency, and where it is missing
+      a conservative number serves both callers better than an import error.
 """
 from msb_arch.utils.logging_setup import logger
 
