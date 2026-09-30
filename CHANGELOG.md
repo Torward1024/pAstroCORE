@@ -1785,8 +1785,8 @@ coincidence.
 
 - **A test suite, where there was none.** 161 tests. The characterization suite clears the
   eleven results a saved project holds, recomputes them, and compares the numbers -- so a
-  change to any formula fails the build. The reference needed no separate file: the project
-  the author saved and trusts *is* the reference.
+  change to any formula fails the build. The reference needed no separate file: the saved
+  project *is* the reference.
 - **CI**, running on push and on every pull request, with Qt offscreen so the GUI smoke tests
   need no display.
 - **A request journal.** Every request the orchestrator processes is recorded, bounded to the

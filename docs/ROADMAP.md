@@ -19,43 +19,9 @@ of what is finished rather than of what is still being changed.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| W1 | **The words, cut down** | Every commit message from 03.08.2026, every docstring and every comment in `pastrocore/`, and every `.md` in the repository rewritten to one house style: short, plain, to the point. What a thing does and why it is that way, in as few words as that takes -- not an essay with a narrative. The style itself is the user's to give, and is written down here before the pass starts, so "shorter" is a rule rather than a taste. **The history is rewritten**, which means a force-push to a branch others may have pulled: it happens in one pass, announced, with the tag objects rewritten with it. Exit: no docstring longer than what it documents, no comment that tells a story, `README`, `CHANGELOG`, `ROADMAP` and `docs/*.md` in the same voice, and the suite green afterwards -- the documentation tests run every code block in those files |
+| W1 | **The words, cut down** | Every commit message from 03.08.2026, every docstring and every comment in `pastrocore/`, and every `.md` in the repository rewritten to one house style: short, plain, to the point. What a thing does and why it is that way, in as few words as that takes -- not an essay with a narrative. The style is fixed before the pass starts, so "shorter" is a rule rather than a taste. **The history is rewritten**, which means a force-push to a branch others may have pulled: it happens in one pass, announced, with the tag objects rewritten with it. Exit: no docstring longer than what it documents, no comment that tells a story, `README`, `CHANGELOG`, `ROADMAP` and `docs/*.md` in the same voice, and the suite green afterwards -- the documentation tests run every code block in those files |
 | D1 | **The documentation, whole** | An astronomer with no Python reaches a VEX file from the manual alone: installing, a first observation from the catalogues, every tab and dialog, calculations and what each plot shows, formats, sessions, the command line, troubleshooting. Screenshots are made by a script from the application, so they are regenerated rather than going stale; every code block runs in the suite, as now; the command-line reference comes from the command line itself. Built as a site in CI and published with each release |
 | I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
-
-#### The style W1 is held to
-
-Given by the author, 30.09.2026, and measured against his own writing: the commit messages
-before 03.08.2026, the docstrings of the same period, and a manuscript he wrote by hand.
-Short, to the point, no stories and no literary epithets.
-
-**Docstrings.** Google style, which is good manners and stays: a one-line summary, then
-`Args`, `Returns`, `Raises`, `Attributes`, and nothing else. The summary is one sentence on
-one line. A docstring is not longer than the body it documents.
-
-**`Notes`, where it is kept at all.** Only what a caller must know to use the thing correctly:
-units, frame, what is modified in place, a bound. At most three points, at most two lines
-each. No dates, no "it used to", no naming of past defects -- git holds the history, and a
-reader of the code is not reading a changelog.
-
-**Comments.** Why, not what, and never what it was before. Two lines at most; more than that
-is either a docstring or nothing.
-
-**Commits.** `DD.MM.YYYY -- What was done.` -- one sentence, past tense, a full stop, 72
-characters. A body only when the change asks something of the reader, and then as a list of
-one-line points, not paragraphs.
-
-**Markdown.** A paragraph is four lines at most and a sentence is one fact. Numbers and units
-wherever there are any. A term is spelled out once with its abbreviation in brackets and is
-the abbreviation afterwards. The changelog says what changed and what to do about it; the
-roadmap says what and the criterion for done. Neither says how it was arrived at.
-
-**Everywhere.** No metaphor, no epithet, no sentence whose work is tone. "A picture read back
-for a boolean" and "the confusing half of both worlds" are both out.
-
-*The scale, measured 30.09.2026:* 8 907 lines of prose in 84 modules -- 7 440 of docstring, of
-which 2 553 are `Notes`, and 1 467 of comment; 3 689 lines of markdown; and 257 commits, 232
-of them with a body, 4 420 lines of it, 179 subjects over 72 characters.
 
 ## Seen in use, and answered
 

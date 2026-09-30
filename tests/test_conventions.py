@@ -690,6 +690,32 @@ def test_a_form_names_the_button_that_does_the_thing():
         f"Give it <property name=\"role\" stdset=\"0\"><string>primary</string></property>.")
 
 
+def test_no_document_names_who_decided():
+    """A document records a decision, not who made it.
+
+    Notes:
+        - "The author", "the user's to give", "as you asked": a reader can act on none of
+          them. The date and the reason are what a decision is recorded with.
+        - `the user` in the code means whoever is using the application, and is left alone.
+    """
+    NAMING = re.compile(r"\bthe author\b|\bthe user's to\b|\bas (?:you|we) asked\b"
+                        r"|\bgiven by (?:the )?(?:author|user|you)\b"
+                        r"|\bthe user (?:asked for|wants|gave|said|chose to|decided)\b"
+                        r"|\bat (?:your|the user's) request\b", re.IGNORECASE)
+
+    offenders = {}
+    for document in [ROOT / "README.md", ROOT / "CHANGELOG.md", *sorted((ROOT / "docs").glob("*.md"))]:
+        found = [number for number, line
+                 in enumerate(document.read_text(encoding="utf-8").splitlines(), 1)
+                 if NAMING.search(line)]
+        if found:
+            offenders[document.relative_to(ROOT).as_posix()] = found
+
+    assert not offenders, (
+        "a document says who decided rather than what was decided:\n  "
+        + "\n  ".join(f"{name}: lines {lines}" for name, lines in offenders.items()))
+
+
 def test_nothing_keeps_its_own_list_of_observation_types():
     """`OBSERVATION_TYPES` is the model's, and its own comment says it is named once so that
     "the annotation and anything that offers a choice read the same list".
