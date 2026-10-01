@@ -13,14 +13,13 @@ start. They land in this order, a stage or an item per release, unless a later o
 earlier one.
 
 **Stages 1 and 2 shipped in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0;
-E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** What is left, in order: fewer words, the manual, and
-then the downloads that need no Python.
+E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** W1 is done and waiting on a release. What is left,
+in order: the manual, and then the downloads that need no Python.
 
 ### Stage 4 -- for anyone to install and use
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| W1 | **The words, cut down** | Every commit message from 03.08.2026, every docstring and every comment in `pastrocore/`, and every `.md` in the repository rewritten to one house style: short, plain, to the point. What a thing does and why it is that way, in as few words as that takes -- not an essay with a narrative. The style is fixed before the pass starts, so "shorter" is a rule rather than a taste. **The history is rewritten**, which means a force-push to a branch others may have pulled: it happens in one pass, announced, with the tag objects rewritten with it. Exit: no docstring longer than what it documents, no comment that tells a story, `README`, `CHANGELOG`, `ROADMAP` and `docs/*.md` in the same voice, and the suite green afterwards -- the documentation tests run every code block in those files |
 | D1 | **The documentation, whole** | An astronomer with no Python reaches a VEX file from the manual alone: installing, a first observation from the catalogues, every tab and dialog, calculations and what each plot shows, formats, sessions, the command line, troubleshooting. Screenshots are made by a script from the application, so they are regenerated rather than going stale; every code block runs in the suite, as now; the command-line reference comes from the command line itself. Built as a site in CI and published with each release |
 | I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
 

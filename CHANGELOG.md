@@ -8,6 +8,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [Unreleased]
+
+W1: the prose cut down to one style. A one-line summary and Google sections in a docstring,
+`Notes` only for what a caller must know, a comment of two lines saying why, a paragraph of
+four. Every docstring and comment in `pastrocore/`, every `.md` in the repository, and every
+commit message from 03.08.2026.
+
+The style is a measure rather than a taste: `tests/test_house_style.py` counts what each file
+owes it, and the number may only go down. 889 places did not meet it when the pass started and
+none do now, so both ledgers are empty and the style is a gate.
+
+**The history was rewritten.** 266 commit messages, each one subject of 72 characters or fewer
+with its own date, and a body of short paragraphs. The 34 tag objects were rewritten with it
+and force-pushed. Every tree is byte for byte what it was, and the releases on GitHub still
+point at their tags.
+
+Found while reading: the README described the stylesheet as a file, which U1 replaced with
+tokens in `pastrocore/theme.py`.
+
 ## [1.17.0] - 2026-09-30
 
 A3, the fifth audit: every module in `pastrocore/` read once against what it is *for*.
