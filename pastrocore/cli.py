@@ -1,11 +1,9 @@
 # cli.py
 """pAstroCORE from a terminal.
 
-The second caller of the backend, and the reason it was built the way it was: everything the
-window does is a request, so this parses arguments, sends the same requests and prints what
-comes back. **Nothing here imports the interface, and nothing imports Qt** -- a test asserts
-both, because a command line that has to reach into a dialog is the window with the pixels
-removed rather than a second caller.
+The second caller of the backend: everything the window does is a request, so this parses
+arguments, sends the same requests and prints what comes back. Nothing here imports the
+interface and nothing imports Qt, which a test asserts.
 
 It holds no knowledge about calculations. What can be run, what each needs, what order they go
 in and what a run did are all asked of the orchestrator, exactly as the dialogs ask.

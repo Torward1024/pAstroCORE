@@ -5,18 +5,15 @@ Split out of `ScheduleData` deliberately. Exporting means getting data *out* of 
 files, pictures, a save; orchestrating calculations is a different concern that had ended up
 there because that is where the plumbing already was.
 
-It cannot live on the calculator either, and that is mechanical rather than a matter of taste:
-a `Super`'s handlers *are* its operation's methods, and the methods of `calculate` are the
-calculations themselves. A `_calculate_run` would appear in the catalogue as a calculation
-called "Run", offered in the dialog beside UV Coverage -- checked, not assumed. So this is a
-third operation, `compute`, and the split is one sentence: **`calculate` does one, `compute`
-orchestrates many, `export` writes the results somewhere.**
+It cannot live on the calculator either: a `Super`'s handlers are its operation's methods,
+and the methods of `calculate` are the calculations, so a `_calculate_run` would appear in the
+catalogue as a calculation called "Run". So this is a third operation: `calculate` does one,
+`compute` orchestrates many, `export` writes the results somewhere.
 
-**The questions are not here.** What can be calculated, in what order, what a session asked and
-whether a file of one checks out, what is stale and what an edit would reach -- none of it changes
-anything, and it was all `compute` until 1.13.0, so a session could not tell a calculation from a
-question by the operation's name. They are `RunQuestions`, below, and `inspect` answers them:
-`ScheduleInspector` inherits them, and so does this class, which asks them of itself while it runs.
+The questions are not here. What can be calculated, in what order, what a session asked,
+what is stale and what an edit would reach change nothing, so they are `RunQuestions` below and
+`inspect` answers them. `ScheduleInspector` inherits them, and so does this class, which asks
+them of itself while it runs.
 
 Nothing here knows about signals, threads or windows. What a caller passes in is at most two
 callables -- one to report progress, one to ask whether to stop -- which is the whole seam a

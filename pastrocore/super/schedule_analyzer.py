@@ -8,12 +8,10 @@ could "what is the longest baseline this project achieves", which is a `max` ove
 
 This is a fifth operation, `analyze`, and it reads results rather than producing them.
 
-**Nothing here names a column or a calculation.** Which results exist, which of their columns
+Nothing here names a column or a calculation. Which results exist, which of their columns
 are numbers, which are categories worth grouping or filtering by, and which are booleans with
-runs in them are all read from the schemas the calculations already declare. A calculation
-added tomorrow can be summarised, sliced and grouped by this without a line changing -- and the
-interface offering those choices is filled from `describe`, so it cannot offer a column that is
-not there or miss one that is.
+runs in them are all read from the schemas the calculations declare. The interface offering
+those choices is filled from `describe`, so it cannot offer a column that is not there.
 
 **Scope.** An operation earns its place here when it answers a question asked *while
 scheduling*: when can I observe, how long for, what does this baseline reach, which station is

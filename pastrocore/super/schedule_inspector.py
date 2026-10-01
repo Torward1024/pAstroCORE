@@ -10,14 +10,12 @@ class ScheduleInspector(AddressQuestions, RunQuestions, DataQuestions, Inspector
     """Implementation of Inspector for inspecting scheduling entities using the Super framework.
 
     Reads, and nothing else. Besides the model's own getters it answers the questions this
-    application asks of itself -- `inspect(method="catalogue")`, `"plan"`, `"history"`, `"check"`,
-    `"stale"`, `"affected"`, `"targets"`, `"order"` from `RunQuestions`, and `"available"`,
-    `"distinct"`, `"scan_times"`, `"unsaved"` from `DataQuestions` -- which were `compute` and
-    `export` until 1.13.0, so a session could not tell a question from a change by its operation.
+    application asks of itself: `catalogue`, `plan`, `history`, `check`, `stale`, `affected`,
+    `targets` and `order` from `RunQuestions`, and `available`, `distinct`, `scan_times` and
+    `unsaved` from `DataQuestions`.
 
-    Provides methods to inspect astronomical scheduling entities (IF, Frequencies, Source, Sources,
-    Telescope, SpaceTelescope, Telescopes, Scan, Scans, Observation, ScheduleProject) by invoking
-    their getter methods. Returns the result of a final method (e.g., get, get_code) in the response dictionary.
+    Every getter of every entity is reachable, and the result of the final method -- `get`,
+    `get_code` -- is what the response carries.
 
     Args:
         manipulator: The Manipulator instance for method lookup and validation.

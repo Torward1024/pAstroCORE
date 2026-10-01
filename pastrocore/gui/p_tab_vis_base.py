@@ -3,9 +3,8 @@
 
 Nine tabs, about 2500 lines, each with the same nine methods: populate the filters, lock the
 interface while drawing, clear the canvas, embed a figure, read the selection, redraw when it
-changes, clean up on close. **No two of those methods were byte-identical**, which is why this
-was a rewrite rather than a lift -- they were nine parallel variations, and the differences
-that mattered were buried among the differences that did not.
+changes, clean up on close. No two of them were byte-identical, which is why this was a rewrite
+rather than a lift.
 
 What actually varies is four things, and each is now a declaration:
 

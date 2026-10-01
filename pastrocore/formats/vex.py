@@ -3,9 +3,8 @@
 
 VEX is what stations and most correlators read, and it asks for more than a scheduling model
 can honestly answer: which recorder is in the rack, which baseband converter a channel goes
-through, how many tracks the fan-out uses. Those are facts about a station *this week*, they are
-not published anywhere central, and a scheduling tool that invented them would be writing a file
-that looks right and is not -- the correlator would take it.
+through, how many tracks the fan-out uses. Those are facts about a station this week, and a
+tool that invented them would write a file that looks right and is not.
 
 **So the shape stays and the claims do not.** Every block the format calls for is written. What
 this model knows carries real values; what it cannot know is an empty field or a `def` whose

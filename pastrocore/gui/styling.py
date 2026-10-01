@@ -1,17 +1,13 @@
 """The look of the window: generated from the tokens, with a user's own file still winning.
 
-224 `styleSheet` properties across 24 forms and 131 lines written inline in `app.main` made
-"what does this application look like" a question with no answer -- and copying a form was how
-a second variant of a rule came to exist, which is why 38 spin boxes were styled two different
-ways. `pastrocore.qss` answered that, and then held the same rule twice itself: `QMenuBar`,
-`QMenu`, `QTableView` and `QLineEdit` were each written out in two places, saying different
-things.
+224 `styleSheet` properties across 24 forms and 131 lines inline in `app.main` made "what
+does this application look like" a question with no answer. A hand-written `pastrocore.qss`
+answered it and then held `QMenuBar`, `QMenu`, `QTableView` and `QLineEdit` twice each, saying
+different things.
 
-**Nothing is written by hand now** (U1). `pastrocore.theme` holds the tokens; this module turns
-them into the sheet Qt is given, and writes out the handful of pictures a style sheet cannot
-draw for itself -- the arrows of a spin box, the tick of a checkbox, the month arrows of a
-calendar. A user may still keep their own sheet beside their settings, and it replaces ours
-whole.
+Nothing is written by hand now (U1). `pastrocore.theme` holds the tokens; this module turns
+them into the sheet Qt is given, and writes out the pictures a style sheet cannot draw for
+itself. A user may still keep their own sheet beside their settings, and it replaces this one.
 """
 import pathlib
 

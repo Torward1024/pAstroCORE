@@ -1,11 +1,9 @@
 # super/schedule_format.py
 """What writing a schedule out and reading one back have in common, written once.
 
-`ScheduleVEX` and `ScheduleCFX` are one `Super` per format, and they should be: one format is
-fifteen blocks of nested definitions and the other is flat sections, and neither has anything
-to teach the other about its own syntax. What they *do* share is the request they answer -- what
-a `path` means, what a project is against one observation, what a report of several files adds
-up to, and what it means to read a file into a project.
+`ScheduleVEX` and `ScheduleCFX` are one `Super` per format, and should be: neither syntax has
+anything to teach the other. What they share is the request they answer -- what a `path` means,
+what a project is against one observation, what a report of several files adds up to.
 
 That part sat in both classes, identically, and this is where it lives instead. The formats
 keep their vocabulary; the door keeps its shape.

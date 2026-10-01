@@ -1,11 +1,9 @@
 # paths.py
 """Where the application's own files are, wherever it was started from.
 
-Every path here used to be relative to the working directory. In a checkout that is the
-repository and everything is found; installed with `pip install .` and started from anywhere
-else, `catalogs/sources.dat` names nothing and `settings.pastro` is written into whichever
-directory the user happened to be in -- so the catalogs come up empty and the settings are lost
-the next time they start from somewhere else.
+A path relative to the working directory resolves in a checkout and nowhere else: installed
+with `pip install .` and started from elsewhere, `catalogs/sources.dat` names nothing and
+`settings.pastro` is written wherever the user happened to be.
 
 Two kinds of file, and they belong in different places:
 

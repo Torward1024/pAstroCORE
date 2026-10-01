@@ -5,27 +5,21 @@ previous numbers, unchanged and without a word. A cached result was keyed by its
 alone, so nothing about what it had been computed from was ever compared against what was
 there now.
 
-The whole answer needs two halves, and neither works without the other. A hash notices that
-something changed but not what depends on it; a dependency graph knows what depends on what but
-not whether anything moved. What makes the useful part reachable now, without MSB's graph, is
-that **each calculation already knows what it reads**. `beam_pattern` does not look at scans;
-`times` does not look at telescopes. So each result declares what it reads, in its own schema
-beside its columns and dtypes, and the hash is taken over that subset rather than over the
-whole observation.
+The whole answer needs two halves: a hash notices that something changed but not what
+depends on it, and a dependency graph knows what depends on what but not whether anything moved.
 
-The declaration lives in the schema on purpose. A table in this module would be a second file
-to remember when a calculation is added, and forgetting it fails quietly -- a result that
-depends on everything looks stale whenever anything is edited. A calculation cannot be added
-without a schema entry, so that is where the declaration belongs, and a test refuses a schema
-that does not carry one.
+What makes the useful half reachable without MSB's graph is that each calculation already knows
+what it reads -- `beam_pattern` does not look at scans. Each result declares that in its own
+schema, and the hash is taken over that subset rather than over the whole observation.
 
-**Where this ends up.** The machinery here is not specific to radio astronomy: fingerprint the
-inputs, stamp the result, compare on read, answer in three values. That belongs in MSB
-eventually, beside the dependency graph of P1 -- which needs the same declaration to know what
-a change invalidates and to know which calculations may run at once. What is specific is only
-the vocabulary: "telescopes", "sources", "scans", "frequencies" are this model's parts. It is
-built here rather than there because putting half a mechanism into MSB before P1 is designed
-would leave the graph to be built around a shape chosen for a smaller problem.
+The declaration lives in the schema on purpose. A table in this module would be a second
+file to remember when a calculation is added, and forgetting it fails quietly. A calculation
+cannot be added without a schema entry, and a test refuses one that carries no declaration.
+
+The machinery here is not specific to radio astronomy -- fingerprint the inputs, stamp the
+result, compare on read, answer in three values -- and belongs in MSB eventually, beside the
+dependency graph of P1, which needs the same declaration. What is specific is the vocabulary:
+telescopes, sources, scans and frequencies are this model's parts.
 
 That is what keeps this from being unbearable. Hashing everything would mark every result stale
 whenever anything at all was edited, and "everything" would then be the only thing left to

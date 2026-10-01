@@ -66,6 +66,21 @@ def prose_of(text: str) -> int:
     return sum(1 for line in prose_lines(text) if line.strip())
 
 
+def paragraph_lines(text: str) -> list:
+    """Return a docstring's prose, numbered, with what is not prose blanked out.
+
+    Notes:
+        - An example indented under a sentence is a code block, and a row of `|` is a table.
+          Neither is a paragraph, and holding them to four lines would say to cut an example.
+    """
+    kept = prose_lines(text)
+    body = [len(line) - len(line.lstrip()) for line in kept[1:] if line.strip()]
+    margin = min(body) if body else 0
+    return [(number, "" if line.lstrip().startswith("|")
+             or len(line) - len(line.lstrip()) >= margin + 4 else line)
+            for number, line in enumerate(kept, 1)]
+
+
 def over_a_paragraph(lines) -> list:
     """Return the line of each paragraph that runs past `PARAGRAPH` lines.
 
@@ -109,7 +124,7 @@ def _docstring_faults(node, found):
     summary = text.strip().splitlines()[0]
     if len(summary) > SUMMARY:
         found.append(f"line {where}: a summary of {len(summary)} characters")
-    for _ in over_a_paragraph(enumerate(prose_lines(text), 1)):
+    for _ in over_a_paragraph(paragraph_lines(text)):
         found.append(f"line {where}: a paragraph over {PARAGRAPH} lines")
     if not summary.rstrip().endswith((".", "?", ":")):
         found.append(f"line {where}: a summary with no full stop")
@@ -188,26 +203,7 @@ def long_paragraphs(path) -> list:
 
 #: What each module still owes. A number may only go down, and a module that owes nothing comes
 #: off the list -- a stale entry would make the ledger look like progress that has not happened.
-OWED = {
-    "base/freshness.py":              3,
-    "base/result_store.py":           1,
-    "base/scratch.py":                1,
-    "cli.py":                         2,
-    "formats/cfx.py":                 1,
-    "formats/vex.py":                 1,
-    "gui/p_tab_analysis.py":          1,
-    "gui/p_tab_vis_base.py":          2,
-    "gui/styling.py":                 2,
-    "paths.py":                       1,
-    "super/schedule_address.py":      1,
-    "super/schedule_analyzer.py":     1,
-    "super/schedule_configurator.py": 1,
-    "super/schedule_format.py":       1,
-    "super/schedule_inspector.py":    1,
-    "super/schedule_runner.py":       2,
-    "super/schedule_vex.py":          1,
-    "theme.py":                       1,
-}
+OWED = {}
 
 #: The same, for the markdown.
 PARAGRAPHS_OWED = {

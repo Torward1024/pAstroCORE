@@ -1,11 +1,10 @@
 # gui/p_tab_analysis.py
 """The analysis tab: ask something of results that have already been calculated.
 
-**It holds no list of anything.** Which results exist, which of their columns are numbers,
-which are categories worth slicing by, which values those categories actually take, and which
-results have a true-or-false column with runs in them are all answered by
-`analyze(method="describe")`. A calculation added tomorrow appears here with its own columns
-and nobody edits a combo box.
+It holds no list of anything: which results exist, which of their columns are numbers or
+categories, which values those take, and which have a true-or-false column with runs in them
+are all answered by `analyze(method="describe")`. A calculation added tomorrow appears here
+with its own columns.
 
 The layout is `tab_analysis.ui`, like every other form. What the form cannot hold is the
 *contents* of those boxes -- they exist only once a project has been calculated -- and the

@@ -2,10 +2,8 @@
 """One palette, from which the window and the plots are both drawn (U1).
 
 Before this, "what does this application look like" had two answers that did not know about
-each other: `gui/pastrocore.qss`, assembled out of the 224 inline `styleSheet` properties it
-replaced -- with `QMenuBar`, `QMenu`, `QTableView` and `QLineEdit` each written twice, saying
-different things -- and a `_style_config` inside the visualizer holding its own colours. A
-colour was changed in two places, or in one and a half.
+each other: a hand-written `gui/pastrocore.qss` and a `_style_config` inside the visualizer
+holding its own colours. A colour was changed in two places, or in one and a half.
 
 **Everything here is a token.** A palette per theme, one type scale, one set of spacings and
 radii; the stylesheet and the matplotlib style are both generated from them, so a colour is

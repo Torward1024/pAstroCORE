@@ -1,11 +1,9 @@
 # super/schedule_vex.py
 """VEX as an operation.
 
-`manipulator.vex(obj=observation, method="export", path=...)`. The operation is the format and
-the method is what is being done to it, which is why it is a noun where the others are verbs:
-writing a VEX file, reading one back and checking one against a parser are three things done to
-the same contract, and they belong together rather than scattered across `export`, `load` and
-`compute`.
+`manipulator.vex(obj=observation, method="export", path=...)`. The operation is the format
+and the method is what is done to it, which is why it is a noun where the others are verbs:
+writing a file, reading one back and checking one belong to the same contract.
 
 **One `Super` per format.** VEX and CFX share the sentence "a file for a correlator" and nothing
 else -- one is fifteen blocks of nested definitions, the other is flat sections -- so there is

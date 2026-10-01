@@ -1,11 +1,8 @@
 """Where calculated results live before a project is saved.
 
-A result used to be held in memory and marked unwritten until somebody pressed save. That was
-true whether or not the project had a directory: a project never saved had nowhere to write,
-and a project opened from a directory still did not write a freshly computed result until the
-next save. In both, the result was on no disk and counted zero bytes against the residency
-ceiling -- so a session was unprotected *and* ungoverned, and a day of calculation was lost to
-a crash, a power cut or the memory running out.
+A result held in memory until somebody pressed save was on no disk and counted zero bytes
+against the residency ceiling: a session was unprotected and ungoverned at once, and a day of
+calculation was lost to a crash, a power cut or the memory running out.
 
 A scratch directory is where they go instead. One per running session, because two windows must
 not adopt and evict each other's results -- and because the same rule is what lets a server run

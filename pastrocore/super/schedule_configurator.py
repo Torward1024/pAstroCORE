@@ -90,11 +90,8 @@ class ScheduleConfigurator(Configurator):
     def _generate_observations(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Generate observations for the project based on provided attributes.
 
-        Creates unique copies of Sources, Telescopes, Frequencies, and Scans for each observation.
-        Scans use the source, telescopes, and frequencies from the created Observation object.
-        Supports parallel (all observations start at the same time) or sequential (one after another) modes.
-        Uses fixed interval between scan groups (on+off pairs or single scans).
-        Emits progress updates via an optional callback function.
+        Each observation gets its own copies of the sources, telescopes, frequencies and
+        scans, and its scans point at those copies rather than at what was passed in.
 
         Args:
             project_obj (ScheduleProject): The project to add observations to.
@@ -114,7 +111,12 @@ class ScheduleConfigurator(Configurator):
                 - progress_callback (Callable, optional): Callback to report progress (value, message).
 
         Returns:
-            Dict[str, Any]: Dictionary with status, result (list of observation codes), and message or error.
+            Dict[str, Any]: `status`, `result` -- the observation codes made -- and a `message`.
+
+        Notes:
+            - Parallel starts every observation at the same time; sequential runs them one
+              after another, at a fixed interval between scan groups.
+            - Progress is reported through `progress_callback` where one is given.
         """
         generated_codes = []
         try:

@@ -6,12 +6,10 @@ CFX carries a subset of what VEX carries, in a syntax of its own: flat `[$SECTIO
 has not -- **a space telescope is an ordinary station with an orbit file**, which is the shape
 this model already has and `sched` does not.
 
-The same rule as the VEX writer, for the same reason: every section the format calls for is
-written, what the model knows carries real values, and what it cannot know is a blank field or
-a commented-out line annotated with what belongs there. A CFX file is finished during
-correlation, and rather more of it than a VEX file is -- the recorded data, the clock offsets
-measured after the fact, the `TIMEOFS` figures that come out of the delay model, the correlator
-output settings. None of that is a scheduler's to write and all of it is named.
+The same rule as the VEX writer: every section the format calls for is written, what the
+model knows carries real values, and what it cannot know is a blank field or a commented-out
+line annotated with what belongs there. More of a CFX file than of a VEX file is finished
+during correlation, and none of that is a scheduler's to write.
 
 **One file per frequency setup.** The two examples this was written against are one experiment
 in C band and in K band, as two files, with `[$OUTPAR]` naming the sub-bands of that file's
