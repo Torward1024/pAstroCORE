@@ -1,10 +1,9 @@
 """What the prose in this repository is held to, counted rather than judged (W1).
 
-Every docstring, comment and `.md` is being cut down to one style: a one-line summary, Google
-sections and nothing else; `Notes` only for what a caller must know; a comment of two lines
-saying why. 889 places did not meet it when this was written, so the rule is a ledger rather
-than a gate -- each module owes a number, the number may only go down, and a module that owes
-nothing comes off the list.
+Every docstring, comment and `.md` is held to one style: a one-line summary, Google sections and
+nothing else; `Notes` only for what a caller must know; a comment of two lines saying why; a
+paragraph of four. The rule is a ledger rather than a gate -- each file owes a number, the
+number may only go down, and a file that owes nothing comes off the list.
 """
 import ast
 import pathlib
@@ -37,9 +36,12 @@ DATE = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
 #: The Google sections, whose length a signature decides rather than a writer.
 SECTION = re.compile(r"^\s*(Args|Arguments|Returns|Yields|Raises|Attributes|Examples?):\s*$")
 
+#: A bullet or a numbered step, which starts a paragraph of its own.
+ITEM = re.compile(r"^\s*(?:[-*+]|\d+\.)\s")
 
-def prose_of(text: str) -> int:
-    """Return how many lines of a docstring are written rather than owed to the signature.
+
+def prose_lines(text: str) -> list:
+    """Return the lines of a docstring that are written rather than owed to the signature.
 
     Notes:
         - The summary and `Notes` are written; `Args` and `Returns` follow from the
@@ -56,7 +58,34 @@ def prose_of(text: str) -> int:
             else:
                 continue
         kept.append(line)
-    return sum(1 for line in kept if line.strip())
+    return kept
+
+
+def prose_of(text: str) -> int:
+    """Return how many lines of a docstring are written rather than owed to the signature."""
+    return sum(1 for line in prose_lines(text) if line.strip())
+
+
+def over_a_paragraph(lines) -> list:
+    """Return the line of each paragraph that runs past `PARAGRAPH` lines.
+
+    Args:
+        lines (Iterable[Tuple[int, str]]): Numbered lines, already stripped of tables, code
+            fences and anything else that is not prose.
+
+    Returns:
+        list: The number of the first line of each paragraph that is too long.
+    """
+    found, run, start = [], 0, 0
+    for number, line in lines:
+        if not line.strip():
+            run = 0
+            continue
+        run = 1 if ITEM.match(line) else run + 1
+        start = number if run == 1 else start
+        if run == PARAGRAPH + 1:
+            found.append(start)
+    return found
 
 
 def modules():
@@ -80,6 +109,8 @@ def _docstring_faults(node, found):
     summary = text.strip().splitlines()[0]
     if len(summary) > SUMMARY:
         found.append(f"line {where}: a summary of {len(summary)} characters")
+    for _ in over_a_paragraph(enumerate(prose_lines(text), 1)):
+        found.append(f"line {where}: a paragraph over {PARAGRAPH} lines")
     if not summary.rstrip().endswith((".", "?", ":")):
         found.append(f"line {where}: a summary with no full stop")
     if DATE.search(text):
@@ -139,36 +170,51 @@ def owed_by(path) -> list:
 
 
 def long_paragraphs(path) -> list:
-    """Return the markdown paragraphs that run past `PARAGRAPH` lines."""
-    found = []
-    run = start = 0
-    fenced = False
+    """Return the markdown paragraphs that run past `PARAGRAPH` lines.
+
+    Notes:
+        - A table, a heading and a fenced block are not prose, and a list is not one
+          paragraph: each item is held to the same four lines on its own.
+    """
+    prose, fenced = [], False
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.lstrip().startswith("```"):
             fenced = not fenced
-            run = 0
+            prose.append((number, ""))
             continue
-        if fenced or line.startswith(("|", "#")) or not line.strip():
-            run = 0
-            continue
-        run += 1
-        start = number if run == 1 else start
-        if run == PARAGRAPH + 1:
-            found.append(f"line {start}")
-    return found
+        prose.append((number, "" if fenced or line.startswith(("|", "#")) else line))
+    return [f"line {start}" for start in over_a_paragraph(prose)]
 
 
-#: What each module still owes, measured 30.09.2026 before the W1 pass. A number may only go
-#: down, and a module that owes nothing comes off the list -- a stale entry would make the
-#: ledger look like progress that has not happened.
-OWED = {}
+#: What each module still owes. A number may only go down, and a module that owes nothing comes
+#: off the list -- a stale entry would make the ledger look like progress that has not happened.
+OWED = {
+    "base/freshness.py":              3,
+    "base/result_store.py":           1,
+    "base/scratch.py":                1,
+    "cli.py":                         2,
+    "formats/cfx.py":                 1,
+    "formats/vex.py":                 1,
+    "gui/p_tab_analysis.py":          1,
+    "gui/p_tab_vis_base.py":          2,
+    "gui/styling.py":                 2,
+    "paths.py":                       1,
+    "super/schedule_address.py":      1,
+    "super/schedule_analyzer.py":     1,
+    "super/schedule_configurator.py": 1,
+    "super/schedule_format.py":       1,
+    "super/schedule_inspector.py":    1,
+    "super/schedule_runner.py":       2,
+    "super/schedule_vex.py":          1,
+    "theme.py":                       1,
+}
 
 #: The same, for the markdown.
 PARAGRAPHS_OWED = {
-    "CHANGELOG.md":         90,
+    "CHANGELOG.md":         91,
     "README.md":            5,
     "docs/README.md":       1,
-    "docs/ROADMAP.md":      2,
+    "docs/ROADMAP.md":      1,
     "docs/analysis.md":     1,
     "docs/calculations.md": 5,
     "docs/command-line.md": 1,
