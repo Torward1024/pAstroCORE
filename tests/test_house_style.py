@@ -2,8 +2,8 @@
 
 Every docstring, comment and `.md` is held to one style: a one-line summary, Google sections and
 nothing else; `Notes` only for what a caller must know; a comment of two lines saying why; a
-paragraph of four. The rule is a ledger rather than a gate -- each file owes a number, the
-number may only go down, and a file that owes nothing comes off the list.
+paragraph of four. Both ledgers are empty, so the style is a gate. A file that cannot meet it
+yet is written down with what it owes, and that number may only go down.
 """
 import ast
 import pathlib
@@ -197,7 +197,7 @@ def long_paragraphs(path) -> list:
             fenced = not fenced
             prose.append((number, ""))
             continue
-        prose.append((number, "" if fenced or line.startswith(("|", "#")) else line))
+        prose.append((number, "" if fenced or line.lstrip().startswith(("|", "#")) else line))
     return [f"line {start}" for start in over_a_paragraph(prose)]
 
 
@@ -206,16 +206,7 @@ def long_paragraphs(path) -> list:
 OWED = {}
 
 #: The same, for the markdown.
-PARAGRAPHS_OWED = {
-    "CHANGELOG.md":         91,
-    "README.md":            5,
-    "docs/README.md":       1,
-    "docs/ROADMAP.md":      1,
-    "docs/analysis.md":     1,
-    "docs/calculations.md": 5,
-    "docs/command-line.md": 1,
-    "docs/formats.md":      3,
-}
+PARAGRAPHS_OWED = {}
 
 
 @pytest.mark.parametrize("path", modules(), ids=lambda p: p.relative_to(PACKAGE).as_posix())

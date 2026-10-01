@@ -7,13 +7,14 @@ its criterion holds, not when it feels tidy.
 
 ## Next -- finishing it
 
-Seventeen items from using it, ranked: what cost an hour every day first, what a new user sees
-second, what it cannot do yet third, and last what lets any astronomer install it and start.
-They land in this order, a stage or an item per release, unless a later one turns out to need an
-earlier one. **Stages 1 and 2 shipped, in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0; E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.**
-With E1 the last of stage 3 is in, U1 is the first of stage 4 and A3 is the second. What is left,
-in order: fewer words, the manual -- and then the downloads that need no Python, which are made
-of what is finished rather than of what is still being changed.
+Seventeen items from using it, ranked: what cost an hour every day first, what a new user
+sees second, what it cannot do yet third, and last what lets any astronomer install it and
+start. They land in this order, a stage or an item per release, unless a later one needs an
+earlier one.
+
+**Stages 1 and 2 shipped in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0;
+E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** What is left, in order: fewer words, the manual, and
+then the downloads that need no Python.
 
 ### Stage 4 -- for anyone to install and use
 

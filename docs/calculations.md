@@ -151,11 +151,10 @@ SEFD(el) = SEFD_zenith * e^(tau0 (A - 1)) * Tsys(el) / Tsys_zenith * g(90) / g(e
 Tsys(el) = Tsys_zenith + T_atm (e^-tau0 - e^(-tau0 A)),   A = 1 / sin(el)
 ```
 
-— the source dimmed through more air, the system warmed by what more air emits, and the dish's
-gain where it is pointing. **None of that is a property of the station.** The weather is the day's
-rather than the dish's, so it is a parameter of the calculation and the same at every station; a
-gain curve is the dish's but belongs to no band on its own, so it is given by station code. They
-are checked the way a station's tables are, and a result records what it was computed with:
+— the source dimmed through more air, the system warmed by what more air emits, and the
+dish's gain where it is pointing. **None of that is a property of the station**: the weather is
+the day's rather than the dish's and is a parameter, a gain curve is the dish's and is given by
+station code. Both are checked as a station's tables are, and a result records what it used:
 
 ```python
 from pastrocore.super.schedule_calculator import ScheduleCalculator
@@ -189,16 +188,17 @@ than being taken at one SEFD:
 
 with `eta` what the recording keeps of the signal (2/pi at one bit, 0.8825 at two), `dnu` the
 band's width and `P` its polarizations. With the SEFDs constant this is the radiometer equation
-for the whole scan, `sqrt(SEFD1 SEFD2) / (eta sqrt(2 dnu tau P))` — which is how it is checked
-against a published case: two VLBA antennas of 210 Jy at 6 cm, 128 MHz, one minute and `eta` 0.8
-reach 2.1 mJy, as the VLBA's status summary says.
+for the whole scan, `sqrt(SEFD1 SEFD2) / (eta sqrt(2 dnu tau P))` — two VLBA antennas of 210 Jy
+at 6 cm, 128 MHz, one minute and `eta` 0.8 reach 2.1 mJy, as the VLBA's status summary says.
 
-A detection is `snr >= threshold`, five by default, and `min_duration` is the shortest scan that
-would reach it at the SEFDs this one had. The bands of a scan are reported one by one and again
-together under `if_name` `all`, where signal-to-noise adds in quadrature. The source is taken as
-unresolved — the correlated flux is the whole flux — and the result says so. Nothing that cannot
-be worked out is guessed: a station with no SEFD, a source with no flux at that frequency, two
-stations that never see it together, all leave the value empty and name the reason.
+A detection is `snr >= threshold`, five by default, and `min_duration` is the shortest scan
+that would reach it at the SEFDs this one had. The bands of a scan are reported one by one and
+again together under `if_name` `all`, where signal-to-noise adds in quadrature.
+
+The source is taken as unresolved — the correlated flux is the whole flux — and the result says
+so. Nothing that cannot be worked out is guessed: a station with no SEFD, a source with no flux
+at that frequency, two stations that never see it together all leave the value empty and name
+the reason.
 
 **What each takes is asked, not listed.** A parameter that changes an answer is recorded with
 it — otherwise freshness could not tell one answer from another — so the catalogue reads a
@@ -220,19 +220,17 @@ assert [row["bits"] for row in manipulator.inspect(obj=None, method="recording")
 A run that refuses a step says why in its report — an opacity with no air temperature is named
 there, not only in the log.
 
-Each of the three draws itself. `sefd` is a bar per station and band, on a log scale, with what
-was computed hatched and what was measured plain; `sefd_track` is a line per scan with the zenith
-behind it, so what the elevation costs is the distance between the two; `baseline_sensitivity` is
-a grid of baselines by scans, coloured by signal-to-noise with the threshold marked on the colour
-bar, and every cell that misses it crossed out.
+Each of the three draws itself. `sefd` is a bar per station and band on a log scale, computed
+hatched and measured plain; `sefd_track` is a line per scan with the zenith behind it, so what
+the elevation costs is the distance between the two; `baseline_sensitivity` is a grid of
+baselines by scans, coloured by signal-to-noise with every cell under the threshold crossed out.
 
 ## What each result depends on
 
 Separately from *which calculation* needs which, each result declares which **parts of the
 model** it reads. That is what makes staleness granular: editing a scan makes `uv_coverage`
-stale and leaves `beam_pattern` alone -- and so does editing a band, because a beam is one curve
-per dish that is given a frequency only when it is drawn (`sin(theta) = lambda sin(t) / pi`, with
-`t` the stored `theta`).
+stale and leaves `beam_pattern` alone, a beam being one curve per dish that is given a frequency
+only when it is drawn (`sin(theta) = lambda sin(t) / pi`, with `t` the stored `theta`).
 
 ```python
 from pastrocore.base.data_structure import CalculatedDataStructure

@@ -22,14 +22,10 @@ pip install .
 That gives two commands from any directory: `pastrocore` opens the window, `pastrocore-cli`
 does the same work in a terminal.
 
-Requires `msb_arch` 3.1.0 or later. Fifteen of its releases came out of this project -- mapping
+Requires `msb_arch` 3.1.0 or later. Fifteen of its releases came out of this project: mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
-collection, a schema version that worked everywhere except the class saved to a file, an `int`
-that was not accepted where a `float` was declared, a manipulator that could not say what it
-offers, an operation whose cost was paid on every start whether or not it was used, a
-handler that could not say what arguments it takes, a journal that kept alive everything it
-recorded, the six lines every application writes to plan an operation, and a pair documented as
-inverses that were not -- which is a thing you only find by trying to use them.
+collection, a handler that could not say what arguments it takes, a journal that kept alive
+everything it recorded, and a pair documented as inverses that were not.
 
 2.0 then gave back three things this project had written by hand: a project that answers with a
 list exactly as a container does, a project that compares by its contents rather than by
@@ -57,11 +53,10 @@ Every one of them is defended by a test that recomputes it against a saved proje
 compares the numbers, so a refactoring cannot change a result quietly. The plots are defended
 the same way, by reading the drawn points back out of the figure.
 
-What that kind of test cannot do is tell you the numbers were wrong to begin with -- it compares
-against what the code used to produce. The orbit interpolation was out by kilometres for as long
-as it existed, and the suite was green throughout. Where an answer can be known independently it
-is now checked against that instead: the orbit tests measure against a Kepler orbit solved to
-machine precision.
+What that kind of test cannot do is tell you the numbers were wrong to begin with -- it
+compares against what the code used to produce. The orbit interpolation was out by kilometres
+for as long as it existed, with a green suite throughout. Where an answer can be known
+independently it is checked against that: a Kepler orbit solved to machine precision.
 
 ## Running
 
@@ -154,20 +149,18 @@ my_survey.pastro/
 
 This is not tidiness. A year of observing 300 sources through 12 telescopes produced results
 that filled 16 GB of memory, because every one of them lived inside the project file and the
-file was loaded whole. Now opening a project reads the model and **no results at all**; each
-one is read when something asks for it, and a plot that draws one source reads that source
-rather than all 300.
+file was loaded whole. Now opening a project reads the model and **no results at all**: each
+one is read when something asks for it.
 
 What is in memory is capped. **Preferences → Calculations → Results in memory** sets the share
 of available memory the results in hand may occupy; past it, the least recently used are
 dropped and read back from the directory when needed again. The default is half of what is
 available. Dropping a result costs a read, never a recalculation.
 
-**A calculation is written to disk as soon as it is made**, not when you press save. Before a
-project has been saved anywhere, results go to a scratch directory belonging to that session --
-so a crash, a power cut or a full memory costs you nothing, and two open windows never disturb
-each other. Saving moves them into the project. Closing normally clears the scratch; a session
-that ended any other way is offered back the next time the application starts.
+**A calculation is written to disk as soon as it is made**, not when you press save. Before
+a project has been saved anywhere, results go to a scratch directory belonging to that session,
+so a crash costs you nothing and two open windows never disturb each other. Saving moves them
+in; a session that ended any other way is offered back the next time you start.
 
 **Open and Save ask for a folder**, not a file, because that is what a project is. Use the
 dialog's New Folder button to make one.
@@ -192,14 +185,14 @@ cannot be forgotten quietly. Do not run `pyside6-uic` directly: it emits `import
 bare module name that only resolves if `pastrocore/gui` is on `sys.path`, and the icons then
 fail at the first use. The script rewrites it.
 
-**Appearance is not in the forms.** It is in `pastrocore/gui/pastrocore.qss`, one file applied
-to the `QApplication`, and a test refuses a `styleSheet` property in any form or a
-`setStyleSheet` anywhere in the code. Rules are written against types -- `QPushButton { ... }`
--- so every button looks like every other button; that consistency is the whole point of having
-one file rather than the 235 places this used to live in.
+**Appearance is not in the forms.** It is generated from the tokens in `pastrocore/theme.py`
+and applied to the `QApplication` whole, and a test refuses a `styleSheet` property in any form
+or a `setStyleSheet` anywhere in the code. Rules are written against types --
+`QPushButton { ... }` -- so every button looks like every other button.
 
-To change how the application looks, edit that file. To change it only for yourself, put your
-own `pastrocore.qss` beside your settings: it replaces the shipped one rather than adding to it.
+To change how the application looks, edit the tokens. To change it only for yourself, put your
+own `pastrocore.qss` beside your settings: it replaces the generated one rather than adding
+to it.
 
 A styling change is judged by `tests/test_form_pixels.py`, which renders all 24 forms offscreen
 and compares them against a stored reference. It is per platform, because pixels are not

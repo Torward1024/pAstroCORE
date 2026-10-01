@@ -68,11 +68,10 @@ IF = 4828.00, L, U        sky frequency, polarization, sideband
 IF = 4828.00, L, L
 ```
 
-So `IF` gained `sidebands` — **a list, exactly like `polarizations`**, and for the same reason:
-one receiver setting at one sky frequency records what it records, and a band with both
-sidebands and both circular polarizations is four channels while remaining one setting. The
-alternative, a sideband *per* `IF`, would have meant two objects carrying one frequency and kept
-in step by hand.
+So `IF` gained `sidebands` — **a list, exactly like `polarizations`**, and for the same
+reason: one receiver setting at one sky frequency records what it records, and a band with both
+sidebands and both circular polarizations is four channels while remaining one setting. A
+sideband *per* `IF` would have meant two objects carrying one frequency, kept in step by hand.
 
 `get_band()` is the one place a sideband becomes numbers, and the overlap rule asks it rather
 than adding a bandwidth itself. That is what catches the confusion this field exists for: 4828 U
@@ -93,11 +92,10 @@ writing a file that looks right and is not:
 | `axis_offset`, `antenna_motion` | axis offset in metres; slew rates and settling time |
 | `site_position_epoch` | when the coordinates were measured |
 
-**Nobody here can know these, and that is not a gap to be filled.** Which backend is installed
-at a given station *today* is not published anywhere central, changes without notice, and is
-known to the station and to whoever is running the session. A scheduling tool that wrote a
-`$DAS` block would be stating something it cannot check, and a plausible wrong answer is worse
-than an absent one — the correlator would take it.
+**Nobody here can know these, and that is not a gap to be filled.** Which backend is
+installed at a given station *today* is not published anywhere central and changes without
+notice. A tool that wrote a `$DAS` block would be stating something it cannot check, and a
+plausible wrong answer is worse than an absent one — the correlator would take it.
 
 #### The shape stays; the claims do not
 
@@ -174,12 +172,9 @@ first for this lab even though VEX is the wider format.
    work was VEX's, and the `$FREQ`/`$IF`/`$BBC` chain is where the difficulty is: doing it
    first meant doing the hard part while the map was still in mind. CFX is next.
 4. **Neither is finished until a parser nobody here wrote accepts the file.** That is the
-   exit criterion in the roadmap, and it is the whole point. It is not met yet: no third-party
-   VEX parser is installable here, so what the suite does instead is read the file by VEX's
-   punctuation and check the same reading against `re03fr.vex` and `s16tj07a.vex` — files
-   written by `sched` and by people this project has never met. A checker calibrated on someone
-   else's output is worth more than a round trip through our own reader and less than a real
-   parser. The item stays open.
+   exit criterion in the roadmap, and it is not met: no third-party VEX parser is installable
+   here, so the suite reads the file by VEX's punctuation and checks the same reading against
+   `re03fr.vex` and `s16tj07a.vex`, written by `sched` and by people this project never met.
 
 ## Writing one
 

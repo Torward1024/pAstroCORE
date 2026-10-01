@@ -27,12 +27,14 @@ manipulator, which dispatches it to whichever operation handles it. There are fi
 | `visualize` / `analyze` | Drawing a result, and summarising one |
 | `export` / `save` / `load` | Files: results, sessions and projects written out, and read back |
 
-**The name says whether a request changes anything.** `inspect`, `visualize` and `analyze` only
-read -- `inspect` is held to it by msb_arch, which since 3.0 calls nothing through it that is not
-named as a read (`get`, `get_*`, `has_*`, `is_*`). So does `catalogue`, which is msb_arch's own
-operation, registered on every orchestrator, describing what is registered; it is not
-`inspect(method="catalogue")`, this application's answer to what can be calculated. That is what
-lets a session be cut down to what changed something, and a replay leave the questions out.
+**The name says whether a request changes anything.** `inspect`, `visualize` and `analyze`
+only read, and msb_arch holds `inspect` to it: since 3.0 it calls nothing through it that is not
+named as a read (`get`, `get_*`, `has_*`, `is_*`). That is what lets a session be cut down to
+what changed something, and a replay leave the questions out.
+
+`catalogue` is msb_arch's own read-only operation, registered on every orchestrator and
+describing what is registered. It is not `inspect(method="catalogue")`, which is this
+application's answer to what can be calculated.
 
 The window is one caller of that. **`pastrocore-cli` is a second one** -- the same requests,
 about two hundred lines, and it imports neither the interface nor Qt. A client-server version is

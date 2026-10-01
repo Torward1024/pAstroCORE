@@ -4,9 +4,8 @@
 
 It is not a second implementation of anything. Every command is one request to the same
 orchestrator the window sends its requests to, which is why it holds no knowledge about
-calculations at all — what can be run, what each needs, what order they go in and what a run did
-are all *asked* — and why `ask` and `shell` reach every request the window can make without a
-table of them.
+calculations at all — what can be run, what each needs and what a run did are all *asked* — and
+why `ask` and `shell` reach every request the window can make.
 
 Two tests hold that: one refuses any mention of `pastrocore.gui` or Qt in its source, and one
 runs a command in a fresh process and looks at `sys.modules` afterwards, because an import that

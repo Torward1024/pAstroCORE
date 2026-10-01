@@ -10,12 +10,10 @@ What is planned, and what was measured on the way to deciding it, is in
 
 ## [1.17.0] - 2026-09-30
 
-A3, the fifth audit: every module in `pastrocore/` read once against what it is *for*. Twelve
-passes over eight days -- the entities, where results are kept, the calculator, the other
-Supers, the two formats, the visualizer, the command line, and the interface in five -- and
-sixty-eight findings, each ending in a fix, a test that would have caught it, or a line in the
-roadmap saying why it stands. Seventy-six tests were added, three files of them new; the suite
-is 1 427 passing and 19 skipped.
+A3, the fifth audit: every module in `pastrocore/` read once against what it is *for*.
+Twelve passes over eight days and sixty-eight findings, each ending in a fix, a test that would
+have caught it, or a line in the roadmap saying why it stands. Seventy-six tests were added,
+three files of them new; the suite is 1 427 passing and 19 skipped.
 
 Recalculate any project holding results for a spacecraft placed by Keplerian elements, or for
 a station on an equatorial mount.
@@ -24,13 +22,10 @@ a station on an equatorial mount.
 
 #### What was computed
 
-- **A spacecraft placed by Keplerian elements stood in the wrong place.** The editor asks for a
-  true anomaly and the propagation carried it forward as if it were a mean one. They are the
-  same number only on a circle: at e = 0.6 and nu = 90 degrees the spacecraft was 32 960 km from
-  where its own elements put it, at the epoch itself, before any time had passed -- and 48 000 km
-  at the RadioAstron eccentricity. The one Keplerian test in the suite used e = 0.01, where the
-  two agree to a degree. Converted through the eccentric anomaly, and checked at four
-  eccentricities against the equations written out in the test.
+- **A spacecraft placed by Keplerian elements stood in the wrong place.** The editor asks for
+  a true anomaly and the propagation carried it forward as a mean one, which is the same number
+  only on a circle: 32 960 km out at e = 0.6, at the epoch itself. Converted through the
+  eccentric anomaly, and checked at four eccentricities against the equations in the test.
 - **An equatorial mount could not see the sky before transit.** An hour angle runs -180 to 180
   and a telescope is created with limits of 0 to 360; read as a straight interval, every sample
   before transit fell outside them. A station observing entirely before transit saw nothing. The
@@ -59,10 +54,9 @@ a station on an equatorial mount.
   the project into a temporary directory, and a save moves the project in. A project opened with
   eleven results had none the moment it was packed; an unsaved one lost them outright.
 - **What a reader could not read, it dropped in silence.** A VEX station with no position, a
-  source with no coordinates, a scan with no start; the same in CFX. Each was a bare `continue`,
-  so a file came in with fewer stations, sources or scans than it holds and the report called it
-  a clean read. Each is named now -- as is a scan reduced by stations, bands or a source the file
-  never defines, and a length the file does not state.
+  source with no coordinates, a scan with no start, and the same in CFX: each was a bare
+  `continue`, so a file came in with fewer than it holds and the report called it a clean read.
+  Each is named now, as is a scan reduced by stations, bands or a source the file never defines.
 - **A scan shorter than a second was written as no scan at all.** Both writers rounded to whole
   seconds, so four tenths went to a correlator as `0 sec`.
 - **`Time Arrays` could not be exported**, because its handler's name and its store key differ;
@@ -85,10 +79,9 @@ a station on an equatorial mount.
   wavelength and then by the Earth's diameter *in wavelengths at the lowest frequency drawn*, so
   the same baseline came out twice as long at twice the frequency.
 - **A position was written north of the equator by the table that shows it.** The sources tab
-  took the sign from `de_d >= 0`, true of the `-0.0` every source between -1 and 0 degrees
-  carries; it rounded seconds apart from their minutes, so 59.97 read `:60.0`; and it printed
-  them three digits wide -- `12:34:012.3`. The source answers all three, and the catalogue dialog
-  was already asking it.
+  took the sign from `de_d >= 0`, true of the `-0.0` a declination between -1 and 0 carries; it
+  rounded seconds apart from their minutes; and it printed them three digits wide. The source
+  answers all three, and the catalogue dialog was already asking it.
 - **An export named pictures it did not draw**, and two forced collections in the drawing path
   cost 2.34 s against 0.90 s over eighteen plots to save nothing measurable.
 
@@ -155,11 +148,10 @@ a station on an equatorial mount.
 
 ### Standing
 
-Four findings are decisions rather than defects, and are written into
+Four findings are decisions rather than defects, and are in
 [`docs/ROADMAP.md`](docs/ROADMAP.md) with what each would take: **E2**, what an equatorial mount
-is limited in, where the SEFD track cuts and what `$ANTENNA` writes; **G14**, what a plot shows
-when it has nothing to show; **G15**, a rule about what a container holds when a held item
-changes; **G16**, a write of several fields that one of them refuses.
+is limited in; **G14**, what a plot shows when it has nothing to show; **G15**, a container's
+rule when a held item changes; **G16**, a write of several fields that one of them refuses.
 
 ## [1.16.0] - 2026-09-21
 
@@ -227,37 +219,30 @@ E1: how well a schedule would be heard, and whether it would detect anything.
 ### Added
 
 - **Three calculations, and none of them guesses.**
-  - **`sefd`** -- each station's SEFD in each band, and where it came from: the station's SEFD
-    table, or `2 k Tsys / A_eff` in janskys from its system temperature and its effective area or
-    aperture efficiency, or none, with the reason. Asked with `fill`, it writes what it computed
-    into the station's own table over the band -- the one thing E1 writes into the model -- and
-    never over a measurement.
-  - **`sefd_track`** -- that SEFD along every scan, on the time grid. A quoted SEFD is the one at
-    zenith, through the atmosphere there; away from it the source is dimmed through more air, the
-    system is warmed by what more air emits, and the dish's gain is the one where it points:
-    `SEFD = SEFD_zenith e^(tau0 (A - 1)) Tsys(el) / Tsys_zenith g(90) / g(el)`, `A = 1/sin(el)`.
-    Nothing is given for an elevation the station does not point at.
-  - **`baseline_sensitivity`** -- per scan, baseline and band, and for the bands together: the
-    time both stations see the source beside the scan's length, the noise summed over that time
-    piece by piece at the SEFDs each piece had, the signal-to-noise against the source's flux,
-    whether it detects, and the shortest scan that would. Checked against the VLBA's published
-    baseline sensitivities.
+  - **`sefd`** -- each station's SEFD in each band, and where it came from: the station's
+    SEFD table, or `2 k Tsys / A_eff` from its system temperature and effective area, or none,
+    with the reason. Asked with `fill` it writes what it computed into the station's own table
+    over the band -- the one thing E1 writes into the model -- and never over a measurement.
+  - **`sefd_track`** -- that SEFD along every scan, on the time grid. A quoted SEFD is the
+    one at zenith; away from it the source is dimmed, the system is warmed and the gain is the
+    one where the dish points: `SEFD = SEFD_zenith e^(tau0 (A - 1)) Tsys(el) / Tsys_zenith
+    g(90) / g(el)`, `A = 1/sin(el)`. Nothing is given where the station does not point.
+  - **`baseline_sensitivity`** -- per scan, baseline and band, and for the bands together:
+    the time both stations see the source, the noise summed over it at the SEFDs each piece had,
+    the signal-to-noise, whether it detects, and the shortest scan that would. Checked against
+    the VLBA's published baseline sensitivities.
 - **The weather and the gain curves are parameters of a run, not properties of a station**:
-  `opacity` rows `[f_min, f_max, tau0]` and `t_atm` in kelvin, the same at every station, and
-  `gain_curve` by station code, `[f_min, f_max, [c0, c1, ...]]` in elevation. They are recorded
-  with the result, and changing them is another answer rather than the stored one. A curve is
-  taken as `g(90)/g(el)`, so its normalisation does not matter; an opacity without an air
-  temperature is refused rather than half applied.
-- **Each draws itself**: SEFDs as bars on a log scale, measured plain and computed hatched; the
-  track as a line per scan with the zenith behind it; detection as a grid of baselines by scans,
-  red where the signal-to-noise is poor, the threshold on the colour bar and every cell that
-  misses it crossed out. Each has its tab, and exporting needed nothing: the catalogue says what
-  there is.
+  `opacity` rows `[f_min, f_max, tau0]` and `t_atm` in kelvin, and `gain_curve` by station code.
+  They are recorded with the result, so changing them is another answer. A curve is taken as
+  `g(90)/g(el)`; an opacity without an air temperature is refused rather than half applied.
+- **Each draws itself**: SEFDs as bars on a log scale, measured plain and computed hatched;
+  the track as a line per scan with the zenith behind it; detection as a grid of baselines by
+  scans, with every cell under the threshold crossed out. Each has its tab, and exporting needed
+  nothing: the catalogue says what there is.
 - **The calculation dialog asks for what a calculation takes** -- a detection threshold, the
-  bits per sample, whether to fill the SEFD tables, the zenith opacity and the air's temperature,
-  a gain curve per station -- and offers each only when a ticked calculation takes it. Which one
-  takes what is read off what its result records; the recordings on offer are the calculator's,
-  `inspect(method="recording")`.
+  bits per sample, the zenith opacity, the air's temperature, a gain curve per station -- and
+  offers each only when a ticked calculation takes it. Which one takes what is read off what its
+  result records, and the recordings on offer are `inspect(method="recording")`.
 - **A refused step says why** in the run report, not only in the log.
 
 ### Changed
@@ -304,16 +289,14 @@ L4: everything the window can ask, from a terminal.
   request that changes the project -- `configure`, `calculate`, `compute` -- saves it, as `run` and
   `replay` do, and `--dry-run` does not. `--json` prints the answer whole; the readable form shows a
   table of results by its size and first rows.
-- **`pastrocore-cli shell`** takes the same lines one after another. Tab completes the operation,
-  the address a level at a time, the methods an object has -- only the reading ones for `inspect` --
-  a handler after `method=`, the keys it reads, and an address after `=@`. Nothing is saved until
-  `save project`, and leaving with changes asks first. What was typed is recorded, so `export project
-  method=journal` writes a session that `replay` runs again: a script is a session file.
-- **Addresses as a person names things**: `project`, `OBS001`, `OBS001/sources`,
-  `OBS001/sources/3C273`, `OBS001/telescopes/ALMA` by code or name, `OBS001/scans/#3` by position.
-  Four `inspect` questions answer them -- `locate`, `address`, `contents` and `offers` -- read from
-  MSB's model graph, so a part added to the model is addressable without a change here, and a server
-  would ask the same.
+- **`pastrocore-cli shell`** takes the same lines one after another. Tab completes the
+  operation, the address a level at a time, the methods an object has, a handler after `method=`
+  and an address after `=@`. Nothing is saved until `save project`, and what was typed is
+  recorded, so `export project method=journal` writes a session that `replay` runs again.
+- **Addresses as a person names things**: `project`, `OBS001`, `OBS001/sources/3C273`,
+  `OBS001/telescopes/ALMA` by code or name, `OBS001/scans/#3` by position. Four `inspect`
+  questions answer them -- `locate`, `address`, `contents` and `offers` -- read from MSB's model
+  graph, so a part added to the model is addressable without a change here.
 - **No command table.** The operations, their handlers and the methods an object has are asked of
   the orchestrator, so a mistake is answered with what was meant -- "Nothing called 'telescops' in
   OBS001 -- did you mean 'telescopes'?" -- and a change asked of `inspect` names the `configure` line
@@ -340,41 +323,35 @@ framework to mean what its operations are called.
 
 ### Added
 
-- **C1: the catalogues are edited.** Options -> Sources Catalog and Telescopes Catalog add, edit and
-  remove entries -- a space telescope too -- and save, to the catalogue's own file or a new one. An
-  edit is made at once, so the generator and every Add from Catalog see it in the session; closing
-  with edits that are not saved asks whether to keep them, and Discard puts back what the file holds.
-  The title names the file and marks unsaved edits. A search hides rows instead of asking the
-  catalogue for every entry again on each key.
-- **A catalogue is JSON**: the same `Sources` and `Telescopes` a project holds, written whole and
-  atomically, so an SEFD table, a pointing limit or a spacecraft has somewhere to go. A `.dat`
-  catalogue still opens and is saved as JSON. The shipped catalogues are JSON now, and each is
-  checked to read back equal to the `.dat` it was converted from, which the tests keep. **The
-  catalogues that came with the application are never written**: an upgrade replaces them and an
-  install may not be writable, so saving one asks for a name, starting in a `catalogs` folder beside
+- **C1: the catalogues are edited.** Options -> Sources Catalog and Telescopes Catalog add,
+  edit and remove entries -- a space telescope too -- and save, to the catalogue's own file or a
+  new one. An edit is made at once, so the generator and every Add from Catalog see it; closing
+  with unsaved edits asks, and Discard puts back what the file holds.
+- **A catalogue is JSON**: the same `Sources` and `Telescopes` a project holds, written whole
+  and atomically, so an SEFD table, a pointing limit or a spacecraft has somewhere to go. A
+  `.dat` catalogue still opens and is saved as JSON, and each shipped catalogue is checked to
+  read back equal to the `.dat` it was converted from.
+- **The catalogues that came with the application are never written**: an upgrade replaces them
+  and an install may not be writable, so saving one asks for a name in a `catalogs` folder beside
   the settings, and the application reads that file from then on.
-- **S1: a session is cut down to what is worth repeating.** Tools -> Session shows only the requests
-  that change something when asked, leaves selected rows out and brings them back, and saves what is
-  shown. **Everything is still recorded** -- what the window asked is what a bug report needs. A
-  replay does not ask questions again, and says how many it left out; a session saved by 1.12 still
-  replays.
+- **S1: a session is cut down to what is worth repeating.** Tools -> Session shows only the
+  requests that change something, leaves selected rows out and saves what is shown. Everything is
+  still recorded. A replay does not ask the questions again and says how many it left out; a
+  session saved by 1.12 still replays.
 - The session table's **Call** column says what each request called: the operation's handler when
   one was named -- `run` -- and the model's methods otherwise -- `create_item`. It was Method, which
   is the handler alone, and empty for nearly everything the window asks.
 
 ### Changed
 
-- **Requires msb_arch 3.0.0**, where `inspect` only reads: it calls `get`, and methods named `get_*`,
-  `has_*` or `is_*`, and refuses anything else. Four methods that read under other names are
-  renamed -- `observations` is `get_observations`, `right_ascension_parts` and `declination_parts`
-  are `get_right_ascension_parts` and `get_declination_parts`, `check_activity_status` is
-  `is_activatable`.
-- **The questions are `inspect`.** What can be calculated, in what order, what a session held and
-  whether a file of one checks out, what is stale and what an edit would reach were `compute`; which
-  results exist, their distinct values, their scan times and how many are unsaved were `export`. A
-  session could not tell a question from a change by its operation. `compute` is now running,
-  clearing, releasing and replaying, and `export` writes files. Which operations only read is said
-  in one place, `ScheduleManipulator.READING`, and a test places every registered operation.
+- **Requires msb_arch 3.0.0**, where `inspect` only reads: it calls `get` and methods named
+  `get_*`, `has_*` or `is_*`, and refuses anything else. Four methods that read under other
+  names are renamed: `get_observations`, `get_right_ascension_parts`, `get_declination_parts`
+  and `is_activatable`.
+- **The questions are `inspect`.** What can be calculated and in what order, what a session
+  held, what is stale, which results exist and how many are unsaved were `compute` and `export`,
+  so a session could not tell a question from a change. `compute` now runs, clears, releases and
+  replays, `export` writes files, and `ScheduleManipulator.READING` says which only read.
 
 ### Fixed
 
@@ -406,24 +383,18 @@ framework to mean what its operations are called.
 
 ### Fixed
 
-- **Opening a second project deleted the first one's results** (R1), out of the directory it had just
-  been saved to, with nothing said. A window lets go of a project through a `release` request before
-  it opens another or starts a new one, and that asked every observation to clear its results --
-  which erases them on disk as well as in memory. Letting go of a project is not a decision to delete
-  a day of calculation. What changes the disk now is a save, which drops the results of observations
-  the project no longer has, and the deliberate Clear Data, and nothing else.
+- **Opening a second project deleted the first one's results** (R1), out of the directory it
+  had just been saved to, with nothing said. A `release` asked every observation to clear its
+  results, which erases them on disk as well as in memory. What changes the disk now is a save
+  and the deliberate Clear Data, and nothing else.
 - **A saved project called its results unsaved for ever** (R1). A save copies them out of the
-  session's scratch rather than moving them, and nobody cleared the copies afterwards -- so closing
-  the window asked about results that were already saved, answering Save left the count unchanged and
-  the window refused to close, and every File -> New Project left a scratch directory the next start
-  offered to recover. A save clears the scratch when it has finished writing.
-- **Memory climbing through a session** (M1) was measured rather than argued about: it is caches
-  filling, and it stops. Objects grow by 1 300 a round of work for a dozen rounds and then by 5, as
-  matplotlib's text-metrics `lru_cache(4096)` fills; the resident set flattens with it. The other two
-  things that grow are bounded by settings -- the request journal at `session_limit`, and the results
-  in hand at the residency budget. Two real holds were fixed: the visualization dialog removed a tab
-  without closing it, so the tab's teardown never let go of its figure, and the same when the dialog
-  itself was closed.
+  session's scratch rather than moving them, and nobody cleared the copies -- so closing the
+  window asked about results already saved and then refused to close. A save clears the scratch
+  when it has finished writing.
+- **Memory climbing through a session** (M1) was measured rather than argued about: it is
+  caches filling, and it stops as matplotlib's text-metrics `lru_cache(4096)` fills. The journal
+  and the results in hand are bounded by settings. Two real holds were fixed: the visualization
+  dialog removed a tab without closing it, and did the same when it was closed itself.
 - Editing a frequency in the generator had always ended in an error box: it called a method the band
   editor was renamed out of years ago, and nothing reached the call.
 - The generator's Save and Load buttons were disabled in the form and enabled nowhere, so neither had
@@ -431,16 +402,14 @@ framework to mean what its operations are called.
 
 ### Added
 
-- **O1: a generation is a plan.** Sources, stations, bands, times and pattern save to a file and load
-  back into the dialog whole -- a preset used to keep the timing and drop what it was for. How long a
-  pattern takes, and the scan duration that fits a given end, are the backend's arithmetic now, where
-  the generator's own always was; the dialog asked for a second copy of both. The two built-in
-  patterns come from the model, like every other list the interface shows.
-- Tests that hold what was found: a session of ordinary work loses no result file; a window keeps the
-  results of the project it replaces; a save takes its scratch copies with it; ten plots opened and
-  closed leave no tab and no figure; the journal stops at the size it was given; a control disabled
-  in a form that no code enables fails the build; and a widget calling a method another widget does
-  not have fails it too.
+- **O1: a generation is a plan.** Sources, stations, bands, times and pattern save to a file
+  and load back into the dialog whole, where a preset used to keep the timing and drop what it
+  was for. How long a pattern takes and what duration fits a given end are the backend's
+  arithmetic, and the two built-in patterns come from the model.
+- Tests that hold what was found: a session of ordinary work loses no result file; a window
+  keeps the results of the project it replaces; a save takes its scratch copies with it; ten
+  plots opened and closed leave no tab and no figure; the journal stops at the size it was
+  given; and a control disabled in a form that no code enables fails the build.
 
 ## [1.11.0] - 2026-09-16
 
@@ -454,11 +423,10 @@ Stage 2 of the roadmap: the main window.
   New, Open, Save, Save As, Quit -- plus `Ctrl+R` to calculate, `Ctrl+Shift+V` to visualize,
   `Ctrl+G` to generate, `Ctrl+J` for the session, `F1` for about. No two actions answer to the same
   keys, which a test holds to.
-- **A status bar** (G13): the last thing the log said, in the colour of its level -- amber for a
-  warning, red for an error -- and what the process is holding, re-read every two seconds. It reads
-  the log rather than being written to from call sites, so everything the application already
-  reports arrives without anything being wired up for it, including from a calculation or a save
-  running in a thread.
+- **A status bar** (G13): the last thing the log said, in the colour of its level, and what
+  the process is holding, re-read every two seconds. It reads the log rather than being written
+  to from call sites, so everything the application already reports arrives without being wired
+  up, including from a calculation running in a thread.
 - **Thirteen new icons and nine redrawn** (G10). Every action has its own now: a project packaged
   in and out, an observation in and out, the correlator's file in and out, results leaving,
   analysis, generation, the session, the explorer, the two catalogues, the run report. All of them
@@ -479,29 +447,25 @@ Stage 1 of the roadmap: what got in the way every day.
 
 ### Added
 
-- **G7: Select All and Clear under every list a plot is chosen from** -- sources, scans, telescopes,
-  baselines, frequencies, on every visualization tab. Two hundred baselines and one of them wanted
-  is two clicks. A whole list is ticked with the plot drawn once, not once per item. The buttons are
-  found by the name of their list, so a list added to a form gets them by being named like the
-  others.
-- **G9: saving shows how far it has got.** Each result file as it is written, by observation code
-  and calculation, then the model; the window keeps answering throughout. A save that takes no time
-  shows nothing, and a save has no Cancel -- stopped half way it would leave the project directory
-  half new. A request's `save` takes `progress(percent, message)`, as a calculation's `run` does.
-  Opening a project has no progress window: it reads the model alone, a tenth of a second.
+- **G7: Select All and Clear under every list a plot is chosen from** -- sources, scans,
+  telescopes, baselines, frequencies. Two hundred baselines and one of them wanted is two clicks,
+  and a whole list is ticked with the plot drawn once. The buttons are found by the name of their
+  list, so a list added to a form gets them by being named like the others.
+- **G9: saving shows how far it has got.** Each result file as it is written, then the model,
+  with the window answering throughout. A save that takes no time shows nothing, and a save has
+  no Cancel -- stopped half way it would leave the project directory half new. Opening a project
+  has no progress window: it reads the model alone, a tenth of a second.
 - `test_form_layout`: every form laid out as authored and at its smallest, each tab page in turn,
   fails on overlapping widgets, cut-off text, squashed fields and windows pinned to a size.
 
 ### Fixed
 
-- **G8: nothing on a form overlaps or is cut off.** Twelve dialogs pinned their window to one size.
-  Five were smaller than their own layout: fields in the source editor 20 px high with their text
-  cut through, crushed spin boxes in the IF editor, Cancel lying on the progress bar, the About text
-  missing the tops of its lines. The other seven fitted Arial on Windows and cut their labels with a
-  wider font, and the catalogue browser could not be made larger for a catalogue of hundreds. A
-  window is now as large as its layout says. The generator's list buttons had lost the tops of
-  "Up" and "Down". The progress window's bar spans it, Cancel sits a little lower, and a long message
-  is shortened in the middle, with the whole of it as the tooltip.
+- **G8: nothing on a form overlaps or is cut off.** Twelve dialogs pinned their window to one
+  size: five were smaller than their own layout, and the other seven fitted Arial on Windows and
+  cut their labels with a wider font. A window is now as large as its layout says, and the
+  catalogue browser can be made larger for a catalogue of hundreds.
+- The progress window's bar spans it, Cancel sits a little lower, and a long message is shortened
+  in the middle, with the whole of it as the tooltip.
 - **Beam pattern with many stations.** Each code was its panel's title and sat on the angle labels of
   the panel above, and the legend lay over the top row. Codes are inside their panels and the figure
   is laid out by what is on it, again on every resize.
@@ -515,23 +479,18 @@ Stage 1 of the roadmap: what got in the way every day.
 
 ### Fixed
 
-- **A redraw emptied nothing, on every plot.** A visualization tab owns one figure and hands it to
-  the visualizer with each request; the visualizer drew into it without clearing it, so each redraw
-  added its axes, tick labels, titles and legend on top of the last. With the same selection the
-  new drawing lay exactly over the old; untick a station and the pile showed. A borrowed figure is
-  now cleared before any plot draws, and its margins go back to the defaults.
-- **Az/El with many stations.** Each station's name was its panel's title and sat on the plot above;
-  fixed margins left a third of the figure empty. The name is inside its panel now and the panels
-  use the figure. Besides: only ten stations were drawn however many were ticked; every time tick
-  read the same whole MJD (here and on the sun angle, baseline projection and parallactic angle
-  plots); and lines crossed the whole panel where azimuth wraps from 360 to 0, and ran flat across
-  hours when the source was below the horizon. Both break now.
-- **`invalid value encountered in arcsin` from the Mollweide plot**, when the cursor left the sky --
-  reaching for the zoom button, for instance. matplotlib asks where the cursor is in longitude and
-  latitude as it leaves the axes, and its inverse Mollweide answers for points outside the ellipse:
-  `arcsin` of more than one above it, a longitude of twenty radians in the corners beside it. The
-  tracks are drawn on `SkyMollweideAxes`, whose inverse answers NaN off the sky and matplotlib's own
-  value on it.
+- **A redraw emptied nothing, on every plot.** A visualization tab owns one figure and hands
+  it to the visualizer with each request, and the visualizer drew into it without clearing it,
+  so each redraw added its axes, titles and legend on top of the last. A borrowed figure is
+  cleared before any plot draws, and its margins go back to the defaults.
+- **Az/El with many stations.** Each station's name was its panel's title and sat on the plot
+  above, and fixed margins left a third of the figure empty; the name is inside its panel now.
+  Besides: only ten stations were drawn however many were ticked, every time tick read the same
+  whole MJD, and lines ran through a wrap at 360 and across hours below the horizon.
+- **`invalid value encountered in arcsin` from the Mollweide plot**, when the cursor left the
+  sky. matplotlib asks where the cursor is as it leaves the axes, and its inverse Mollweide
+  answers for points outside the ellipse. The tracks are drawn on `SkyMollweideAxes`, whose
+  inverse answers NaN off the sky and matplotlib's own value on it.
 
 ### Added
 
@@ -544,11 +503,9 @@ Stage 1 of the roadmap: what got in the way every day.
 ### Fixed
 
 - **The Mollweide tab opened and never drew, and neither did the two spacecraft tabs.** A
-  visualization tab owns one figure and hands it to the visualizer with each request, so the drawing
-  lands on the canvas the tab shows. These three wrote their request from scratch -- for their
-  sources, or their target -- and left the figure out: the visualizer drew into a figure of its own,
-  the tab showed its empty one, and nothing in the log said why. They now add to the base's request
-  instead of replacing it.
+  visualization tab owns one figure and hands it to the visualizer with each request. These
+  three wrote their request from scratch and left the figure out, so the visualizer drew into
+  one of its own and the tab showed its empty one. They add to the base's request now.
 
 ### Added
 
@@ -564,11 +521,10 @@ Stage 1 of the roadmap: what got in the way every day.
   ground stations had it planned anyway. It ran, found nothing, and logged four warnings on every
   calculation -- cached data empty, an empty result, stored, no data computed.
 
-  What it takes for a step to have something to do is now declared beside its result (`only_if`,
+  What it takes for a step to have something to do is declared beside its result (`only_if`,
   a question for the observation), and a plan asks the model before including the step.
   `Observation.has_orbit_file_telescopes` answers it, and `SpaceTelescope.follows_orbit_file`
-  replaces four copies of the same check in the calculator. A calculation for ground stations is
-  one step shorter.
+  replaces four copies of the same check in the calculator.
 
 ## [1.9.0] - 2026-09-15
 
@@ -579,11 +535,9 @@ where everything below was hiding.
 ### Fixed
 
 - **A station with a velocity was placed thousands of kilometres from where it is.** A ground
-  station's velocity is metres per year -- VEX `site_velocity`, CFX `TLSC_PAR`, the editor -- and the
-  position multiplied it by seconds since J2000. Read from a RadioAstron schedule, Westerbork, Svetloe
-  and Badary were placed 9 530, 9 630 and 11 067 km away, inside the Earth, and every visibility, uv
-  point, elevation and projection for them was for nowhere. **Recalculate any project whose stations
-  came from a VEX or CFX file.** The displacement is in Julian years now, with J2000 as the epoch.
+  station's velocity is metres per year -- VEX `site_velocity`, CFX `TLSC_PAR` -- and the
+  position multiplied it by seconds since J2000: Westerbork, Svetloe and Badary landed inside
+  the Earth. **Recalculate any project whose stations came from a VEX or CFX file.**
 
 - **A source between -1 and 0 degrees was written north of the equator.** Its sign lives in -0.0,
   and three places read that as positive: the VEX writer (`+00d30'` for -0°30', up to two degrees
@@ -611,21 +565,19 @@ where everything below was hiding.
 
 ### Changed
 
-- **A calculation grows with the schedule instead of with its overheads.** Ten stations over fifty
-  scans took 16.8 s with five thousand samples in it, because every step worked one scan and one
-  station at a time and each astropy transform and polars join has a fixed cost. The topocentric
-  transform and the rotation to GCRS are now done once for the whole observation, and matching a
-  frame to a time grid is done in numpy. Fifty scans: 6.7 s; two hundred: 24.5 s -- linear.
+- **A calculation grows with the schedule instead of with its overheads.** Ten stations over
+  fifty scans took 16.8 s, because every step worked one scan and one station at a time and each
+  transform has a fixed cost. The topocentric transform and the rotation to GCRS are done once
+  for the whole observation now. Fifty scans: 6.7 s; two hundred: 24.5 s -- linear.
 
 ## [1.8.1] - 2026-09-15
 
 ### Fixed
 
 - **Cancel would not close the calculation, export or generation dialog if nothing had been
-  started in it.** Introduced in 1.8.0. Each dialog kept its worker in `self.thread`, and on any Qt
-  object that name is the method `thread()`: a dialog closed before starting anything found the
-  method rather than nothing, failed on `isRunning` inside `done`, and stayed open while PySide
-  printed "Error calling Python override of QDialog::done()". The worker is `self.worker` now.
+  started in it.** Introduced in 1.8.0. Each dialog kept its worker in `self.thread`, and on any
+  Qt object that name is the method `thread()`, so a dialog closed before starting anything
+  failed on `isRunning` and stayed open. The worker is `self.worker` now.
 
   A visualization tab had the same shape -- its plot's layout in `self.layout`, the name of
   `QWidget.layout()` -- and it is `plot_layout`.
@@ -644,18 +596,17 @@ replaced, and a full calculation takes less than half the time it did.
 
 ### Fixed
 
-- **The beam pattern was drawn pi times too wide at every frequency.** A result holds one curve
-  per dish and the plot gives it the frequency chosen in the tab -- that design stands. The curve
-  keeps `x = D sin(t)`; the Airy pattern has `x = pi D sin(theta) / lambda`, so the angle is
-  `sin(theta) = lambda sin(t) / pi`, and the plot drew `theta = t * lambda`. A 70 m dish at 1 GHz
-  was shown with a half-power width of 0.79 degrees; it has 0.25. The axis is now in degrees and
-  each station has its own scale, since a large dish's beam was a line on a shared one.
+- **The beam pattern was drawn pi times too wide at every frequency.** A result holds one
+  curve per dish and the plot gives it the frequency chosen in the tab. The curve keeps
+  `x = D sin(t)` and the Airy pattern has `x = pi D sin(theta) / lambda`, so the angle is
+  `sin(theta) = lambda sin(t) / pi`, where the plot drew `theta = t * lambda`.
+- The axis is in degrees now and each station has its own scale, a large dish's beam having been
+  a line on a shared one.
 
-- **Time on source lost one sampling step from every block.** A block of k samples was measured
-  from its first sample to its last, k - 1 steps. A source seen in one sample was on source for
-  zero seconds, a scan visible throughout came out shorter than the scan, and a schedule of short
-  scans lost up to a tenth of its time on source. The fixture's blocks now end at 00:20 with
-  32400 s, not at 00:15 with 32100 s -- which is what the analysis tab already said.
+- **Time on source lost one sampling step from every block.** A block of k samples was
+  measured from its first sample to its last, k - 1 steps: a source seen in one sample was on
+  source for zero seconds, and a scan visible throughout came out shorter than the scan. The
+  fixture's blocks now end at 00:20 with 32400 s, which is what the analysis tab already said.
 
 - **"Total" on the time-on-source plot stopped at the first of two touching scans**, so two hours
   in common across two scans were reported as one. It counted open telescopes in a set, and at
@@ -663,9 +614,8 @@ replaced, and a full calculation takes less than half the time it did.
 
 - **A save that failed part way destroyed the saved result it was replacing.** Results and
   `project.json` were written in place, and a parquet write truncates before it encodes: a full
-  disk or an application closed mid-save left the result at zero bytes, and for `project.json`, a
-  project with nothing to open. Every file is now written beside the old one and moved over it.
-  Removing a results directory also waits out a file Windows has not yet let go of.
+  disk left the result at zero bytes, and `project.json` a project with nothing to open. Every
+  file is written beside the old one and moved over it now.
 
 - **A window idle for an hour lost its scratch to the next window.** An empty scratch directory's
   time never moves, so it looked like litter and was swept without asking whether its process was
@@ -702,10 +652,9 @@ replaced, and a full calculation takes less than half the time it did.
 ### Added
 
 - **`tests/test_physics.py`** derives every result a second way -- from astropy, or from the
-  geometry the result claims to be -- on a fresh recomputation: az/el, parallactic angle, Sun
-  angle, visibility, uvw, baseline projections, Mollweide tracks, time on source and the drawn
-  beam. Characterization says the numbers did not change; this says they are right. With the
-  station's parallax removed from the Sun angle, characterization passed and this failed at 8".
+  geometry the result claims to be: az/el, parallactic angle, Sun angle, visibility, uvw,
+  baseline projections, Mollweide tracks, time on source and the drawn beam. Characterization
+  says the numbers did not change; this says they are right.
 
 - **Characterization compares times in seconds.** A relative tolerance on an MJD near 61000 is
   thirty days wide, so a result shifted by an hour passed.
@@ -731,18 +680,14 @@ replaced, and a full calculation takes less than half the time it did.
 ### Fixed
 
 - **The connection register grew when connections were made twice.** Introduced in 1.7.1:
-  `setup_connections` appended to it and never started it empty, so a caller that connects
-  twice without clearing in between left the register holding each pair twice, and
-  `clear_connections` disconnected each of them twice. The actions beside it have always been
-  rebuilt wholesale; both registers now start empty.
+  `setup_connections` appended to it and never started it empty, so a caller that connects twice
+  without clearing left the register holding each pair twice. Both registers start empty now.
 
 ### Known
 
-- **The form-pixel reference does not see a tab that is not showing.** A form is grabbed as it
-  appears, so a change on any other tab of a `QTabWidget` leaves its digest identical -- which
-  is why removing the checkbox above moved nothing in the reference. Widening the harness to
-  walk every tab would rewrite all 26 digests, so it is recorded here rather than done in
-  passing.
+- **The form-pixel reference does not see a tab that is not showing.** A form is grabbed as
+  it appears, so a change on any other tab of a `QTabWidget` leaves its digest identical.
+  Widening the harness to walk every tab would rewrite all 26 digests, so it is recorded here.
 
 ## [1.7.1] - 2026-09-10
 
@@ -754,32 +699,25 @@ found by asking the same question -- does this call reach something that is actu
 
 - **Two projects opened, one tab closed, two tabs gone.** `setup_connections` runs again on
   New Project, Open Project and Open Package, and `clear_connections` was meant to take the
-  previous set back first. It asked `receivers(QtCore.SIGNAL("tabCloseRequested(int)"))`
-  whether the signal had any connection at all, then disconnected one particular slot -- a
-  count that includes everyone else's connections, and a string spelling that does not see
-  connections made in the new one. The guard passed, the disconnect did nothing, and every
-  reopen left another connection behind. `handle_tab_close` then ran twice for one click, and
-  after the first call removed that tab, the index belonged to its neighbour. What is
-  disconnected is now what was connected, from a register.
+  previous set back first. It asked `receivers(QtCore.SIGNAL(...))` whether the signal had any
+  connection at all, which counts everyone else's and misses the new spelling.
+- The guard passed, the disconnect did nothing, and every reopen left another connection behind:
+  `handle_tab_close` ran twice for one click, and after the first removed that tab the index
+  belonged to its neighbour. What is disconnected is now what was connected, from a register.
 
 - **Editing a source switched off every scan pointed at it.** The activity check asked
-  `self.source in observation.get_sources().get_items()`, and `in` compares every field of a
-  model. A generated observation holds the source and each scan holds a copy -- equal until
-  one is edited. Correct one digit of the declination and the two stopped being equal, so the
-  scan counted as pointed at nothing and went quietly inactive. It is found by name now.
+  `self.source in observation.get_sources().get_items()`, and `in` compares every field: a scan
+  holds a copy, equal until one is edited. Correct one digit of the declination and the scan
+  counted as pointed at nothing. It is found by name now.
 
 - **A copied scan renamed itself.** `Scan.copy` did not carry the name over, so the
-  constructor invented one while `Scans.copy` filed it under the old key: a container whose
-  keys and whose items disagreed. Results are keyed by scan name, so a copied observation had
-  no scan under the name its own results referred to. `Source`, `Telescope` and `IF` all
-  carried theirs; this was the one that did not.
+  constructor invented one while `Scans.copy` filed it under the old key. Results are keyed by
+  scan name, so a copied observation had no scan under the name its own results referred to.
 
 - **Five catalogue lookups called names the containers do not have.** `get_source`,
-  `get_telescope`, both range searches and `get_telescopes_by_type` called
-  `get_all_sources()` / `get_all_telescopes()`, and two asked a source for `get_ra_degrees()`
-  rather than the `ra_degrees` property. Every one was an `AttributeError` waiting for its
-  first caller, and nothing in the application had a first caller. One had even been repaired
-  for a different defect without the repair ever being run.
+  `get_telescope`, both range searches and `get_telescopes_by_type` called `get_all_sources()`
+  or `get_all_telescopes()`, and two asked a source for `get_ra_degrees()` rather than the
+  `ra_degrees` property. Every one was an `AttributeError` waiting for its first caller.
 
 - **Unticking a source left its Mollweide tracks on the plot.** The filter went through a
   `source_name` column no track has ever had, inside the branch that ran when a source was
@@ -791,10 +729,9 @@ found by asking the same question -- does this call reach something that is actu
   were both reported as five.
 
 - **A tab was cleaned up twice and called the second pass an error.** `close_tab` cleans and
-  then removes the tab, and Qt delivers `closeEvent` afterwards. The second pass disconnected
-  what was already disconnected and reached through attributes the first had set to `None`,
-  logged as "Error cleaning up" for work that had been done. The suite's Qt warnings went
-  from 76 to 31.
+  then removes the tab, and Qt delivers `closeEvent` afterwards: the second pass reached through
+  attributes the first had set to `None`, logged as "Error cleaning up" for work that had been
+  done. The suite's Qt warnings went from 76 to 31.
 
 - **A telescope catalogue line without a diameter** was reported as unparseable rather than
   as too short: the guard read `< 6` while the diameter is the seventh field.
@@ -816,10 +753,9 @@ costing minutes.
 ### Fixed
 
 - **A position set in degrees did not read back.** `set_ra_degrees(338.1517)` put the whole
-  value in the hours field *and* the fraction in minutes and seconds, so the fraction was
-  counted three times: back came 346.455, eight degrees away. Declination the same.
-  `ra_degrees` is what every calculation asks of a source, and CFX states a position in degrees,
-  so reading a CFX file in went straight through it.
+  value in the hours field *and* the fraction in minutes and seconds, so the fraction counted
+  three times: back came 346.455. `ra_degrees` is what every calculation asks of a source, and
+  CFX states a position in degrees, so reading a CFX file went straight through it.
 
   A source between -1 and 0 degrees now stays south, too: the sign lives in a negative zero,
   and `-0.0 >= 0` is True, so it is read with `copysign`.
@@ -840,16 +776,15 @@ costing minutes.
 
 - **Reading a schedule is 17x faster.** The pointing rule asked every scan for `get_end()`,
   which builds a `TimeDelta` and adds it to a `Time` -- 2415 of them for a 69-scan file. It
-  compares Julian days now: 1.62 s to 0.09 s for that file, and a real schedule of several
-  hundred scans no longer takes minutes. An invariant is a check; it decides on every write, so
-  it does no expensive work to decide -- which is a convention test now.
+  compares Julian days now: 1.62 s to 0.09 s. An invariant decides on every write, so it does no
+  expensive work to decide, which is a convention test now.
 
-- **One `ScheduleFormat`.** The two format `Super`s shared a 57-line `_read_one` byte for byte,
-  plus `_observations`, `_put` and `_combined`: 209 and 197 lines became 91 and 90 over a
+- **One `ScheduleFormat`.** The two format `Super`s shared a 57-line `_read_one` byte for
+  byte, plus `_observations`, `_put` and `_combined`: 209 and 197 lines became 91 and 90 over a
   shared 161. The two writers each had `channels_of`, `collect_modes`, `Channel`, `Mode`, the
-  polarization letters, the name sanitiser and `Skeleton`; one copy each in
-  `pastrocore/formats/`. CFX's report named its blocks in string literals a third time; both
-  formats declare one `OUTSTANDING` tuple that the file and the report are made from.
+  polarization letters, the name sanitiser and `Skeleton`; one copy each in `pastrocore/formats/`.
+- Both formats declare one `OUTSTANDING` tuple that the file and the report are made from, where
+  CFX's report had named its blocks in string literals a third time.
 
 - 26 unused imports, among them `matplotlib.pyplot` in a visualization tab -- which pulled in
   pyplot's backend machinery for a module that has not used it since the tab began owning its
@@ -861,9 +796,8 @@ costing minutes.
 
 - **Recent Projects never appeared.** The submenu was declared in the form, the setting was
   written, the entries were built -- and one `<addaction>` line was missing, so File held no
-  Recent Projects at all. It was dropped because a string replacement did not match and nothing
-  checked that it had; the test drove `rebuild_recent_menu` directly and passed against a menu
-  nobody could open.
+  Recent Projects at all. The test drove `rebuild_recent_menu` directly and passed against a
+  menu nobody could open.
 
   Two tests now: the G4 one asks the File menu for it, and a convention test fails on **any**
   `QMenu` a form declares and never adds to anything. Qt does not complain about one, which is
@@ -875,18 +809,15 @@ Schedules come back in, and a rule that had been refusing real experiments is go
 
 ### Added
 
-- **Reading VEX and CFX** (V5). `vex(method="import")` and `cfx(method="import")`, and
-  **File → Import Schedule**. All four example files load -- two written by `sched`, two
-  written at the ASC -- and what comes back is an observation like any other: calculable,
-  analysable, exportable. `re03fr.vex` returns six stations, two bands, one source and its
-  eight scans.
+- **Reading VEX and CFX** (V5). `vex(method="import")`, `cfx(method="import")` and
+  **File → Import Schedule**. All four example files load, and what comes back is an observation
+  like any other: calculable, analysable, exportable. `re03fr.vex` returns six stations, two
+  bands, one source and its eight scans.
 
 - **V6, decided: what this model cannot hold is read past, and named.** Neither of the two
-  options that item offered. Keeping unrecognised blocks verbatim means carrying something
-  nothing here can use or check; refusing to export an imported file makes the round trip
-  useless -- and an export leaves those blocks empty for the station and the correlator to fill
-  anyway, which is the same answer from the other side. An import reports `passed_over` by
-  name, so a round trip is never mistaken for a lossless one.
+  options that item offered: keeping unrecognised blocks verbatim means carrying something
+  nothing here can use or check, and refusing to export an imported file makes the round trip
+  useless. An import reports `passed_over` by name, so it is not mistaken for a lossless one.
 
 - **A most-recently-used list** (G4). File → Recent Projects, ten deep, kept in the settings so
   it survives a restart by being a setting rather than something the window remembers. An entry
@@ -894,19 +825,18 @@ Schedules come back in, and a rule that had been refusing real experiments is go
 
 ### Fixed
 
-- **A rule was refusing half of a real experiment.** "Active scans must not overlap in time" --
-  but `re03fr.vex` observes 2230+114 from 13:50 with Wb, Sv and Bd at 4828 MHz *and* with Ev,
+- **A rule was refusing half of a real experiment.** "Active scans must not overlap in time"
+  -- but `re03fr.vex` observes 2230+114 from 13:50 with Wb, Sv and Bd at 4828 MHz *and* with Ev,
   Nt and Zc at 22228 MHz. Two sub-arrays on one source at two frequencies is an ordinary way to
-  run an array and the basis of multi-frequency synthesis; one antenna recording two bands at
-  once is ordinary too. The rule is about **pointing** now -- one mount cannot be aimed at two
-  sources at the same moment -- which is the only thing the model can honestly say. Importing
-  that file went from four scans to eight.
+  run an array, and one antenna recording two bands at once is ordinary too.
+- The rule is about **pointing** now -- one mount cannot be aimed at two sources at the same
+  moment -- which is the only thing the model can honestly say. Importing that file went from
+  four scans to eight.
 
 - **Both catalogue browsers raised on every path.** The lookup had been moved onto the
   orchestrator and the dialog was never given one, so the Options menu, the sources tab, the
   telescopes tab and Generate Observations all failed with `AttributeError`. Nothing ever
-  constructed these dialogs, so nothing noticed; a test builds both, in both selection modes,
-  against the shipped catalogues.
+  constructed these dialogs; a test builds both now, in both selection modes.
 
 - **One font, everywhere.** The forms carried 60 `font` properties, and a widget font beats the
   stylesheet: family-only meant Arial at whatever size the platform defaults to, next to a
@@ -919,11 +849,10 @@ Schedules come back in, and a rule that had been refusing real experiments is go
 
 ### Changed
 
-- **A visualization tab owns its figure again.** Swapping a `Figure` into a live canvas is not
-  something matplotlib supports. It was reverted in 1.5.0 on a measurement taken while three
-  copies of the suite were running on the same machine -- "60 redraws in 280 s". Measured alone,
-  back to back in one process: 5.04 s against 5.31 s, both growing by 0.1 MB. **A number taken
-  on a busy machine is not a number.**
+- **A visualization tab owns its figure again.** Swapping a `Figure` into a live canvas is
+  not something matplotlib supports. It was reverted in 1.5.0 on a measurement taken while three
+  copies of the suite were running. Measured alone, back to back in one process: 5.04 s against
+  5.31 s. **A number taken on a busy machine is not a number.**
 
 - V3 dropped. No VEX parser is installable here, and an item standing against a tool nobody has
   can only ever be open. The real check is a correlator accepting a real file. G5 dropped: a
@@ -938,17 +867,14 @@ A schedule leaves pAstroCORE. Two formats, written whole and claiming only what 
 - **VEX and CFX exporters (V1--V4, X1, A2).** `vex(method="export")` and
   `cfx(method="export")` -- one operation per format, named after the format, because writing a
   file, reading one back and checking one are three things done to one contract. The writing
-  lives in `pastrocore/formats/`, which knows a format and nothing about requests;
-  `ScheduleData` still knows nothing about any format.
+  lives in `pastrocore/formats/`, which knows a format and nothing about requests.
 
   Reached from `pastrocore-cli vex`, `pastrocore-cli cfx`, and **File -> Export Schedule**.
 
-- **The decision both exporters turn on: absent is not the same as missing.** Every block the
-  format calls for is written. What the model knows carries real values; what it cannot know --
-  which recorder is in the rack this week, which BBC a channel goes through, the clock offsets
-  measured during correlation -- is an empty field or a `def` whose statements are commented
-  out, annotated in place. The file is a form to finish at the station or at the correlator,
-  not a file with holes. Both halves of that idiom are `sched`'s own.
+- **The decision both exporters turn on: absent is not the same as missing.** Every block
+  the format calls for is written. What the model knows carries real values; what it cannot
+  know -- which recorder is in the rack this week, the clock offsets measured during
+  correlation -- is an empty field or a commented-out `def`, as `sched` writes them.
 
   The report names every outstanding block, from the same declaration the file is written
   from, so the two cannot drift apart.
@@ -986,11 +912,10 @@ A schedule leaves pAstroCORE. Two formats, written whole and claiming only what 
   which runs from `__init__` and nowhere else, so `set({"polarizations": ["RCP", "H"]})` was
   accepted and so was a saved project carrying one back. It is an `@invariant` now.
 
-- The suite's intermittent `access violation` inside `processEvents`. Deletions happen between
-  tests, at a point where nothing is inside Qt's event loop, rather than in the middle of some
-  later test's redraw. Measured: seven clean runs against one crash in three before, and the
-  suite goes from 85 s to about 190 s. Two cheaper versions were tried and both ended in heap
-  corruption, three runs out of three.
+- The suite's intermittent `access violation` inside `processEvents`. Deletions happen
+  between tests, where nothing is inside Qt's event loop, rather than in the middle of a later
+  test's redraw: seven clean runs against one crash in three before, and the suite goes from
+  85 s to about 190 s. Two cheaper versions both ended in heap corruption.
 
 ### Known
 
@@ -1040,21 +965,19 @@ The numbers stopped being something you could only look at a plot of, and nine t
 
 ### Changed
 
-- **The nine visualization tabs share a base (G6).** 2562 lines became 832. They had the same
-  nine methods each and **no two were byte-identical** -- parallel variations, with the
+- **The nine visualization tabs share a base (G6).** 2562 lines became 832. They had the
+  same nine methods each and **no two were byte-identical** -- parallel variations, with the
   differences that mattered buried among the ones that did not. What varies is four
-  declarations: which form, which result, which filters, which field of the answer counts what
-  was drawn. A tab needing more overrides one method.
+  declarations: which form, which result, which filters, which field counts what was drawn.
 
   Two tests came with it, because building a tab proved nothing: one draws every tab against a
   calculated project and fails on a blank canvas, one refuses a tab that reimplements the shared
   machinery instead of declaring.
 
-- **The analysis tab, tidied** after being used: results are listed as *Telescope Visibility*
-  rather than `telescope_visibility` -- from the same catalogue the calculation dialog uses --
-  a moment is a calendar reading `yyyy-MM-dd HH:mm:ss` like the scan editor rather than a box
-  wanting an MJD, every numeric filter opens filled with the span that is actually there, and
-  the button says **Show** rather than "Ask".
+- **The analysis tab, tidied** after being used: results are listed as *Telescope
+  Visibility* rather than `telescope_visibility`, from the same catalogue the calculation
+  dialog uses; a moment is a calendar reading `yyyy-MM-dd HH:mm:ss`; every numeric filter opens
+  filled with the span that is there; and the button says **Show** rather than "Ask".
 
 - **Package Project, Open Package and Analysis are in `main_window.ui`**, where Designer can see
   them. They had been `QAction`s built in code.
@@ -1120,9 +1043,8 @@ Three roadmap items, and the last place the interface reached past the orchestra
 
   **Rules are written against types on purpose.** A sheet set on one widget applied to that
   widget; the same rule at application level applies to every widget of that type -- a `QLabel`
-  rule that reached 3 labels out of 121 now reaches all of them. That is what "one stylesheet"
-  means, and it is why some forms changed appearance. Every button looks like every other
-  button now, which they did not before.
+  rule that reached 3 labels out of 121 now reaches all of them. That is why some forms changed
+  appearance, and why every button looks like every other button now.
 
 - **A pixel harness for the forms.** G1 was attempted and reverted once, and the reason is that
   it is a cascade and nothing tells you it has moved except the pixels. This renders all 24
@@ -1164,11 +1086,10 @@ anyway, since it compares against what the code used to produce.
 
 ### Fixed
 
-- **Chebyshev interpolation put a space telescope kilometres from where it was.** One polynomial
-  of degree 30 was fitted over everything the orbit file covered. A Molniya-type orbit is fast
-  through perigee and slow at apogee, and no single polynomial describes both -- so the method
-  offered as the accurate one was two orders of magnitude worse than linear interpolation of the
-  same samples.
+- **Chebyshev interpolation put a space telescope kilometres from where it was.** One
+  polynomial of degree 30 was fitted over everything the orbit file covered. A Molniya-type
+  orbit is fast through perigee and slow at apogee, and no single polynomial describes both:
+  the method offered as the accurate one was two orders worse than linear interpolation.
 
   Measured against a Kepler orbit of eccentricity 0.94 sampled every 600 s, at times deliberately
   off the sample grid:
@@ -1183,38 +1104,35 @@ anyway, since it compares against what the code used to produce.
   A telescope 40 km from where it is said to be puts that error into every baseline, which is
   why `linear` agreed with an independent tool and this did not.
 
-  It is fitted per arc now, degree 12, with arcs cut along the **samples** rather than along the
-  requested span -- so an arc is a fixed number of samples wherever it sits, and therefore short
-  in time through perigee where the orbit turns fastest. Cutting the requested span into equal
-  pieces of time instead still left 43 km there. Each arc is fitted on its own samples plus half
-  a degree either side, so joins are informed from both directions rather than extrapolated to.
-  What remains is at perigee and belongs to the sampling: no method recovers a turn the file did
-  not record.
+  It is fitted per arc now, degree 12, with arcs cut along the **samples** rather than along
+  the requested span -- so an arc is a fixed number of samples wherever it sits, and short in
+  time through perigee where the orbit turns fastest. Cutting the span into equal pieces of
+  time instead still left 43 km there.
+
+  Each arc is fitted on its own samples plus half a degree either side, so joins are informed
+  from both directions rather than extrapolated to. What remains is at perigee and belongs to
+  the sampling: no method recovers a turn the file did not record.
 
 - **An orbit was cut to the scan exactly.** Every method here interpolates *between* samples, so
   the first and last moments of a scan had nothing beyond them to lean on and were extrapolated
   to -- the worst place for it, and the hardest to notice because the numbers still come out.
   Eight samples are kept either side.
 
-- **The orbit cache did nothing and its lock did too much.** `_orbit_cache` was created in the
-  constructor and never written to or read from, while the lock named after it was held across
-  the whole interpolation loop -- every file read and every fit -- serialising exactly the work
-  the pipeline runs in parallel. Ten scans against one spacecraft re-read and re-parsed the same
-  file ten times. The parse is cached now, keyed by path, mtime and size so an orbit edited on
-  disk is read again; the lock guards the dictionary access alone. Measured 23x on the second
-  read.
+- **The orbit cache did nothing and its lock did too much.** `_orbit_cache` was created in
+  the constructor and never written to or read from, while the lock named after it was held
+  across the whole interpolation loop, serialising exactly the work the pipeline runs in
+  parallel. Ten scans against one spacecraft re-read the same file ten times.
+- The parse is cached now, keyed by path, mtime and size so an orbit edited on disk is read
+  again, and the lock guards the dictionary access alone. Measured 23x on the second read.
 
 - **Three of the four length-mismatch guards were wrong**, in two ways. Two read
   `positions[:k] = positions[:k]` *after* rebinding `positions` to all-NaN, so they copied NaN
-  onto NaN and discarded every position that had been computed. The third assigned a full-length
-  slice from however many rows there really were, which is a shape mismatch whenever the branch
-  is reached.
+  onto NaN and discarded every position computed. The third assigned a full-length slice from
+  however many rows there really were.
 
-- **Importing a telescope could not add one that was already here.** A name and a code are each
-  unique within an observation and a file written from one carries both, so Import New Telescope
-  refused every file written from this observation and every file of a station a colleague's
-  project also holds. The tab had two lines meant to deal with it -- `telescope.code =
-  telescope.code` and the same for the name -- which do nothing. `Telescopes.add_as_new` gives it
+- **Importing a telescope could not add one that was already here.** A name and a code are
+  each unique within an observation and a file written from one carries both, so Import New
+  Telescope refused every file written from this observation. `Telescopes.add_as_new` gives it
   the first free name and code, `EHT_ALMA_2` rather than a UUID.
 
 - **One observation that could not be drawn took the whole project with it.** `future.result()`
@@ -1231,11 +1149,10 @@ anyway, since it compares against what the code used to produce.
 
 ### Changed
 
-- A figure "cleanup" that could only have tidied someone else's desk: `_finalize_plot` counted
-  `plt.get_fignums()` and called `plt.close('all')` above ten, while building its figures with
-  `Figure(...)`, which pyplot never registers. The only figures it could have closed belong to
-  whoever did use pyplot -- and a visualization tab's figures are exactly what it would have
-  found.
+- A figure "cleanup" that could only have tidied someone else's desk: `_finalize_plot`
+  counted `plt.get_fignums()` and called `plt.close('all')` above ten, while building its
+  figures with `Figure(...)`, which pyplot never registers. The only figures it could have
+  closed belong to whoever did use pyplot -- a visualization tab's, exactly.
 - The count of active scans was written out identically in the metadata of eleven calculations,
   which is how the twelfth count in the same file came to be spelled differently from all of
   them. Both are methods now; every number is unchanged.
@@ -1259,11 +1176,10 @@ results were wrong by kilometres, and staleness cannot know it, because the inpu
 
 ### Fixed
 
-- **An export that had written every file reported that it had failed.** `raise_on_error=False`
-  is what turns a request's answer into a `Response`; the export thread did not pass it, so
-  `export(...)` returned the value itself and `.value` raised `AttributeError: 'dict' object has
-  no attribute 'value'` -- after the operation had succeeded and every file was on disk. The
-  thread caught it and emitted `error`, so the export was reported as a failure once it was done:
+- **An export that had written every file reported that it had failed.**
+  `raise_on_error=False` is what turns a request's answer into a `Response`; the export thread
+  did not pass it, so `.value` raised `AttributeError: 'dict' object has no attribute 'value'`
+  after every file was on disk. The thread caught it and emitted `error`:
 
   ```
   INFO  - Exported 16 file(s) to 'E:/temp'
@@ -1278,9 +1194,8 @@ results were wrong by kilometres, and staleness cannot know it, because the inpu
 
 - **A ratchet on reading a response.** `.value`, `.ok` and `.error` may only be read off a
   request that asked for a `Response`. Twenty-six calls of exactly this shape were fixed when
-  msb_arch 1.8.0 was adopted; this was the twenty-seventh, and the check is what stops the
-  twenty-eighth. Scoped per function over the AST, so the same variable name in another function
-  is not a false match, and a variable reassigned with `raise_on_error` stops counting.
+  msb_arch 1.8.0 was adopted; this was the twenty-seventh. Scoped per function over the AST, so
+  the same variable name elsewhere is not a false match.
 
   It found one thing while parsing: a packaging test's docstring held `catalogs\sources.dat` in
   a non-raw string, which Python warns about.
@@ -1316,9 +1231,8 @@ earns its keep.
 
 - **A restored project never equalled the one it was written from.** 2.0.0 gave `Project` an
   `__eq__` so that `load(...) == project` holds; here it still did not, because
-  `CalculatedData` had none and every observation therefore compared by identity. It compares
-  on the keys a result set answers to, which is the same rule `in` and `len` already use --
-  comparing frames would mean loading both projects to answer `==`.
+  `CalculatedData` had none and every observation compared by identity. It compares on the keys
+  a result set answers to, since comparing frames would mean loading both projects.
 
 - **`_compute_replay` overwrote its own `attributes` parameter inside its loop**, so from the
   second step onwards `skip_failures` was read out of that step's attributes rather than out of
@@ -1336,11 +1250,10 @@ earns its keep.
   | Active scans must not overlap | `add`, `set_scan` | `set_item`, `set_items`, or the object was built from a file -- which is where a conflicting pair comes from |
   | Observation codes must be unique | four places | `remove_item` and `set_project` |
 
-  Each rule names both offenders rather than stating the rule, which a method that only answers
-  False cannot do. Both containers sort by start rather than comparing pairwise, so checking the
-  whole costs one sort instead of a square. `set_if` and `set_scan` edit an item in place, where
-  a container is never told -- so they write, check, and put the old values back on a refusal,
-  which is what msb_arch does for a field and for the same reason.
+  Each rule names both offenders rather than stating the rule, which a method that only
+  answers False cannot do. Both containers sort by start rather than comparing pairwise, so
+  checking the whole costs one sort instead of a square. `set_if` and `set_scan` write, check,
+  and put the old values back on a refusal, as msb_arch does for a field.
 
   A refusal is now an `InvariantError`. It is a `ValueError`, so anything catching that still
   catches this.
@@ -1390,11 +1303,10 @@ could not yet prove.
 
 ### Fixed
 
-- **A replayed step reaches the object it ran on.** Replay resolved by name, and `find` does not
-  descend into an observation at all -- so a step that edited a source, a telescope or a scan
-  came back unresolved every time, and only calculations could be replayed. It resolves by
-  **path** now. That works against the same project, reopened; it cannot work against a project
-  built separately, because nothing there shares a name.
+- **A replayed step reaches the object it ran on.** Replay resolved by name, and `find` does
+  not descend into an observation at all, so a step that edited a source, a telescope or a scan
+  came back unresolved and only calculations could be replayed. It resolves by **path** now,
+  which works against the same project reopened and not against one built separately.
 
 - **Replaying a session that contained a run called a string.** A run carries two callables --
   one to report progress, one to ask whether to stop -- a journal cannot record a callable so it
@@ -1435,9 +1347,8 @@ this page was measured or tested rather than felt.
 
 - **Tools → Session.** What has been asked of this project -- operation, object, method, how
   long, whether it worked -- written to a file, and a saved session replayed against whatever
-  project is open. Each step names its object and is resolved on replay, so a session recorded
-  against one project runs against another. A step naming something this project lacks is
-  reported rather than skipped: a session that half ran is worse than one that refused.
+  project is open. Each step names its object and is resolved on replay, and a step naming
+  something this project lacks is reported rather than skipped.
 - **Tools → Last Run Report.** What a run did, a row per step with its own time and its
   outcome, kept after the dialog closes and copyable as text for a bug report.
 - **Independent calculations run at once.** Measured 1.30x on a thirteen-step plan (1.885 s
@@ -1450,11 +1361,10 @@ this page was measured or tested rather than felt.
 
 ### Changed
 
-- **A run recomputes what has gone stale**, which freshness already knew and the run ignored --
-  and then re-stamped the reused result as current, so freshness stopped saying so. Forcing a
-  recomputation of what is *current* is a separate thing to ask for, and the tick box says so:
-  it is "Recompute everything" now, off by default, and it no longer clears every result the
-  observation holds.
+- **A run recomputes what has gone stale**, which freshness already knew and the run ignored
+  -- and then re-stamped the reused result as current, so freshness stopped saying so. Forcing
+  a recomputation of what is current is a separate thing to ask for: the box says "Recompute
+  everything" now, off by default, and no longer clears every result the observation holds.
 - **The interface reaches the model only through the orchestrator**, checked by a test rather
   than believed. Six places did not: the calculation dialog walked the telescopes and cleared
   results itself, two tabs read the frequencies, and the window asked an observation what was
@@ -1521,20 +1431,18 @@ failure to it.**
 
 ### Changed
 
-- **Running several calculations is a plan the backend builds.** The dialog used to loop over
-  what was ticked, in whatever order the list happened to be in, with prerequisites left to
-  whoever remembered them. `export(method="plan")` now returns a pipeline -- everything asked
-  for plus everything those need, with the edges taken from the handlers themselves -- and
-  `run` executes it. Asking for `telescope_visibility` alone plans five steps in the order that
-  satisfies them. Progress and cancellation ride on an interceptor, so nothing is counted twice
-  and a cancelled step skips the branch below it exactly as a failed one does. **A command line
-  or a server sending the same request gets the same behaviour**, which is the point of putting
-  it there.
+- **Running several calculations is a plan the backend builds.** The dialog used to loop
+  over what was ticked, in whatever order the list happened to be in, with prerequisites left
+  to whoever remembered them. `export(method="plan")` returns a pipeline now -- everything
+  asked for plus everything those need -- and `run` executes it.
+- Asking for `telescope_visibility` alone plans five steps in the order that satisfies them.
+  Progress and cancellation ride on an interceptor, so nothing is counted twice and a cancelled
+  step skips the branch below it as a failed one does. **A command line or a server sending the
+  same request gets the same behaviour**, which is the point of putting it there.
 - **Start-up: 4.0 s to 1.4 s.** The calculator and the visualizer, which between them import
   matplotlib, `astropy.coordinates` and scipy, are registered deferred (`msb_arch` 1.4.0) and
-  built when first needed -- warmed on a background thread once the window is up. Nine dialogs
-  imported at module level are imported where they are opened. The settings file is read once
-  instead of twice.
+  built when first needed, warmed on a background thread once the window is up. Nine dialogs
+  imported at module level are imported where they are opened.
 - **The exporter asks each plot what it takes.** Five lists decided which arguments each picture
   was given, and each was a copy of what the plot states by reading it. `accepts` on a catalogue
   entry (`msb_arch` 1.5.0) derives that. One plot was missing from two of the lists.
@@ -1552,18 +1460,16 @@ failure to it.**
   `calculation_finished` twice; the later definition won and took one argument where the signal
   carries `(results, errors)`. PySide drops arguments a slot does not accept rather than
   complaining, so the failures fell into the gap between the two definitions.
-- **The space telescope calculations ran with nothing to point at**, finishing in a millisecond
-  having computed nothing, so there was afterwards nothing to export or draw. Which calculations
-  need a target is read from the result's columns; the first fix compared the labels the list
-  shows against the keys the catalogue speaks and matched nothing, which shipped because the
-  tests called the helper directly and never went through the dialog's run.
+- **The space telescope calculations ran with nothing to point at**, finishing in a
+  millisecond having computed nothing, so there was afterwards nothing to export or draw. Which
+  calculations need a target is read from the result's columns; the first fix compared labels
+  against keys and matched nothing, the tests never going through the dialog's run.
 - **Ticking a calculation did not tick what it needs**, the same label-against-key comparison, so
   `telescope_visibility` could run before `telescope_az_el`.
-- **An installed application found no catalogues and lost its settings.** Every path was relative
-  to the directory it was started from. The catalogues are inside the package now; the settings
-  are one per-user file, adopting a `settings.pastro` left in a working directory once. A
-  catalogue chosen in Preferences is kept; one that has been deleted falls back to the shipped
-  one and says so.
+- **An installed application found no catalogues and lost its settings.** Every path was
+  relative to the directory it was started from. The catalogues are inside the package now; the
+  settings are one per-user file, adopting a `settings.pastro` left in a working directory once.
+  A catalogue that has been deleted falls back to the shipped one and says so.
 - **`scan_times` narrowed only by `source_name`**, so a result about a tracked spacecraft needed
   a case of its own. It narrows by whatever column the caller named that the result has.
 
@@ -1584,26 +1490,23 @@ A space telescope can be pointed at. A result says when the configuration moved 
 
 - **Pointing a ground station at a space telescope.** `telescope_az_el` and
   `telescope_visibility`, chosen by name and never run as part of an ordinary observation. The
-  direction is the **vector from station to spacecraft**: a source is far enough away that
-  every station sees it alike, a spacecraft at twenty thousand kilometres is not, and reusing
-  the source geometry would have been wrong by degrees while looking entirely plausible. The
-  scans supply the time window, the stations supply the vantage point, and the spacecraft need
-  not take part in the observation it is tracked during. Checked against the law of cosines
-  rather than against a stored number.
+  direction is the **vector from station to spacecraft**: a source is far enough away that every
+  station sees it alike, and a spacecraft at twenty thousand kilometres is not.
+- The scans supply the time window, the stations supply the vantage point, and the spacecraft
+  need not take part in the observation it is tracked during. Checked against the law of
+  cosines rather than against a stored number.
 - **A result knows when its inputs changed.** Moving a telescope 1 000 km and recalculating
   used to return the previous numbers in silence. Three answers now -- stale, current, or
-  *unknown*, since a result computed before this existed is neither. Shown as a label in the
-  project explorer, never as a dialog. Granular: editing a scan stales `uv_coverage` and
-  leaves `beam_pattern` alone, because each result declares what it reads in its own schema.
+  *unknown*, a result computed before this existing being neither -- shown as a label in the
+  project explorer. Granular: editing a scan stales `uv_coverage` and leaves `beam_pattern`.
 - **`ScheduleData`.** Export, save and load are operations reached through the manipulator, so
   a script or a server can do what the interface does. The export dialog went from 312 lines to
   210, its non-Qt logic from 252 to 130. Proved by bytes: four exported files hashed before a
   line moved and identical after.
 - **One catalogue.** The same knowledge was written down nine times across three dialogs,
   including a table of which calculation needs which. It is one request now, answered by the
-  manipulator from its own handlers -- `msb_arch` 1.2.0. Adding a calculation makes it appear
-  with its label, its prerequisites and its place in the order, without a line changing in
-  `pastrocore/gui`, which a test asserts by adding one.
+  manipulator from its own handlers (`msb_arch` 1.2.0). Adding a calculation makes it appear
+  with its label, its prerequisites and its place in the order, which a test asserts.
 
 ### Fixed
 
@@ -1635,11 +1538,9 @@ A day of calculation is no longer lost to a crash.
 ### Added
 
 - **Results are written to disk the moment they are calculated**, rather than waiting for a
-  save. They used to be held in memory and marked unwritten -- true whether or not the project
-  had a directory -- so they were lost to a crash, a power cut or the memory running out. They
-  also counted **zero bytes** against the residency ceiling, because the budget cannot evict
-  what it has nowhere to read back from, which meant an unsaved session was ungoverned as well
-  as unprotected. Both are fixed by the same change.
+  save. They used to be held in memory and marked unwritten, so they were lost to a crash, a
+  power cut or the memory running out. They also counted **zero bytes** against the residency
+  ceiling, so an unsaved session was ungoverned as well as unprotected.
 - **A scratch directory per running session.** Before a project has a directory of its own its
   results live there; saving migrates them across rather than recalculating. One per session,
   named for the process, so two open windows never adopt or evict each other's results -- the
@@ -1670,20 +1571,17 @@ A day of calculation is no longer lost to a crash.
 
 ### Removed
 
-- **The single-file project format.** It was tolerated for one release and is now gone: nobody
-  outside this repository had saved a project in it, so the window to carry it forever was open
-  for a day and was not worth a branch in every load path. `ScheduleProject.to_file` and
-  `from_file` went with it -- 147 lines of two-format handling. The test fixture is unaffected:
-  it is a JSON file read through `from_dict`, the model's own serialization, not through a file
-  format.
+- **The single-file project format.** It was tolerated for one release and is now gone:
+  nobody outside this repository had saved a project in it, so it was not worth a branch in
+  every load path. `ScheduleProject.to_file` and `from_file` went with it -- 147 lines of
+  two-format handling. The test fixture is a JSON file read through `from_dict`.
 
 ### Changed
 
 - **Open and Save ask for a folder.** Both dialogs used to ask for a file: Save warned about
   overwriting one, and Open could not select a directory at all, so a user had to navigate
-  inside the project and pick `project.json` -- which worked only because `open` had been
-  written to tolerate it. Opening now checks that the chosen directory really is a project and
-  says so plainly when it is not, because a directory chooser will return any directory.
+  inside the project and pick `project.json`. Opening now checks that the chosen directory
+  really is a project, because a directory chooser will return any directory.
 - **Saving into a folder that already holds something else asks first.** An empty folder --
   what the dialog's New Folder button produces -- and an existing project both go ahead without
   a question. Anything else would have dropped `project.json` and a `results/` directory among
@@ -1696,12 +1594,12 @@ project containing one failed to open.
 
 ### Fixed
 
-- **A project holding a space telescope could not be opened.** A space telescope has no station
-  geometry, no mount and no elevation limits -- the constructor fixes them rather than
-  accepting them. They are inherited fields all the same, so `to_dict` wrote them out and
-  deserialization handed them back to a constructor that rejects them. `to_dict` now omits
-  them, as it already omitted the position and velocity for the same reason, and `from_dict`
-  drops them if a file written earlier still carries them.
+- **A project holding a space telescope could not be opened.** A space telescope has no
+  station geometry, no mount and no elevation limits -- the constructor fixes them rather than
+  accepting them -- and they are inherited fields all the same, so `to_dict` wrote them out and
+  deserialization handed them back to a constructor that rejects them.
+- `to_dict` omits them now, as it already omitted the position and velocity for the same
+  reason, and `from_dict` drops them if a file written earlier still carries them.
 - Space telescope ranges may be written as whole numbers -- `pitch_range=(0, 90)` -- which
   needed `msb_arch` 1.1.2.
 
@@ -1720,16 +1618,14 @@ in silence.
 
 ### Added
 
-- **The directory format, wired into the application.** `ScheduleProject.open` takes a project
-  directory, the `project.json` inside one, or a single file written by an earlier version, and
-  works out which. `save` writes a directory, converting a single file at the same path -- the
-  old file is removed only after the new directory is complete. Every project saved before this
-  keeps opening.
-- **A residency budget.** One per project, defaulting to half of available memory and settable
-  in Preferences as a percentage. When the ceiling is passed the least recently used results
-  are dropped and read back from disk when next needed. An unwritten result is never dropped,
-  and a result larger than the whole budget is still read -- the budget governs what may be
-  kept, never what may be read.
+- **The directory format, wired into the application.** `ScheduleProject.open` takes a
+  project directory, the `project.json` inside one, or a single file written by an earlier
+  version, and works out which. `save` writes a directory, converting a single file at the same
+  path and removing the old file only once the new directory is complete.
+- **A residency budget.** One per project, defaulting to half of available memory and
+  settable in Preferences as a percentage. When the ceiling is passed the least recently used
+  results are dropped and read back from disk when next needed. An unwritten result is never
+  dropped, and the budget governs what may be kept, never what may be read.
 - **Lazy, filtered reads.** All eight plots read through `scan_calculated_data` and collect
   once their filter chain is complete, so polars pushes the filter into the parquet read.
 - **Characterization tests for the plots**, which had none. They read the drawn artists back

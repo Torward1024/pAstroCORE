@@ -9,11 +9,10 @@ window it is **Tools → Analysis**; from a terminal it is `pastrocore-cli analy
 
 ## Nothing here is written down twice
 
-Which results exist, which of their columns are numbers, which are categories worth grouping or
-slicing by, and which are true-or-false columns with runs in them — all of it comes from the
-schemas the calculations already declare. A calculation added tomorrow can be summarised and
-filtered without a line changing, and it appears in the tab with its own columns because the
-tab is filled from the same answer.
+Which results exist, which of their columns are numbers, which are categories worth grouping
+or slicing by, and which are true-or-false columns with runs in them — all of it comes from the
+schemas the calculations already declare. A calculation added tomorrow is summarised and
+filtered without a line changing, and appears in the tab with its own columns.
 
 ```python
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
