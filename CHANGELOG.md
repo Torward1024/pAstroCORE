@@ -19,10 +19,10 @@ The style is a measure rather than a taste: `tests/test_house_style.py` counts w
 owes it, and the number may only go down. 889 places did not meet it when the pass started and
 none do now, so both ledgers are empty and the style is a gate.
 
-**The history was rewritten.** 266 commit messages, each one subject of 72 characters or fewer
-with its own date, and a body of short paragraphs. The 34 tag objects were rewritten with it
-and force-pushed. Every tree is byte for byte what it was, and the releases on GitHub still
-point at their tags.
+**The history was rewritten.** 266 commit messages: a subject of 72 characters or fewer
+carrying its own date, and a body of at most 80 words -- what changed and why, and the
+measurement a decision rests on. 49 391 words of body became 13 436. The 34 tag objects were
+rewritten with it and force-pushed, every tree byte for byte what it was.
 
 Found while reading: the README described the stylesheet as a file, which U1 replaced with
 tokens in `pastrocore/theme.py`.
