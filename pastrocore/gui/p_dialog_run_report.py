@@ -21,12 +21,9 @@ class RunReportDialog(QDialog):
         parent (QWidget): The window this belongs to.
 
     Notes:
-        - This exists because a run used to end in one message box saying everything worked,
-          with the detail in `output.log`. Neither a dialog per event nor silence: one report,
-          and it stays reachable from **Tools -> Last Run Report** after the dialog is closed.
-        - A failed step is in the table rather than only in the log, which is the whole point:
-          the interface reported success while steps failed for as long as nothing carried the
-          failure to it.
+        - One report rather than a message box and a line in `output.log`, and it stays
+          reachable from Tools -> Last Run Report after the dialog is closed.
+        - A failed step is in the table rather than only in the log, which is the whole point.
     """
 
     COLUMNS = ["Observation", "Calculation", "Seconds", "Outcome", "Why"]
@@ -46,10 +43,8 @@ class RunReportDialog(QDialog):
         summary = self._outcome.get("summary") or {}
 
         failed = summary.get("failed", 0)
-        # **The clock, then the work.** Independent steps of a stage run together, so adding
-        # their durations counts the same seconds several times -- this said 4.08 s for a run
-        # the user waited 2.51 s for. Both are shown when they differ: the second divided by
-        # the first is what the concurrency bought.
+        # The clock, then the work: independent steps run together, so adding their
+        # durations counts the same seconds twice. Both are shown when they differ.
         elapsed = summary.get("seconds", 0.0)
         work = summary.get("work", elapsed)
         headline = f"{summary.get('steps', len(rows))} calculation(s) in {elapsed:.2f} s"

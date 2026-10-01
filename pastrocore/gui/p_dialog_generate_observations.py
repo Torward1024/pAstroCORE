@@ -47,10 +47,8 @@ class GenerationThread(QThread):
     def run(self):
         """Execute observation generation asynchronously and emit progress signals."""
         try:
-            # The generator's own answer, passed on as it is: it already says whether anything
-            # was made, and what. Wrapping it as `{"status": True, "result": answer}` made
-            # every run a success -- a range too short for a single observation closed the
-            # dialog as if it had worked, and nobody was told why nothing appeared.
+            # The generator's own answer, passed on as it is: it already says whether
+            # anything was made. Wrapping it in a `status` would make every run a success.
             answer = self.manipulator.configure(obj=self.project, generate_observations=self.attributes)
             self.finished.emit(answer if isinstance(answer, dict) else
                                {"status": False, "error": f"Unexpected answer: {answer!r}", "result": []})
@@ -95,9 +93,8 @@ class GenerateObservationsDialog(QDialog):
         self.ui.frequencyList.setContextMenuPolicy(Qt.CustomContextMenu)
         
 
-        # From the model's own list, replacing what the form was drawn with. The form carries
-        # the two so that it is not empty in Designer; a list in a form is a second place for
-        # the answer to live, and the two disagree the first time one changes.
+        # From the model's own list, replacing what the form was drawn with: the form
+        # carries the two so it is not empty in Designer, which is a second place to keep.
         self.ui.observationTypeCombo.clear()
         self.ui.observationTypeCombo.addItems(list(OBSERVATION_TYPES))
 
@@ -218,9 +215,8 @@ class GenerateObservationsDialog(QDialog):
             dialog = IFEditorDialog(if_obj=if_obj, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    # The editor writes what is on screen into the band and hands it back; there
-                    # was a `get_if_data` here, which it has never had, so editing a band in the
-                    # generator has always ended in an error box.
+                    # The editor writes what is on screen into the band and hands it
+                    # back; it has never had a `get_if_data`.
                     edited = dialog.get_if_object()
                     self.update_frequency_list()
                     logger.info("Edited frequency '%s'", edited.name)
@@ -430,9 +426,8 @@ class GenerateObservationsDialog(QDialog):
         """Generate the observations the plan describes, in a thread.
 
         Notes:
-            - **The request is the plan.** What was here built the generator's attributes by hand
-              from the widgets, one of which -- the end time -- the dialog had worked out with its
-              own copy of the generator's arithmetic.
+            - The request is the plan, rather than the generator's attributes built by hand
+              from the widgets with the dialog's own copy of its arithmetic.
         """
         try:
             plan = self.plan()
@@ -514,10 +509,8 @@ class GenerateObservationsDialog(QDialog):
             dict: The plan as a request carries it -- plain fields, and the collections themselves.
 
         Notes:
-            - **One thing to send, and the backend answers everything about it.** How long the
-              pattern takes, what a preset is and what a saved plan holds were worked out here
-              before, in parallel with the generator's own arithmetic. Nothing here converts a
-              model object: what crosses is a request.
+            - One thing to send, and the backend answers everything about it: how long the
+              pattern takes, what a preset is, and what a saved plan holds.
         """
         def chosen(widget, kind):
             picked = [item.data(Qt.UserRole) for item in widget.selectedItems()]

@@ -57,11 +57,7 @@ class SourcesTab(QWidget):
         """Show only the rows holding what was typed.
 
         Notes:
-            - **What is typed is a name, not a pattern.** It went to the table as a regular
-              expression, and 801 of the 1633 names in the shipped source catalogue hold a
-              `+`: in `0010+405` that is one-or-more rather than a plus, so searching for a
-              source by the name it was copied from found nothing at all. An unclosed bracket
-              emptied the table outright. The catalogue's own search is a substring.
+            - A substring, not a pattern: 801 of 1633 shipped source names hold a `+`.
         """
         self.proxy_model.setFilterFixedString(text)
 
@@ -210,9 +206,8 @@ class SourcesTab(QWidget):
     def deactivate_source(self, source_name: str):
         """Deactivate the specified source."""
         try:
-            # `configure`: it was `inspect` here since 24.09.2025, when two requests were folded
-            # into one line and kept the first one's operation. It worked, was journalled as a
-            # read, and failed silently where the other tabs raise. msb_arch 3.0 refuses it.
+            # `configure`, not `inspect`: a write journalled as a read fails silently
+            # where the other tabs raise, and msb_arch 3.0 refuses it outright.
             self.manipulator.configure(self.observation.get_sources(), deactivate_item=source_name)
             self.update()
             self.data_updated.emit(source_name, False, "deactivate")
@@ -312,9 +307,8 @@ class SourcesTab(QWidget):
                     name_J2000 = attrs.get("name_J2000", "") or ""
                     alt_name = attrs.get("alt_name", "") or ""
 
-                    # Asked of the source rather than assembled from its fields: the sign of a
-                    # declination and the carry out of its seconds are the source's own answer,
-                    # and this table used to get both of them wrong.
+                    # Asked of the source rather than assembled from its fields: the
+                    # sign of a declination and the carry out of its seconds are its own.
                     ra_str, dec_str = position_text(self.manipulator, source_obj)
 
                     row = [
@@ -383,11 +377,8 @@ class SourcesTab(QWidget):
         """Clean up resources associated with this tab.
 
         Notes:
-            - **It may be called twice.** `close_tab` cleans and then removes the tab, and Qt
-              delivers `closeEvent` afterwards. The second pass used to disconnect signals that
-              were already disconnected -- Qt warns once per signal -- and then reach through
-              an attribute this method had set to `None`, which the blanket `except` below
-              logged as "Error cleaning up" for work that had in fact been done.
+            - It may be called twice: `close_tab` cleans and then removes the tab, and Qt
+              delivers `closeEvent` afterwards.
         """
         if self.observation is None:
             return
@@ -404,11 +395,8 @@ class SourcesTab(QWidget):
             self.model.clear()
             self.proxy_model.deleteLater()
             self.model.deleteLater()
-            # **Let go of them here.** `deleteLater` destroys the C++ half at the next turn of
-            # the event loop, and a Python wrapper that outlives it crashes when it is finally
-            # collected -- the interpreter reaches into an object that is not there. It killed
-            # the build on Linux inside a garbage collection, and every other thing this method
-            # releases was already dropped this way.
+            # Let go of them here: `deleteLater` destroys the C++ half at the next turn
+            # of the event loop, and a wrapper outliving it crashes when it is collected.
             self.proxy_model = None
             self.model = None
 

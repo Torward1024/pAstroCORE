@@ -82,9 +82,8 @@ class FrequencyTableModel(QAbstractTableModel):
         Notes:
             - Returning False is how a Qt model rejects an edit, which is why the exception is
               swallowed: what the user typed is not a number and the cell keeps what it had.
-            - The bounds are the model's own. A frequency is positive; the value is above
-              `lowest` and, where there is one, no more than `highest`. Three of these tables
-              used to accept a **zero**, which `Telescope` then refused on save.
+            - The bounds are the model's own: a frequency is positive, and the value
+              is above `lowest` and no more than `highest` where there is one.
         """
         if role != Qt.EditRole:
             return False
@@ -153,12 +152,10 @@ class GainCurveTableModel(QAbstractTableModel):
         data (list): Rows of `[code, from MHz, to MHz, [c0, c1, ...]]`.
 
     Notes:
-        - **A gain curve is not a station's table.** It is an assumption of a calculation, like
-          the weather, so it is typed where the calculation is asked for and goes with the
-          request rather than into the model.
-        - The coefficients are a polynomial in elevation, in degrees, and only their *shape*
-          matters: the calculation takes `g(90) / g(el)`, so a curve normalised at 50 degrees
-          and the same curve doubled give one answer.
+        - A gain curve is an assumption of a calculation rather than a station's table, so it
+          is typed where the calculation is asked for and goes with the request.
+        - The coefficients are a polynomial in elevation, in degrees, and only their shape
+          matters: the calculation takes `g(90) / g(el)`.
     """
 
     HEADINGS = ("Telescope", "From (MHz)", "To (MHz)", "Polynomial in elevation")

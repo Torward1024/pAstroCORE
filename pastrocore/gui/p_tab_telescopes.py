@@ -56,9 +56,7 @@ class TelescopesTab(QWidget):
         """Show only the rows holding what was typed.
 
         Notes:
-            - A substring, not a pattern, as everywhere else this application searches. What
-              was typed went to the table as a regular expression, where a `+` is not a plus
-              and an unclosed bracket empties the table.
+            - A substring, not a pattern, as everywhere else this application searches.
         """
         self.proxy_model.setFilterFixedString(text)
 
@@ -235,10 +233,8 @@ class TelescopesTab(QWidget):
         try:
             response = self.manipulator.load(self.observation.get_telescopes(), path=file_path)
             telescope = response
-            # `add_as_new`, not `add`: a file written from an observation carries the name and
-            # the code it had, and both are unique here, so importing one back was refused
-            # outright. What stood here -- `telescope.code = telescope.code` and the same for
-            # the name -- was two lines that did nothing.
+            # `add_as_new`, not `add`: a file written from an observation carries the
+            # name and code it had, both of which are unique here.
             self.manipulator.configure(self.observation.get_telescopes(), add_as_new=telescope)
             self.update()
             self.data_updated.emit(telescope.name, None, "add")
@@ -316,10 +312,8 @@ class TelescopesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to retrieve telescope: No result returned")
                 return
             
-            # **A copy, as the catalogue dialog hands its editor one.** An editor writes what
-            # it shows into the object it was given, and the object here is the one the
-            # observation holds: an edit the model refuses part way through a group leaves
-            # the fields already written on it (G16), through Cancel and into a save.
+            # A copy, as the catalogue dialog hands its editor one: an editor writes
+            # into what it is given, and a refused edit leaves the written fields (G16).
             working = telescope.clone()
             if isinstance(working, SpaceTelescope):
                 dialog = SpaceTelescopeEditorDialog(telescope=working, parent=self)
@@ -486,11 +480,8 @@ class TelescopesTab(QWidget):
         """Clean up resources associated with this tab.
 
         Notes:
-            - **It may be called twice.** `close_tab` cleans and then removes the tab, and Qt
-              delivers `closeEvent` afterwards. The second pass used to disconnect signals that
-              were already disconnected -- Qt warns once per signal -- and then reach through
-              an attribute this method had set to `None`, which the blanket `except` below
-              logged as "Error cleaning up" for work that had in fact been done.
+            - It may be called twice: `close_tab` cleans and then removes the tab, and Qt
+              delivers `closeEvent` afterwards.
         """
         if self.observation is None:
             return
@@ -507,11 +498,8 @@ class TelescopesTab(QWidget):
             self.model.clear()
             self.proxy_model.deleteLater()
             self.model.deleteLater()
-            # **Let go of them here.** `deleteLater` destroys the C++ half at the next turn of
-            # the event loop, and a Python wrapper that outlives it crashes when it is finally
-            # collected -- the interpreter reaches into an object that is not there. It killed
-            # the build on Linux inside a garbage collection, and every other thing this method
-            # releases was already dropped this way.
+            # Let go of them here: `deleteLater` destroys the C++ half at the next turn
+            # of the event loop, and a wrapper outliving it crashes when it is collected.
             self.proxy_model = None
             self.model = None
 

@@ -29,9 +29,8 @@ class FrequenciesTab(QWidget):
         self.ui.search.setPlaceholderText("Search frequencies...")
 
         self.model = QStandardItemModel()
-        # "Covers" is here because `IF (MHz)` is an edge rather than a middle: 4828 upper and
-        # 4844 lower are the same 16 MHz, and the column that shows it is the one that makes
-        # two rows recognisable as the same spectrum.
+        # "Covers" is here because `IF (MHz)` is an edge rather than a middle: 4828
+        # upper and 4844 lower are the same 16 MHz, which only that column shows.
         self.model.setHorizontalHeaderLabels([
             "#", " ", "IF ID", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Sidebands",
             "Covers (MHz)", "Polarizations"
@@ -57,9 +56,7 @@ class FrequenciesTab(QWidget):
         """Show only the rows holding what was typed.
 
         Notes:
-            - A substring, not a pattern. The sidebands column joins them with a `+`, so a
-              band recording both is shown as `U+L` -- which, read as a regular expression,
-              matches `UL` and never the row it was copied from.
+            - A substring, not a pattern: `U+L` read as one matches `UL`, not the row.
         """
         self.proxy_model.setFilterFixedString(text)
 
@@ -139,9 +136,8 @@ class FrequenciesTab(QWidget):
         if dialog.exec() == QDialog.Accepted:
             try:
                 if_obj = dialog.get_if_object()
-                # The band's own name. What stood here was a fresh `freq_` uuid, made up on
-                # this line and given to nothing: the editor names what it makes, so the log
-                # and the signal both announced a band that was not in the observation.
+                # The band's own name: the editor names what it makes, so a name made
+                # up here would announce a band that is not in the observation.
                 freq_name = if_obj.name
                 self.manipulator.configure(self.observation.get_frequencies(), add=if_obj)
                 self.update()
@@ -165,9 +161,8 @@ class FrequenciesTab(QWidget):
         try:
             response = self.manipulator.load(self.observation.get_frequencies(),
                                              path=file_path, kind=IF)
-            # `load` hands back the object it read. This asked it for `["object"]`, a
-            # shape that stopped existing when the contract became MSB's own -- and
-            # nothing covered this path, so it raised where a user would meet it.
+            # `load` hands back the object it read, rather than a mapping with an
+            # `["object"]` in it.
             imported_if = response
             freq_name = f"freq_{uuid.uuid4().hex[:32]}"
             imported_if.name = freq_name
@@ -440,11 +435,8 @@ class FrequenciesTab(QWidget):
         """Clean up resources associated with this tab.
 
         Notes:
-            - **It may be called twice.** `close_tab` cleans and then removes the tab, and Qt
-              delivers `closeEvent` afterwards. The second pass used to disconnect signals that
-              were already disconnected -- Qt warns once per signal -- and then reach through
-              an attribute this method had set to `None`, which the blanket `except` below
-              logged as "Error cleaning up" for work that had in fact been done.
+            - It may be called twice: `close_tab` cleans and then removes the tab, and Qt
+              delivers `closeEvent` afterwards.
         """
         if self.observation is None:
             return
@@ -461,11 +453,8 @@ class FrequenciesTab(QWidget):
             self.model.clear()
             self.proxy_model.deleteLater()
             self.model.deleteLater()
-            # **Let go of them here.** `deleteLater` destroys the C++ half at the next turn of
-            # the event loop, and a Python wrapper that outlives it crashes when it is finally
-            # collected -- the interpreter reaches into an object that is not there. It killed
-            # the build on Linux inside a garbage collection, and every other thing this method
-            # releases was already dropped this way.
+            # Let go of them here: `deleteLater` destroys the C++ half at the next turn
+            # of the event loop, and a wrapper outliving it crashes when it is collected.
             self.proxy_model = None
             self.model = None
 

@@ -185,16 +185,10 @@ class TelescopeEditorDialog(QDialog):
         """Return why what is on screen cannot be saved, or an empty string.
 
         Notes:
-            - **Asked of the fields, before anything is written.** The station this dialog is
-              handed is the one the observation holds, and `accept` used to build the object
-              to read its `__dict__` -- putting every value on it *first* and refusing
-              afterwards. A code with a space in it stayed on the station through the
-              refusal, through Cancel, and into a written schedule.
+            - Asked of the fields before anything is written: the station this dialog is
+              handed is the one the observation holds.
             - A range low to high and a positive diameter are the model's own rules, restated
-              here only because a `set` that a constraint refuses leaves the fields it had
-              already written (G16). They said `>=` where `_rises` says `<=`, which refused a
-              mount fixed at one elevation that the model allows; they say the same thing now,
-              and they go when the write is all-or-nothing.
+              here only because a refused `set` leaves the fields already written (G16).
         """
         code = self.ui.codeEdit.text().strip()
         if not code or not self.ui.nameEdit.text().strip():

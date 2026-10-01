@@ -35,16 +35,12 @@ class ExportThread(QThread):
         """Ask the orchestrator to export, and pass on what it reports.
 
         Notes:
-            - The 252 lines that used to be here are in `ScheduleData`, where a script or a
-              server can reach them. What is left is the part that is genuinely a thread: it
-              turns the operation's progress into Qt signals and its own cancellation flag into
-              a question the operation can ask.
+            - The work is in `ScheduleData`, where a script or a server reaches it; what is
+              left is the thread, turning progress into signals and cancellation into a flag.
         """
         try:
-            # `raise_on_error=False` is what makes this a `Response` rather than the bare
-            # answer. Without it the call returns the value itself, `.value` raised
-            # AttributeError on a plain dict, and the export -- which had already written every
-            # file -- was reported to the user as a failure.
+            # `raise_on_error=False` is what makes this a `Response` rather than the
+            # bare answer, which has no `.value` to read the outcome off.
             response = self.manipulator.export(
                 obj=self.targets,
                 calc_types=self.calc_types,
@@ -98,10 +94,8 @@ class ExportCalculatedDataDialog(QDialog):
         self.populate_calc_list()
         self.populate_targets()
         self.ui.lineEdit.setText(self.default_export_path)
-        # The visualizer's list, and its keys carried rather than a label lowercased into one.
-        # Spelled here, `Earth Diameters` became `earth_diameters` and the same choice in the
-        # visualization tab became `earth diameters`; the baseline plot labelled its axis with
-        # whichever of the two it was handed.
+        # The visualizer's list, with its keys carried rather than a label lowercased
+        # into one: `Earth Diameters` becomes two different keys in two places that way.
         for key, unit in UV_UNITS.items():
             self.ui.cmbUnits.addItem(unit["label"], key)
         self.ui.cmbUnits.setCurrentIndex(self.ui.cmbUnits.findData("earth_diameters"))
@@ -116,9 +110,8 @@ class ExportCalculatedDataDialog(QDialog):
 
     def populate_calc_list(self):
         """Populate the calculation list."""
-        # Everything, including the steps other calculations need. Choosing what to *compute*
-        # leaves those out because nobody asks for them by name; choosing what to *export*
-        # includes them, because the numbers are the numbers and somebody may want them.
+        # Everything, including the steps other calculations need: what is computed
+        # leaves those out because nobody asks by name, and what is exported does not.
         response = self.manipulator.inspect(obj=None, method="catalogue", raise_on_error=False)
         catalogue = response.value or []
 

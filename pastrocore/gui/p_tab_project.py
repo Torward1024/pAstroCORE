@@ -85,9 +85,7 @@ class ProjectInfoTab(QWidget):
         """Show only the rows holding what was typed.
 
         Notes:
-            - A substring, not a pattern, as everywhere else this application searches. An
-              observation code is whatever its author typed, and an unclosed bracket in the
-              box emptied the table with nothing to say why.
+            - A substring, not a pattern, as everywhere else this application searches.
         """
         self.proxy_model.setFilterFixedString(text)
 
@@ -250,10 +248,8 @@ class ProjectInfoTab(QWidget):
                     observation = self.manipulator.inspect(self.project, get_item=obs_name)
                     is_active = self.manipulator.inspect(observation, get="isactive")
                 except Exception as e:
-                    # The entries below are the only ones that need the row; the rest of the
-                    # menu is still worth having. `observation` used to be left unbound here
-                    # and read on the next line anyway, and the NameError took the whole menu
-                    # down -- including Add Observation, which needs nothing from the row.
+                    # The entries below are the only ones that need the row, and the
+                    # rest of the menu -- Add Observation -- is worth having without it.
                     logger.error("Failed to get observation '%s': %s", obs_code, str(e))
                 else:
                     menu.addSeparator()

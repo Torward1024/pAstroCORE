@@ -161,9 +161,8 @@ class CatalogDialog(QDialog):
         """Show only the rows whose names hold what is typed.
 
         Notes:
-            - Rows are hidden, not rebuilt. Rebuilding asked the catalogue for every entry and
-              both halves of every position again on each key pressed -- more than a thousand
-              requests a keystroke for the shipped sources, every one of them in the journal.
+            - Rows are hidden, not rebuilt: rebuilding asked the catalogue for every entry on
+              each key pressed, which is a thousand requests a keystroke.
         """
         wanted = text.lower().strip()
         for row in range(self.model.rowCount()):
@@ -229,9 +228,8 @@ class CatalogDialog(QDialog):
         """Edit the one selected entry.
 
         Notes:
-            - **The editor is given a copy.** It writes what it shows into the object it was
-              given before its own checks run, so an edit it refused, then cancelled, stayed in
-              the catalogue -- with no request to say so, and nothing to mark it unsaved.
+            - The editor is given a copy: it writes what it shows into the object before its
+              own checks run, so a refused edit would otherwise stay in the catalogue.
         """
         names = self.selected_names()
         if self.allow_selection or len(names) != 1:

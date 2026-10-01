@@ -17,15 +17,12 @@ class ScheduleExportDialog(QDialog):
         parent (QWidget): The window this belongs to.
 
     Notes:
-        - **This is not a courtesy dialog.** A file written here is complete in shape and
-          partial in content on purpose, and someone has to finish it -- a station for VEX, the
-          correlator for CFX. Saying so by name, at the moment it is written, is the difference
-          between that being a workflow and being a surprise months later.
-        - One dialog for both formats. They differ in which sections are outstanding and who
-          completes them, and both answer that in the same `to_complete` field -- so a second
-          dialog would be a second copy of this table.
+        - A file written here is complete in shape and partial in content on purpose, and
+          someone has to finish it: a station for VEX, the correlator for CFX.
+        - One dialog for both formats: they differ in which sections are outstanding, and both
+          answer that in the same `to_complete` field.
         - The rows come from the report, which is made from the same declaration the file's
-          empty sections are written from. A list here would be a second copy to keep in step.
+          empty sections are written from.
     """
 
     COLUMNS = ["Block", "What it needs"]

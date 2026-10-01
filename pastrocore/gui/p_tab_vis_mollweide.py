@@ -14,9 +14,8 @@ class MollweideVisualizationTab(VisualizationTab):
     """Mollweide tracks, filtered by source, scan and telescope.
 
     Notes:
-        - Its sources come from the result's **metadata** rather than from a column: a track is
-          drawn per telescope, and the sources are the coordinates it is drawn against. Reading
-          metadata does not touch the result, which is what makes asking cheap.
+        - Its sources come from the result's metadata rather than from a column, a track being
+          drawn per telescope against the coordinates in it.
         - Several sources at once, so they are a checkable list rather than a combo -- which is
           why the scans list is not narrowed to one source here.
     """
@@ -61,10 +60,8 @@ class MollweideVisualizationTab(VisualizationTab):
         """However many sources are ticked; the base asks for the scans and telescopes.
 
         Notes:
-            - **Added to the base's request rather than written instead of it.** This built its
-              own dictionary and left out the tab's figure, so the visualizer drew into a figure
-              of its own and the tab showed its empty one: the Mollweide tab opened and never
-              drew a thing.
+            - Added to the base's request rather than written instead of it, the base's
+              carrying the tab's own figure.
         """
         sources = self.get_selected_sources()
         if not sources:

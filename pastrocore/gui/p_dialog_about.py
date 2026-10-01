@@ -8,9 +8,8 @@ class AboutDialog(QDialog):
     """Dialog for displaying application information.
 
     Notes:
-        - The version is written here rather than in the form. It was in the `.ui`, which meant
-          a release had to remember to change it in two places -- and 0.8.0 shipped with the
-          form saying 0.7.0 until it was noticed.
+        - The version is written here rather than in the form, which would be a second place
+          for a release to remember.
     """
 
     def __init__(self, parent=None):

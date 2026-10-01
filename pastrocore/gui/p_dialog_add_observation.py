@@ -22,9 +22,8 @@ class AddObservationDialog(QDialog):
         """Initialize the dialog with default settings."""
         self.setWindowTitle("Add Observation")
         
-        # From the model's own list. Written out here, a third kind of observation would need
-        # this line changed as well as the annotation that refuses everything else -- and this
-        # form could offer one the model would not take.
+        # From the model's own list, so this form cannot offer a kind of observation
+        # the model would not take.
         self.ui.combo_obs_type.addItems(list(OBSERVATION_TYPES))
         self.ui.combo_obs_type.setCurrentText(OBSERVATION_TYPES[0])
         self.ui.obs_code.setText("OBS_DEFAULT")

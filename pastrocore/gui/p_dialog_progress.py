@@ -13,19 +13,11 @@ class ProgressDialog(QDialog):
     """A progress bar, a message, and Cancel.
 
     Notes:
-        - **Escape and the close button ask to cancel; they do not close.** Closing the window
-          is what Qt does with both by default, and the work went on without it: the dialog
-          behind became usable again, could be closed, and closing the application then
-          destroyed a thread that was still writing results -- `QThread: Destroyed while
-          thread is still running`, and the process aborted. The window closes when the work
-          reports back, through `finish`.
-        - One class. Calculation, export and generation each had their own copy on the same form,
-          and only one of the three turned the close button into a cancel.
-        - **A long message is shortened in the middle, not wrapped and not given more room.** The
-          window grew as wide as the longest step's name, and a wrapped message had its second
-          line cut off, because a window does not grow taller for text that wraps. What a step
-          is and how far along it is -- the start and the end of the message -- stay in view;
-          the whole of it is the tooltip, and the log.
+        - Escape and the close button ask to cancel rather than close, the window closing when
+          the work reports back through `finish`.
+        - One class: calculation, export and generation each had their own copy of this form.
+        - A long message is shortened in the middle, not wrapped and not given more room; the
+          whole of it is the tooltip, and the log.
     """
 
     cancelRequested = Signal()
@@ -92,10 +84,7 @@ def stop_and_wait(thread) -> None:
 
     Notes:
         - A `QThread` destroyed while running aborts the process, and a dialog's thread dies
-          with the dialog. The progress window is modal and turns Escape into a cancel, so the
-          interface offers no way to close a dialog mid-run; this is for every other way a
-          dialog can be closed -- a script, a test, a parent closing. Cancellation lands between
-          steps, so the wait is at most the step in flight.
+          with the dialog. Cancellation lands between steps, so the wait is one step at most.
     """
     # Checked by type: anything that is not a thread has nothing to wait for.
     if not isinstance(thread, QThread) or not thread.isRunning():
@@ -151,14 +140,12 @@ def run_with_progress(parent, title: str, message: str,
         Exception: Whatever the work raised, raised here, in the window's thread.
 
     Notes:
-        - **Returns when the work is done**, so a caller reads like the synchronous code it
-          replaces -- closing the application saves and then checks what is still unsaved.
-        - **Nothing is shown for work that takes no time.** Saving a project whose results are
-          already on disk writes one small file, and a window flashing up and away for that is
-          noise; it appears only for work still running after `quiet_ms`.
-        - The window is modal and its event loop keeps the application painting, which is the
-          whole difference from what saving did before: a progress bar created on the window's
-          thread, never updated, never painted, and a window that stopped answering.
+        - Returns when the work is done, so a caller reads like the synchronous code it
+          replaces.
+        - Nothing is shown for work that takes no time: the window appears only for work still
+          running after `quiet_ms`.
+        - The window is modal and its event loop keeps the application painting, which a
+          progress bar made on the window's thread does not.
     """
     worker = WorkThread(work)
     dialog = ProgressDialog(parent, title, message, cancellable=False)

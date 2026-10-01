@@ -53,9 +53,8 @@ class ScansTab(QWidget):
         self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
 
-        # Kept, because a connection has to be taken back from the object that made it and
-        # `_cleanup` asked `self.sender()` for that -- which is whoever emitted the signal
-        # being handled, and nothing is being handled during a cleanup.
+        # Kept, because a connection has to be taken back from the object that made
+        # it, and `self.sender()` is empty during a cleanup.
         self.listens_to = [tab for tab in (telescopes_tab, frequencies_tab, sources_tab) if tab]
         for tab in self.listens_to:
             tab.data_updated.connect(self.handle_data_updated)
@@ -68,8 +67,7 @@ class ScansTab(QWidget):
         """Show only the rows holding what was typed.
 
         Notes:
-            - A substring, not a pattern. A scan is listed by its source, and a source name
-              carrying a `+` -- half of the shipped catalogue -- matched no row at all.
+            - A substring, not a pattern: a source name carrying a `+` would match no row.
         """
         self.proxy_model.setFilterFixedString(text)
 
@@ -156,9 +154,8 @@ class ScansTab(QWidget):
                 missing_components.append("telescopes")
             else:
                 telescope_count = len(telescopes_items)
-                # Asked, and said once for whatever kind of observation it is: this was two
-                # branches naming two observation types and two numbers, which is the scan's
-                # own activation rule written a third time.
+                # Asked, and said once for whatever kind of observation it is, rather
+                # than the scan's own activation rule written out a third time.
                 needed = self.manipulator.inspect(self.observation,
                                                   get_telescopes_a_scan_needs=None)
                 if telescope_count < needed:
@@ -452,11 +449,8 @@ class ScansTab(QWidget):
         """Clean up resources associated with this tab.
 
         Notes:
-            - **It may be called twice.** `close_tab` cleans and then removes the tab, and Qt
-              delivers `closeEvent` afterwards. The second pass used to disconnect signals that
-              were already disconnected -- Qt warns once per signal -- and then reach through
-              an attribute this method had set to `None`, which the blanket `except` below
-              logged as "Error cleaning up" for work that had in fact been done.
+            - It may be called twice: `close_tab` cleans and then removes the tab, and Qt
+              delivers `closeEvent` afterwards.
         """
         if self.observation is None:
             return
@@ -480,11 +474,8 @@ class ScansTab(QWidget):
             self.model.clear()
             self.proxy_model.deleteLater()
             self.model.deleteLater()
-            # **Let go of them here.** `deleteLater` destroys the C++ half at the next turn of
-            # the event loop, and a Python wrapper that outlives it crashes when it is finally
-            # collected -- the interpreter reaches into an object that is not there. It killed
-            # the build on Linux inside a garbage collection, and every other thing this method
-            # releases was already dropped this way.
+            # Let go of them here: `deleteLater` destroys the C++ half at the next turn
+            # of the event loop, and a wrapper outliving it crashes when it is collected.
             self.proxy_model = None
             self.model = None
 

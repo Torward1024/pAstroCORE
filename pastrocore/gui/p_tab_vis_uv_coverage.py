@@ -15,9 +15,8 @@ class BaselineVisualizationTab(VisualizationTab):
     """Shared by the two plots that are about baselines rather than about stations.
 
     Notes:
-        - The form calls its source combo `comboBox` and its units combo `comboBox_2`, where
-          every other form calls them `cmbSource` and nothing. That is the form's business and
-          it is generated, so the names are answered for here rather than renamed.
+        - The form calls its source combo `comboBox` and its units combo `comboBox_2`, which
+          is the form's business and generated, so it is answered for here.
         - A baseline plot is drawn in wavelengths, which is why these two carry a frequency
           list and the others do not: u and v are held in metres and divided by one.
     """
@@ -28,10 +27,8 @@ class BaselineVisualizationTab(VisualizationTab):
     #: by. Saying so here is what the copy of `update_visualization` below used to.
     DRAWN = ("baselines", "frequencies")
 
-    #: The units offered are the visualizer's to name. This held its own pair, spelled for a
-    #: reader and lowercased on the way out -- so what reached the request was `earth
-    #: diameters` from here and `earth_diameters` from the export dialog, and the baseline
-    #: plot put whichever it was handed on its own axis.
+    #: The units offered are the visualizer's to name: a pair held here and lowercased
+    #: on the way out reached the request spelled differently from the export dialog's.
 
     def _filter_signals(self):
         """This form's widgets, by the names it gives them."""

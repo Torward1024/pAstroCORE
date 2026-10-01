@@ -10,9 +10,8 @@ class BaselineSensitivityVisualizationTab(VisualizationTab):
     """Baseline sensitivity, filtered by source, scan, baseline and band.
 
     Notes:
-        - **One band at a time**, because what is drawn is a grid of baselines by scans and a
-          cell holds one number. `all` -- every band of a scan together, which is what fringe
-          fitting across a recording gets -- is the first offer and the usual one.
+        - One band at a time, what is drawn being a grid of baselines by scans whose cell
+          holds one number; `all` is the first offer and the usual one.
     """
 
     FORM = Ui_VisSensitivityTab

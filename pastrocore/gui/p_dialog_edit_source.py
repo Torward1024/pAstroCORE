@@ -27,10 +27,8 @@ class SourceEditorDialog(QDialog):
         self.ui.fluxTable.setSelectionMode(QTableView.SingleSelection)
         self.ui.fluxTable.setSelectionBehavior(QTableView.SelectRows)
 
-        # The fields take their bounds and precision from the form. They were set here as
-        # well -- the coordinates to 59.999 seconds, three places, so saving a source rounded
-        # a catalogue position to a millisecond of time whether or not anyone had touched it,
-        # and the spectral index to the range the form already declares.
+        # The fields take their bounds and precision from the form, not from here as
+        # well: three places on the seconds rounded a catalogue position on every save.
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -64,18 +62,14 @@ class SourceEditorDialog(QDialog):
         self.ui.raHEdit.setValue(self.source_obj.ra_h)
         self.ui.raMEdit.setValue(self.source_obj.ra_m)
         self.ui.raSEdit.setValue(self.source_obj.ra_s)
-        # The sign has its own field: a declination between -1 and 0 degrees keeps it in `-0.0`,
-        # which a number field shows as `0` and hands back as `+0.0`. Saving any edit of such a
-        # source moved it north of the equator.
+        # The sign has its own field: a declination between -1 and 0 degrees keeps it in
+        # `-0.0`, which a number field shows as `0` and hands back as `+0.0`.
         self.ui.deSignCombo.setCurrentIndex(1 if math.copysign(1.0, self.source_obj.de_d) < 0 else 0)
         self.ui.deDEdit.setValue(abs(self.source_obj.de_d))
         self.ui.deMEdit.setValue(self.source_obj.de_m)
         self.ui.deSEdit.setValue(self.source_obj.de_s)
-        # **Zero is a spectrum, not the absence of one.** A flat spectrum is what most VLBI
-        # calibrators have, and the box read zero as "not given": opening such a source and
-        # saving it stored `None`, which is what stops a flux being reached at all outside
-        # the frequencies it was measured at. The box says "not measured" at its lowest value
-        # instead, so the two can be told apart in both directions.
+        # Zero is a spectrum, not the absence of one -- a flat spectrum is what most VLBI
+        # calibrators have -- so the box says "not measured" at its lowest value instead.
         self.ui.spectralIndexEdit.setValue(self.ui.spectralIndexEdit.minimum()
                                            if self.source_obj.spectral_index is None
                                            else self.source_obj.spectral_index)
@@ -83,9 +77,8 @@ class SourceEditorDialog(QDialog):
 
         self.model.removeRows(0, self.model.rowCount())
         for freq, flux in self.source_obj.flux_table.items():
-            # As measured. Shown to two places, the table *was* the source on the way back
-            # out: opening a source and pressing Save rewrote its spectrum, and a flux under
-            # five millijanskys became `0.00`, which this dialog then refused as not positive.
+            # As measured: shown to two places the table was the source on the way back
+            # out, and a flux under five millijanskys became `0.00`.
             freq_item = QStandardItem(f"{freq:g}")
             flux_item = QStandardItem(f"{flux:g}")
             freq_item.setEditable(True)

@@ -22,9 +22,8 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter
 from PySide6.QtWidgets import QAbstractButton, QApplication, QWidget
 from msb_arch.utils.logging_setup import logger
 
-#: The sizes an icon is drawn at. An SVG has no sizes of its own, and Qt picks the nearest one
-#: it was given -- so these are what a toolbar, a menu, a button and a high-resolution display
-#: ask for.
+#: The sizes an icon is drawn at. An SVG has none of its own and Qt picks the nearest it
+#: was given: a toolbar's, a menu's, a button's and a high-resolution display's.
 SIZES = (16, 20, 24, 32, 48)
 
 #: The property a widget is marked with once its icons are in a theme's colour, so showing a
@@ -98,9 +97,8 @@ class IconTheme(QObject):
         colour (str): The colour to draw icons in.
 
     Notes:
-        - One filter on the application rather than a call in every dialog: a dialog that
-          forgets the call is a dialog with the other theme's icons, and there are twenty of
-          them.
+        - One filter on the application rather than a call in each of twenty dialogs, one
+          that forgets the call showing the other theme's icons.
     """
 
     def __init__(self, colour: str, parent: Optional[QObject] = None):

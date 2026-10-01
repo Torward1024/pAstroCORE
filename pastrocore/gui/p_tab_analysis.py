@@ -31,10 +31,8 @@ class AnalysisTab(QWidget):
         parent (QWidget): The window.
     """
 
-    #: How this tab spells the questions it has words for. The *set* is the analyzer's -- an
-    #: analysis added there appears here under whatever `describe_operations` calls it, until
-    #: somebody writes better words for it. This used to be the list itself, so a fourth
-    #: analysis would have been offered by nothing.
+    #: How this tab spells the questions it has words for. The set is the analyzer's:
+    #: one added there appears under whatever `describe_operations` calls it.
     WORDED = {"summary": "Statistics (min, max, mean, range)",
               "windows": "Time windows (and gaps)",
               "coverage": "Coverage across stations"}
@@ -46,9 +44,8 @@ class AnalysisTab(QWidget):
         """Yield `(name, label)` for every analysis the analyzer offers.
 
         Notes:
-            - The ones this tab has words for come first, in the order it words them, because
-              that order is the simplest question first. Anything the analyzer has gained
-              since follows, under the name it goes by.
+            - The ones this tab has words for come first, simplest question first; anything
+              the analyzer has gained since follows, under the name it goes by.
         """
         offered = self.manipulator.describe_operations("analyze").get("analyze", {})
         named = [name for name in self.WORDED if name in offered]
@@ -159,9 +156,8 @@ class AnalysisTab(QWidget):
             self.ui.filtersForm.addRow(column, box)
             self._filter_widgets[column] = box
 
-        # A range per number, filled with the range that is actually there. An empty pair of
-        # boxes makes a user guess what the numbers even look like; showing the span they
-        # already have turns the filter into narrowing rather than searching.
+        # A range per number, filled with the range that is actually there: the span
+        # already in hand turns the filter into narrowing rather than guessing.
         spans = entry.get("ranges") or {}
         for column in entry.get("numeric", []):
             span = spans.get(column)
@@ -193,9 +189,8 @@ class AnalysisTab(QWidget):
         """A pair of date-and-time pickers, spelled as the rest of the application spells time.
 
         Notes:
-            - A moment is stored as an MJD, which is the right thing to compute with and the
-              wrong thing to type: nobody knows what 61262.2083 is. These read
-              `yyyy-MM-dd HH:mm:ss` with a calendar, the same as the scan editor, and convert.
+            - A moment is stored as an MJD, which is the wrong thing to type: these read
+              `yyyy-MM-dd HH:mm:ss` with a calendar, as the scan editor does, and convert.
         """
         row = QWidget()
         layout = QHBoxLayout(row)
@@ -205,9 +200,8 @@ class AnalysisTab(QWidget):
             picker.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
             picker.setCalendarPopup(True)
             layout.addWidget(picker)
-        # The dates come written out by `describe`, and go back the same way: converting a
-        # moment is model work, and the analyzer accepts a written date as a filter bound
-        # precisely so that this does not have to know what an MJD is.
+        # The dates come written out by `describe` and go back the same way: converting
+        # a moment is model work, and the analyzer takes a written date as a bound.
         if span and span.get("min_iso") and span.get("max_iso"):
             first.setDateTime(self._parse(span["min_iso"]))
             last.setDateTime(self._parse(span["max_iso"]))
@@ -310,9 +304,8 @@ class AnalysisTab(QWidget):
         """Write what is on screen to a tab-separated file.
 
         Notes:
-            - The rows already in hand are what is written, rather than the question being
-              asked again: a file that does not match the table it was exported from is worse
-              than no file.
+            - The rows already in hand are written rather than the question asked again: a
+              file that does not match the table is worse than no file.
         """
         if not self._answer:
             return

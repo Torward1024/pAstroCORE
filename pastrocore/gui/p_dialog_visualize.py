@@ -23,7 +23,7 @@ from typing import Dict
 SPEED_OF_LIGHT = 299792458.0  # m/s
 
 class VisualizationDialog(QDialog):
-    """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator."""
+    """Draw an observation's plots, one tab per result, through the orchestrator."""
 
     def __init__(self, manipulator: ScheduleManipulator, parent=None):
         """Initialize the visualization dialog."""
@@ -101,7 +101,7 @@ class VisualizationDialog(QDialog):
         logger.debug("All visualization tabs cleared")
 
     def update_visualization_types(self):
-        """Update visualization types based on available calculated data keys for the selected observation."""
+        """Offer only the plots the selected observation has results for."""
         self.ui.comboBoxVisualizationType.clear()
         self.ui.comboBoxVisualizationType.setEnabled(False)
         self.ui.pushButtonVisualize.setEnabled(False)
@@ -124,9 +124,8 @@ class VisualizationDialog(QDialog):
             catalogue = described or []
             vis_types = {entry["key"]: entry["label"] for entry in catalogue if entry["can_plot"]}
 
-            # One request, counted from the parquet footers rather than by reading the frames.
-            # This loop used to read *every* result to decide what to offer -- 142 ms and
-            # eleven frames held in memory on a small project, to fill one combo box.
+            # One request, counted from the parquet footers rather than by reading the
+            # frames: reading every result to fill one combo box was 142 ms.
             response = self.manipulator.inspect(
                 obj=observation, method="available", keys=list(vis_types))
             available = response or []
@@ -144,9 +143,7 @@ class VisualizationDialog(QDialog):
         """Close the tabs before the dialog goes.
 
         Notes:
-            - A child widget is destroyed with its parent and is **not** sent a close event, so a
-              tab's own teardown never ran when the dialog was closed with plots still open -- and
-              every figure it held stayed until the collector came round.
+            - A child widget is destroyed with its parent and is not sent a close event.
         """
         self.clear_visualization_tabs()
         super().done(result)
@@ -175,10 +172,8 @@ class VisualizationDialog(QDialog):
             else:
                 logger.debug("Closing tab '%s' at index %s", vis_type, index)
 
-            # **Closed, not merely removed** (M1). A tab lets go of its figure in `closeEvent`,
-            # and `removeTab` does not send one: the arrays a day's sampling makes were left for
-            # whenever the collector next ran. This cleared the canvas instead, which redraws an
-            # empty plot and frees nothing the tab is holding.
+            # Closed, not merely removed (M1): a tab lets go of its figure in
+            # `closeEvent`, and `removeTab` does not send one.
             try:
                 tab_widget.close()
             except Exception as e:                      # noqa: BLE001 - teardown never raises
@@ -230,9 +225,8 @@ class VisualizationDialog(QDialog):
                 QApplication.restoreOverrideCursor()
                 return
 
-            # Which widget draws which result: a fact about this interface, and the one thing
-            # here the model cannot answer. Keyed by the result rather than by its label, so a
-            # label can be reworded without silently unbinding a tab.
+            # Which widget draws which result, the one thing here the model cannot
+            # answer. Keyed by the result, so a label can be reworded.
             tab_classes = {
                 "az_el": AzElVisualizationTab,
                 "sun_angles": SunAnglesVisualizationTab,

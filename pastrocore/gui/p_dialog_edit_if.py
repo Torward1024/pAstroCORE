@@ -13,14 +13,10 @@ class IFEditorDialog(QDialog):
     """Editing one band: its sky frequency, its width, and what it records there.
 
     Notes:
-        - **What it covers is shown while it is being edited.** `frequency` is an edge rather
-          than a middle, so 4828 upper and 4844 lower are the same 16 MHz written two ways --
-          and a project holding both is refused with a message about a rule rather than about
-          the two numbers on screen. Showing the span turns that from a puzzle into something
-          visible before Save is pressed.
-        - The two lists are filled from the model's own constants. A polarization added there
-          appears here without this form being touched, and the form cannot offer one the model
-          would refuse.
+        - What it covers is shown while it is being edited: `frequency` is an edge, so 4828
+          upper and 4844 lower are the same 16 MHz written two ways.
+        - The two lists are filled from the model's own constants, so the form cannot offer a
+          polarization the model would refuse.
     """
 
     def __init__(self, if_obj: IF = None, parent=None):
@@ -36,9 +32,8 @@ class IFEditorDialog(QDialog):
         """Fill the two lists from the model, replacing what the form was drawn with.
 
         Notes:
-            - The form carries the same items so that it is not empty in Designer. They are
-              replaced here, because a list in a form is a second place for the answer to live
-              and the two disagree the first time one changes.
+            - The form carries the same items so it is not empty in Designer, and they are
+              replaced here.
         """
         for widget, offered in ((self.ui.polarizationsList, VALID_POLARIZATIONS),
                                 (self.ui.sidebandsList, IF.VALID_SIDEBANDS)):
@@ -91,9 +86,8 @@ class IFEditorDialog(QDialog):
         """Update the wavelength and the covered span from what is on screen.
 
         Notes:
-            - The span is asked of `IF.band_of` rather than worked out here. It is the one
-              place a sideband becomes numbers, and a second place would be a second chance to
-              get the direction wrong.
+            - The span is asked of `IF.band_of` rather than worked out here, that being the
+              one place a sideband becomes numbers.
         """
         frequency = self.ui.frequencyEdit.value()
         bandwidth = self.ui.bandwidthEdit.value()
@@ -125,10 +119,8 @@ class IFEditorDialog(QDialog):
         """Write what is on screen into the IF and return it.
 
         Notes:
-            - No validation of its own. `polarizations` mixing circular and linear is refused
-              by the model's own rule, wherever it is written from -- this dialog, a file, a
-              command line -- and repeating it here would be a second version of it to keep
-              in step.
+            - No validation of its own: `polarizations` mixing circular and linear is refused
+              by the model's own rule, wherever it is written from.
         """
         self.if_obj.set({
             "frequency": self.ui.frequencyEdit.value(),

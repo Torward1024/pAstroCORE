@@ -54,14 +54,8 @@ class VisualizationTab(QWidget):
     #: fills a list of checkboxes. Which *values* each takes is asked of the result.
     FILTERS = ("source_name", "telescope_code")
 
-    #: The fields of the visualizer's answer that say how much was drawn. Zero in every one of
-    #: them is an empty plot, and an empty plot is cleared rather than shown.
-    #:
-    #: **Several, because one was not enough.** It named a single field, and the two plots that
-    #: report a count of bands as well as a count of stations -- a beam pattern drawn for two
-    #: dishes at one frequency, a (u,v) plot for two baselines at three -- each carried a copy
-    #: of `update_visualization` differing from this one in the line that reads it. Forty lines
-    #: of the machinery this class exists to hold once.
+    #: The fields of the visualizer's answer that say how much was drawn: zero in all of
+    #: them is an empty plot. Several, because a plot may report bands as well as stations.
     DRAWN = ("telescopes",)
 
     #: What the scans list is asked by. A plot about a source asks by `source_name`; the two
@@ -77,10 +71,8 @@ class VisualizationTab(QWidget):
         self.is_processing = False
 
         self.plot_layout = QVBoxLayout(self.ui.widget)
-        # **One figure, one canvas, one toolbar, for the life of the tab.** They are built here
-        # rather than at the first draw because the figure is what the tab asks the visualizer
-        # to draw *into*: nothing is ever swapped, so there is no ring of three to break and no
-        # toolbar left holding axes that were cleared underneath it.
+        # One figure, one canvas, one toolbar, for the life of the tab: the figure is
+        # what the tab asks the visualizer to draw into, so nothing is ever swapped.
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -106,8 +98,7 @@ class VisualizationTab(QWidget):
         """Anything this plot needs beyond source, scans and telescopes.
 
         Notes:
-            - Units, frequencies, baselines and a pointing target live here. Returning nothing
-              is the common case, which is why it is the default.
+            - Units, frequencies, baselines and a pointing target live here.
         """
         return {}
 
@@ -188,9 +179,8 @@ class VisualizationTab(QWidget):
         """Give every list its Select All and Clear, by the names the form gives them.
 
         Notes:
-            - **Found, not listed.** Every `QListWidget` on the form is asked for
-              `<list>SelectAll` and `<list>Clear`, so a list added to a form in Designer gets its
-              buttons by being named like the others -- and a test fails on one that has none.
+            - Found, not listed: every `QListWidget` is asked for `<list>SelectAll` and
+              `<list>Clear`, so a list added in Designer gets its buttons by being named.
         """
         for widget in self.findChildren(QListWidget):
             for role, state in self.LIST_BUTTONS:
@@ -207,11 +197,10 @@ class VisualizationTab(QWidget):
             state (Qt.CheckState): `Qt.Checked` or `Qt.Unchecked`.
 
         Notes:
-            - **The list is silent while its items change.** Each item's `itemChanged` means
-              "redraw", so two hundred baselines ticked one at a time would draw the plot two
-              hundred times. The redraw happens once, after.
-            - An item that cannot be ticked -- "No scans available" -- is left alone, and a list
-              already as asked is not redrawn at all.
+            - The list is silent while its items change and the redraw happens once after:
+              two hundred baselines ticked one at a time would draw two hundred times.
+            - An item that cannot be ticked is left alone, and a list already as asked is not
+              redrawn at all.
         """
         items = [widget.item(index) for index in range(widget.count())]
         changing = [item for item in items
@@ -336,9 +325,8 @@ class VisualizationTab(QWidget):
         if self._has(self.ui, "listTelescopes") and not telescopes:
             return None
 
-        # The tab's own figure goes with the request: the visualizer clears it and draws into
-        # it, and hands the same object back. MSB records a request's objects by name, so this
-        # is not something the journal holds on to.
+        # The tab's own figure goes with the request and comes back the same object.
+        # MSB records a request's objects by name, so the journal does not hold it.
         attributes: Dict[str, Any] = {"plot_type": self.plot_type(), "show": False,
                                       "return_figure": True, "figure": self.figure}
         if source:
@@ -386,16 +374,10 @@ class VisualizationTab(QWidget):
         """Put what the visualizer drew on screen.
 
         Notes:
-            - There is nothing to attach: the visualizer drew into this tab's own figure, and
-              the canvas has held it since the tab was built. What used to be here built a
-              canvas per redraw -- a `NavigationToolbar` is ten `QAction`s, 400 of them over 40
-              redraws -- and then swapped a new `Figure` into the canvas instead, which
-              matplotlib does not support: the toolbar's view stack went on referring to axes
-              that had been cleared, and a full run of the suite ended in an access violation.
-            - The toolbar is told the axes changed. Its home/back/forward stack is about the
-              plot that was there, and keeping it would be keeping references to axes that no
-              longer exist -- which is the crash, again, by a shorter route.
+            - Nothing is attached: the visualizer drew into the tab's own figure.
         """
+        # The toolbar is told the axes changed: its home/back/forward stack is about the plot
+        # that was there, and keeping it keeps references to axes that no longer exist.
         self.toolbar.update()
         self.canvas.draw()
 
@@ -403,13 +385,10 @@ class VisualizationTab(QWidget):
         """Empty the plot, leaving the canvas and toolbar where they are.
 
         Notes:
-            - They are the tab, not a decoration of it: taking them down and building them
-              again is what cost 400 `QAction`s a session, and a widget's `deleteLater` is
-              scheduled rather than done, so they did not go when they were dropped.
-            - Clearing the figure is what actually frees the arrays a plot of a day's sampling
-              holds. **No `gc.collect(2)`**: every one of the nine tabs called one on every
-              redraw to stop figures accumulating, and measured over 60 redraws it saved 1.4 MB
-              of 90 -- noise -- and cost 14.60 s against 6.92 s.
+            - The canvas and toolbar are the tab rather than a decoration: building them again
+              per redraw cost 400 `QAction`s a session.
+            - Clearing the figure frees the arrays. No `gc.collect(2)`: over 60 redraws it
+              saved 1.4 MB of 90 and cost 14.60 s against 6.92 s.
         """
         try:
             self.figure.clf()
@@ -434,18 +413,11 @@ class VisualizationTab(QWidget):
         """Release what the plot holds when the tab goes.
 
         Notes:
-            - The canvas and toolbar go with the widget, as children do. What has to be let go
-              of by hand is the arrays inside the figure, which a day's sampling makes large.
-            - **The figure is unhooked from the canvas before it is cleared, and the order is
-              the point.** `clf()` marks a figure stale, and a stale figure asks its canvas to
-              repaint -- so clearing one that still points at a canvas being destroyed queues a
-              paint on a widget whose C++ half is going, and Qt runs it at whatever
-              `processEvents` comes next. That is somebody else's redraw, and it is an access
-              violation rather than an exception.
-            - **Unhooked onto a canvas that is not a widget, not onto nothing.** `Figure.clear`
-              asks its canvas for a toolbar to update, and with `canvas = None` it raised every
-              time: the figure was never cleared, every close logged a warning, and the arrays
-              stayed. A bare `FigureCanvasBase` has no toolbar and no widget to paint.
+            - The canvas and toolbar go with the widget; the arrays inside the figure do not.
+            - The figure is unhooked from the canvas before it is cleared: `clf()` marks a
+              figure stale, and a stale one asks a canvas being destroyed to repaint.
+            - Unhooked onto a bare `FigureCanvasBase` rather than onto `None`, which
+              `Figure.clear` raises on when it asks its canvas for a toolbar.
         """
         try:
             self.figure.stale_callback = None

@@ -2,12 +2,10 @@
 """The window's status bar: the last thing the log said, and what the process is holding (G13).
 
 Notes:
-    - **The messages come from the log, not from call sites.** Every operation already says what it
-      did through `logger`; a status bar fed by hand would be a second place to update, and would
-      say nothing about the parts of the application nobody remembered to wire up.
-    - A record can be logged from a worker thread -- a calculation, a save -- and a widget may only
-      be touched from the window's. The handler emits a signal, which Qt delivers on the window's
-      thread, and the label is written there.
+    - The messages come from the log rather than from call sites: every operation already says
+      what it did through `logger`.
+    - A record can be logged from a worker thread and a widget may only be touched from the
+      window's, so the handler emits a signal and the label is written on delivery.
 """
 import logging
 
@@ -115,8 +113,6 @@ class WindowStatusBar(QObject):
         """
         self._timer.stop()
         self._logger.removeHandler(self._handler)
-        # Marked rather than disconnected: a record logged a moment ago may still be on its way
-        # across the threads, and `say` would then write to a label whose widget has gone.
-        # Disconnecting by hand at this point only made Qt warn that there was nothing to
-        # disconnect, which is not the same as being safe.
+        # Marked rather than disconnected: a record logged a moment ago may still be
+        # crossing the threads, and `say` would write to a label whose widget has gone.
         self._closed = True

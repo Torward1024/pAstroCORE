@@ -83,9 +83,8 @@ class ScanEditorDialog(QDialog):
         self.ui.btnClearAllFrequencies.clicked.connect(self.clear_all_frequencies)
         self.ui.chk_offsource.stateChanged.connect(self.offsource_changed)
         self.ui.sourceCombo.currentIndexChanged.connect(self.update_active_state)
-        # Moving the start moves the end and leaves the length alone. It used to recompute the
-        # length from the end, so correcting a start by an hour took an hour off the scan --
-        # and correcting it by more than the scan lasted left a scan of one second.
+        # Moving the start moves the end and leaves the length alone, rather than
+        # recomputing the length from an end that has not moved.
         self.ui.startTimeEdit.dateTimeChanged.connect(self.adjust_end_time)
         self.ui.endTimeEdit.dateTimeChanged.connect(self.adjust_duration_from_end)
         self.ui.durationEdit.textChanged.connect(self.adjust_end_time)
@@ -303,12 +302,8 @@ class ScanEditorDialog(QDialog):
         """Offer the active box only while the scan could be active.
 
         Notes:
-            - **It used to tick the box rather than offer it**, and `get_scan_object` then read
-              the conditions again rather than the box: whatever the user did with it was
-              thrown away, and a scan they had unticked came back active.
-            - An unactivatable scan cannot be ticked, which is the same rule `activate_scan`
-              applies from the table. An activatable one may still be left off: that is a
-              choice, and `deactivate_scan` allows it.
+            - The box is offered rather than ticked, and `get_scan_object` reads the box.
+            - An unactivatable scan cannot be ticked; an activatable one may be left off.
         """
         conditions_met = self._check_scan_conditions()
         self.ui.chk_active.setEnabled(conditions_met)
@@ -321,9 +316,8 @@ class ScanEditorDialog(QDialog):
         """Set the length from the end the user moved to.
 
         Notes:
-            - In milliseconds. `secsTo` is whole seconds, and the length is a float the box
-              itself takes to two places: a scan of 12.5 seconds came back as 12 the first
-              time either time was touched.
+            - In milliseconds: `secsTo` is whole seconds, and the length is a float the box
+              itself takes to two places.
         """
         try:
             start_qdt = self.ui.startTimeEdit.dateTime()
@@ -381,9 +375,7 @@ class ScanEditorDialog(QDialog):
         """Count the rows that are ticked and whose entity is itself active.
 
         Notes:
-            - The flag is put on the row when the row is built. It was recovered by comparing
-              the *icon* in the third column against the one this dialog holds -- reading a
-              picture to get back a boolean the model had answered two methods earlier.
+            - The flag is put on the row when the row is built.
         """
         return sum(1 for row in range(model.rowCount())
                    if model.item(row, 1).checkState() == Qt.Checked

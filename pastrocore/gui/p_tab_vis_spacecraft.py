@@ -15,27 +15,22 @@ class SpacecraftVisualizationTab(VisualizationTab):
     """One spacecraft result, filtered by target, scan and station.
 
     Notes:
-        - The subject is a **target** rather than a source: what is pointed at is a spacecraft,
-          and the result names it `target_code`. The combo is the same combo; only the word for
-          what is in it differs, which is why `FILTERS` carries the column name rather than the
-          base assuming one.
+        - The subject is a target rather than a source, the result naming it `target_code`,
+          which is why `FILTERS` carries the column name rather than the base assuming it.
     """
 
     FORM = Ui_VisDefaultTab
     STORE_KEY = "telescope_az_el"
     FILTERS = ("target_code", "telescope_code")
-    #: Declared, not implemented. Asking `scan_times` by target rather than by source is the
-    #: only way the refill differed, and it was a copy of the whole twenty-line method --
-    #: three imports inside it included -- in the file the shared base was drawn from.
+    #: Declared, not implemented: asking `scan_times` by target rather than by source
+    #: is the only way the refill differs from the base's.
     SCAN_BY = "target_code"
 
     def get_selected_target(self) -> Optional[str]:
         """The spacecraft being pointed at.
 
         Notes:
-            - The same combo the base calls a source. Named for what it holds here, because a
-              caller of this tab is asking about a target and should not have to know that the
-              widget is shared with the plots that track a source.
+            - The same combo the base calls a source, named for what it holds here.
         """
         return self.get_selected_source()
 

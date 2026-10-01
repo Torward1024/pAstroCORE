@@ -94,12 +94,8 @@ class ObservationTab(QWidget):
             self.ui.obs_name_edit.setReadOnly(True)
             return
         try:
-            # Asked of the *project*, which is what knows that no two observations may carry
-            # one code. Written on the observation, the rule never ran: the rename was taken,
-            # saved, and refused on the way back in, so the project could not be opened again.
-            # The two `self.observation.code = ...` lines that stood here wrote straight to
-            # the model besides -- one repeating what the request had just done, the other
-            # putting back a value a refused request had never changed.
+            # Asked of the project, which is what knows that no two observations may
+            # carry one code; written on the observation, the rule runs on the way back in.
             self.manipulator.configure(obj=self.project,
                                        set_observation_code={"name": self.observation.name,
                                                              "code": new_code})
@@ -208,12 +204,7 @@ class ObservationTab(QWidget):
         """Close the current observation tab and clean up resources.
 
         Notes:
-            - **The code is read first.** The log line at the end read it from the observation
-              *after* the cleanup had set that to `None`, so closing raised where `update_tab`
-              caught it and put the type error in front of the user: removing an observation
-              whose tab was open -- Drop Inactive, Clear, the project table -- answered with a
-              critical dialog reading "'NoneType' object has no attribute
-              'get_observation_code'" instead of quietly closing the tab.
+            - The code is read first, the cleanup below setting the observation to `None`.
         """
         code = self.observation.get_observation_code() if self.observation else "unknown"
         tab_container = self.parent_widget.ui.tabContainer
@@ -228,15 +219,10 @@ class ObservationTab(QWidget):
         """Clean up resources associated with this tab.
 
         Notes:
-            - **It may be called twice.** `close_tab` cleans and then removes the tab, and Qt
-              delivers `closeEvent` afterwards. The second pass used to disconnect signals that
-              were already disconnected -- Qt warns once per signal -- and then reach through
-              an attribute this method had set to `None`, which the blanket `except` below
-              logged as "Error cleaning up" for work that had in fact been done.
-            - **Each of the four is told to clean up too.** They were disconnected and then
-              `deleteLater`-ed, which destroys the widget and leaves the Python object holding
-              the observation, the orchestrator and the project it was built with. Each of
-              them has a `_cleanup` that lets go of all of it, and nothing was calling it.
+            - It may be called twice: `close_tab` cleans and then removes the tab, and Qt
+              delivers `closeEvent` afterwards.
+            - Each of the four is told to clean up too: `deleteLater` destroys the widget and
+              leaves the Python object holding the observation and the orchestrator.
         """
         if self.observation is None:
             return

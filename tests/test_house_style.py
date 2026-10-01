@@ -161,42 +161,7 @@ def long_paragraphs(path) -> list:
 #: What each module still owes, measured 30.09.2026 before the W1 pass. A number may only go
 #: down, and a module that owes nothing comes off the list -- a stale entry would make the
 #: ledger look like progress that has not happened.
-OWED = {
-    "gui/icon_theme.py":                      2,
-    "gui/p_custom_model.py":                  9,
-    "gui/p_dialog_about.py":                  1,
-    "gui/p_dialog_add_observation.py":        1,
-    "gui/p_dialog_calculations.py":           16,
-    "gui/p_dialog_catalog.py":                2,
-    "gui/p_dialog_edit_if.py":                6,
-    "gui/p_dialog_edit_scan.py":              7,
-    "gui/p_dialog_edit_source.py":            4,
-    "gui/p_dialog_edit_space_telescope.py":   2,
-    "gui/p_dialog_edit_telescope.py":         2,
-    "gui/p_dialog_export_calculated_data.py": 4,
-    "gui/p_dialog_generate_observations.py":  5,
-    "gui/p_dialog_preferences.py":            2,
-    "gui/p_dialog_progress.py":               6,
-    "gui/p_dialog_run_report.py":             3,
-    "gui/p_dialog_schedule_export.py":        2,
-    "gui/p_dialog_session.py":                5,
-    "gui/p_dialog_visualize.py":              7,
-    "gui/p_status_bar.py":                    3,
-    "gui/p_tab_analysis.py":                  6,
-    "gui/p_tab_frequencies.py":               7,
-    "gui/p_tab_observation.py":               4,
-    "gui/p_tab_project.py":                   3,
-    "gui/p_tab_scans.py":                     5,
-    "gui/p_tab_sources.py":                   7,
-    "gui/p_tab_telescopes.py":                6,
-    "gui/p_tab_vis_base.py":                  15,
-    "gui/p_tab_vis_beam_pattern.py":          3,
-    "gui/p_tab_vis_mollweide.py":             3,
-    "gui/p_tab_vis_sensitivity.py":           1,
-    "gui/p_tab_vis_spacecraft.py":            4,
-    "gui/p_tab_vis_uv_coverage.py":           2,
-    "gui/p_table_models.py":                  3,
-}
+OWED = {}
 
 #: The same, for the markdown.
 PARAGRAPHS_OWED = {

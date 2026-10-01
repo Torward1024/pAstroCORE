@@ -14,17 +14,15 @@ class BeamPatternVisualizationTab(VisualizationTab):
     """A beam pattern, filtered by telescope and frequency.
 
     Notes:
-        - The odd one out: no source and no scan. A beam belongs to a dish at a wavelength, not
-          to a moment, so this form has neither of those filters -- which the base class copes
-          with by asking the form what it has rather than assuming.
+        - The odd one out: no source and no scan, a beam belonging to a dish at a wavelength
+          rather than to a moment, which the base copes with by asking the form.
     """
 
     FORM = Ui_VisBeamPatternTab
     STORE_KEY = "beam_pattern"
     FILTERS = ("telescope_code",)
-    #: Both, because a beam drawn for two stations at one frequency reports the frequency
-    #: count and not the telescope count: judged on telescopes alone it cleared a plot that
-    #: had been drawn. Saying so here is what the copy of `update_visualization` below used to.
+    #: Both, because a beam drawn for two stations at one frequency reports the
+    #: frequency count and not the telescope count: judged on telescopes alone it looks empty.
     DRAWN = ("telescopes", "frequencies")
 
     def _populate_extra_filters(self):
@@ -32,8 +30,7 @@ class BeamPatternVisualizationTab(VisualizationTab):
 
         Notes:
             - A beam can be drawn at any frequency the observation defines, including one the
-              stored result was not computed at, so the choice comes from the frequencies
-              themselves.
+              stored result was not computed at.
         """
         for frequency in sorted(self._frequencies()):
             try:

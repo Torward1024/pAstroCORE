@@ -6,16 +6,14 @@ from pastrocore.gui.ui_dialog_preferences import Ui_PreferencesDialog
 from msb_arch.utils.logging_setup import logger
 import os
 
-#: What the logging box offers, and what it falls back to. Said once: the list was written out
-#: to fill the box and written out again to check what came back, two lines from a comment
-#: saying the themes are the model's to name -- and the second copy guarded against a choice
-#: the box cannot offer.
+#: What the logging box offers, and what it falls back to. Said once: a second copy
+#: would only guard against a choice the box cannot offer.
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 DEFAULT_LOG_LEVEL = "INFO"
 
 
 class PreferencesDialog(QDialog):
-    """Dialog for configuring application settings, such as catalog paths, logging level, time step, and log clearing."""
+    """Catalogue paths, logging level, time step and log clearing."""
     settings_updated = Signal(dict, list)
 
     def __init__(self, settings: dict, parent=None):

@@ -20,9 +20,8 @@ class CalculationThread(QThread):
             `recalculate`.
 
     Notes:
-        - One request. Which prerequisites are needed, what order they go in, and what to skip
-          when a step fails are worked out by the backend from the handlers themselves, so a
-          command line or a server sending the same request gets the same behaviour.
+        - One request: the prerequisites, their order and what to skip on a failure are the
+          backend's, so a command line sending the same request behaves the same.
         - Progress and cancellation are carried by the request, not by a loop here.
     """
 
@@ -55,9 +54,8 @@ class CalculationThread(QThread):
                 targets=self.targets, calculations=self.calc_types,
                 progress=lambda percent, message: self.progress.emit(percent, message),
                 cancelled=lambda: self._cancelled,
-                # Steps that wait for nothing run together. Measured at 1.30x over the fixture
-                # project's thirteen-step plan; the ceiling is what the fan below the base
-                # steps costs.
+                # Steps that wait for nothing run together: 1.30x over the fixture
+                # project's thirteen-step plan, the ceiling being the fan below the base.
                 concurrent=True,
                 **shared)
 
@@ -81,10 +79,8 @@ class CalculationThread(QThread):
 class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
     time_step_updated = Signal(int)
-    #: What the project holds has changed without a run: results were cleared. The explorer's
-    #: staleness labels are read from the project, and after a run the window refreshes them
-    #: for exactly this reason -- after a clear it heard nothing and went on listing results
-    #: that were gone.
+    #: What the project holds has changed without a run: results were cleared. The
+    #: explorer's staleness labels are read from the project, and refreshed on this as on a run.
     project_changed = Signal()
 
     def done(self, result):
@@ -145,10 +141,8 @@ class CalculationDialog(QDialog):
 
     def populate_calc_list(self):
         """Populate the calculation list with available calculations."""
-        # Asked, not listed. The manipulator works out what it offers from the handlers that
-        # do the work, so a calculation added to the calculator appears here on its own -- and
-        # the prerequisites come from the code that states them rather than from a table kept
-        # by hand in a dialog.
+        # Asked, not listed: the manipulator works out what it offers from the handlers,
+        # so a calculation added to the calculator appears here with its prerequisites.
         response = self.manipulator.inspect(obj=self.project, method="catalogue")
         catalogue = response or []
 
@@ -190,9 +184,8 @@ class CalculationDialog(QDialog):
         """Return the result key an item in the list stands for.
 
         Notes:
-            - The list shows labels because that is what a person reads; every request needs
-              the key. The dialog holds the pairing from the catalogue rather than deriving it,
-              since a label may be spelled anything.
+            - The list shows labels because that is what a person reads and every request
+              needs the key, so the pairing comes from the catalogue.
         """
         for index in range(self.ui.calcList.count()):
             item = self.ui.calcList.item(index)
@@ -212,11 +205,9 @@ class CalculationDialog(QDialog):
                 user cancelled.
 
         Notes:
-            - Chosen once for the run rather than per calculation: pointing two of them at
-                different spacecraft in one go is not something anyone has wanted, and the
-                dialog would have to grow a table to express it.
-            - With exactly one spacecraft in the selected observations, that is the answer and
-              nothing is asked.
+            - Chosen once for the run rather than per calculation, two spacecraft in one go
+              needing a table to express.
+            - With exactly one spacecraft in the selected observations, nothing is asked.
         """
         # Asked, not walked. What can be pointed at is a question about the model, and a
         # command line running the same calculations asks it the same way.
@@ -270,17 +261,13 @@ class CalculationDialog(QDialog):
         """Tick what a ticked calculation needs, and offer what the selection takes.
 
         Notes:
-            - **The refresh happens whatever changed.** It used to be the last line of the
-              branch that ticks prerequisites, so it ran only when a calculation *with*
-              prerequisites was *ticked*. Unticking one, or ticking one that needs nothing,
-              left the boxes as they were: Clear All offered a detection threshold, an air
-              temperature and a set of gain curves with no calculation selected at all.
+            - The refresh happens whatever changed: unticking a calculation, or ticking one
+              that needs nothing, also settles which parameters are offered.
         """
         dependencies = item.data(Qt.UserRole) if item.checkState() == Qt.Checked else None
         if dependencies:
-            # Compared on the key: `requires` names results, the list shows labels. A
-            # prerequisite that is not offered -- a step nobody asks for by name -- is not in
-            # the list at all, and the backend adds it to the plan anyway.
+            # Compared on the key: `requires` names results and the list shows labels.
+            # A prerequisite nobody asks for by name is not listed, and the backend adds it.
             logger.debug("Ticking what %s needs: %s", item.data(Qt.UserRole + 1), dependencies)
             for index in range(self.ui.calcList.count()):
                 other = self.ui.calcList.item(index)
@@ -292,9 +279,8 @@ class CalculationDialog(QDialog):
         """Build the boxes E1's calculations are asked with, and fill what the model answers.
 
         Notes:
-            - **The recordings come from the backend.** How much of the correlation two-level
-              quantising leaves is physics, and a combo box holding 1 and 2 because somebody
-              typed them is that physics written down a second time.
+            - The recordings come from the backend: how much of the correlation two-level
+              quantising leaves is physics, not a list somebody typed.
             - The two grids hold an assumption of the run rather than anything of the model's,
               so they start empty: nothing is applied that was not asked for.
         """
@@ -331,9 +317,8 @@ class CalculationDialog(QDialog):
         """Offer exactly the parameters the selected calculations take.
 
         Notes:
-            - Asked, not listed. A calculation says what it takes -- the catalogue reads it off
-              what the result records -- so a detection threshold is not offered beside a beam
-              pattern, and a parameter added to a calculation appears here on its own.
+            - Asked, not listed: a calculation says what it takes, so a parameter added to one
+              appears here on its own and a beam pattern is offered none.
         """
         selected_keys = [self.ui.calcList.item(i).data(Qt.UserRole + 1)
                          for i in range(self.ui.calcList.count())
@@ -394,17 +379,14 @@ class CalculationDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
 
-        # Not a clearance any more. Ticking it used to throw away *every* result the selected
-        # observations held -- including calculations nobody had asked for on this run -- and
-        # then let the run recompute what it needed. Now it asks the run to recompute what it
-        # would otherwise have kept, which is the thing the box is for.
+        # Not a clearance: it asks the run to recompute what it would otherwise have
+        # kept, rather than throwing away every result the selected observations hold.
         params = {
             "time_step": self.ui.timeStepSpin.value(),
             "force": self.ui.recalculateCheck.isChecked()
         }
-        # What the selected calculations take beyond the model: a detection threshold, the
-        # recording, the weather assumed, the gain curves. A step that takes none of them is
-        # handed them all the same and ignores them, as it does the time step.
+        # What the selected calculations take beyond the model: a detection threshold,
+        # the recording, the weather, the gain curves. A step taking none is handed them.
         params.update(self._asked_parameters([self._key_for_label(label)
                                               for label in selected_calcs]))
         calc_params = {calc: params.copy() for calc in selected_calcs}
@@ -448,10 +430,8 @@ class CalculationDialog(QDialog):
             outcome (dict): What `compute(method="run")` returned, report and summary included.
 
         Notes:
-            - A message box saying "All calculations completed successfully" is the wrong shape
-              twice over: it says nothing when everything worked, and when a step failed it has
-              nowhere to put the detail, so the detail went to `output.log` and nobody read it.
-              One report instead, which the window keeps so it can be reopened.
+            - One report rather than a box saying everything worked: such a box says nothing
+              when it did, and has nowhere to put the detail when it did not.
         """
         self.progress_dialog.finish()
         self.outcome = outcome or {}
@@ -464,9 +444,8 @@ class CalculationDialog(QDialog):
             logger.info("All %s calculation(s) completed in %.2f s",
                         summary.get("steps", len(results)), summary.get("seconds", 0.0))
 
-        # Shown by the window once this dialog has closed, not from inside it. A modal dialog
-        # opened from a slot nests one event loop inside another, and the first version of this
-        # blocked the suite exactly as the catalogue's modal warning once did.
+        # Shown by the window once this dialog has closed, not from inside it: a modal
+        # dialog opened from a slot nests one event loop inside another.
         self.accept()
 
     def calculation_error(self, error: str):
@@ -492,15 +471,10 @@ class CalculationDialog(QDialog):
         """Throw away the results of the selected observations, once asked.
 
         Notes:
-            - **It asks now.** A day of calculation went on one click, and what the user was
-              told afterwards was "Success". Everything else in this application that throws
-              something away asks first -- an observation, a catalogue entry, the results a
-              project is closed on -- and this was the one door that did not.
-            - And it says so afterwards. The explorer's staleness labels are read from the
-              project, and the window refreshes them after a *run* because "the label that
-              sent the user here to recompute survived the recomputation". A clear changes
-              the same thing and said nothing, so the explorer went on listing results that
-              were gone until something else happened to refresh it.
+            - It asks first, as everything else that throws something away does: a day of
+              calculation used to go on one click.
+            - And it says so afterwards: the explorer's staleness labels are read from the
+              project, and a clear changes the same thing a run does.
         """
         selected_targets = [
             self.ui.targetList.item(i).data(Qt.UserRole)

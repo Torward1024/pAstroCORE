@@ -23,22 +23,16 @@ class SessionDialog(QDialog):
         parent (QWidget): The window this belongs to.
 
     Notes:
-        - Everything shown here is what `inspect(method="history")` returns, and everything the
-          buttons do is one request each. The dialog holds the file chooser and the table, which
-          is the whole of what an interface is for.
-        - A session is portable because MSB records what was *asked* rather than the request as
-          it ran: each row names its object instead of holding it. That is what makes a saved
-          session replayable in a later run, and what stopped a journal from keeping alive
-          every result it had recorded.
-        - **Cutting a session down (S1) changes what is saved, never what is recorded.** Removed
-          rows and hidden reads are left out of the file; the journal keeps all of it, because what
-          the window asked is what a bug report needs. Whether a request only reads is said by
-          its row, which the backend fills from the operation's name.
+        - Everything shown here is what `inspect(method="history")` returns, and every button
+          is one request.
+        - A session is portable because MSB records what was asked rather than the request as
+          it ran: each row names its object instead of holding it.
+        - Cutting a session down (S1) changes what is saved, never what is recorded: removed
+          rows and hidden reads are left out of the file, and the journal keeps all of it.
     """
 
-    #: "Call" is what the request called: the operation's handler when one was named -- `run` --
-    #: and the model's methods otherwise -- `create_item`. "Method" showed the handler alone, and
-    #: that is empty for nearly everything the window asks.
+    #: "Call" is what the request called: the operation's handler where one was named,
+    #: `run`, and the model's methods otherwise, `create_item`.
     COLUMNS = ["Operation", "Object", "Where", "Call", "Seconds", "Outcome"]
 
     def __init__(self, manipulator, parent=None):
@@ -178,9 +172,8 @@ class SessionDialog(QDialog):
             QMessageBox.critical(self, "Error", "The session could not be replayed.")
             return
 
-        # Checked whole before anything ran. A session is a file, and a file gets edited: one
-        # bad step among good ones runs none of them, and the refusal is the whole list rather
-        # than whatever broke first.
+        # Checked whole before anything runs: a session is a file and a file gets
+        # edited, so one bad step runs none and the refusal is the whole list.
         if outcome.get("problems"):
             listed = "\n  ".join(outcome["problems"][:10])
             QMessageBox.critical(
