@@ -120,6 +120,134 @@ def open_everything(window):
     window.open_analysis_tab()
 
 
+def dialog_classes():
+    """Return every dialog the package defines, found rather than listed."""
+    import importlib
+    import inspect
+
+    from PySide6.QtWidgets import QDialog
+
+    found = {}
+    for path in sorted((ROOT / "pastrocore" / "gui").glob("p_dialog_*.py")):
+        module = importlib.import_module(f"pastrocore.gui.{path.stem}")
+        for name, candidate in vars(module).items():
+            if (inspect.isclass(candidate) and issubclass(candidate, QDialog)
+                    and candidate.__module__ == module.__name__):
+                found[name] = candidate
+    # A base two others are built on is not a screen: the catalogue dialog cannot say which
+    # catalogue it is, and a reader only ever meets one of its two subclasses.
+    return {name: cls for name, cls in found.items()
+            if not any(other is not cls and issubclass(other, cls) for other in found.values())}
+
+
+def pool(window):
+    """Return what a dialog's constructor may ask for, by the name it asks under.
+
+    Notes:
+        - A dialog is built from its own signature rather than from a table of calls, so one
+          added to the package is a screenshot the next run makes. What it may ask for is
+          named here; a parameter this does not hold is left to the dialog's own default.
+    """
+    observation = next(iter(window.manipulator.inspect(window.project, get_items=None)))
+    scans = observation.get_scans().get_items()
+    sources = observation.get_sources().get_items()
+    frequencies = observation.get_frequencies().get_items()
+    telescopes = observation.get_telescopes().get_items()
+
+    return {
+        "parent": window,
+        "manipulator": window.manipulator,
+        "project": window.project,
+        "catalog_manager": window.catalog_manager,
+        "settings": window.settings,
+        "observation": observation,
+        "scan": scans[0] if scans else None,
+        "source_obj": sources[0] if sources else None,
+        "if_obj": frequencies[0] if frequencies else None,
+        "telescope": telescopes[0] if telescopes else None,
+        "title": "Calculating",
+        "message": "Source visibility, 3 of 11",
+    }
+
+
+def reports(window):
+    """Return the two answers a dialog cannot be built without, from real requests.
+
+    Notes:
+        - A run report and a format report are what two of these dialogs are *for*. Writing
+          plausible ones by hand would put numbers in the manual that nothing produced.
+    """
+    import tempfile
+
+    held = {}
+    manipulator = window.manipulator
+    # What to run is asked of the catalogue, exactly as the command line asks it.
+    catalogue = manipulator.inspect(window.project, method="catalogue")
+    offered = sorted(entry["key"] for entry in catalogue if entry["offer"])
+    ran = manipulator.compute(obj=None, method="run", calculations=offered,
+                              targets=window.project.get_observations(),
+                              raise_on_error=False)
+    if getattr(ran, "ok", False):
+        held["outcome"] = ran.value
+
+    with tempfile.TemporaryDirectory() as into:
+        written = manipulator.vex(window.project, method="export", path=into,
+                                  raise_on_error=False)
+    if getattr(written, "ok", False):
+        held["report"] = as_an_example(written.value, into)
+        held["label"] = "VEX"
+    return held
+
+
+def as_an_example(report, real):
+    """Return the report with the directory it wrote to replaced by an example one.
+
+    Notes:
+        - A report carries where it wrote, and this wrote into a temporary directory named
+          after whoever ran it. Which directory is not what the screenshot is about, and a
+          manual is no place to publish one off the machine that built it.
+    """
+    shown = "D:\\schedules" if os.name == "nt" else "/home/you/schedules"
+    swapped = dict(report)
+    swapped["path"] = shown
+    swapped["files"] = [{**entry,
+                         "path": str(entry["path"]).replace(str(real), shown)}
+                        for entry in report.get("files", []) if isinstance(entry, dict)]
+    return swapped
+
+
+def dialogs(window):
+    """Yield `(name, dialog)` for every dialog in the package.
+
+    Notes:
+        - None is `exec`-ed: a modal dialog waits for a click nobody is here to give, which is
+          how a build once hung for ten minutes.
+        - One that cannot be built from the pool is reported rather than skipped in silence,
+          so the manual does not quietly lose a screen.
+    """
+    import inspect
+    import re
+
+    available = pool(window)
+    available.update(reports(window))
+
+    for name, dialog in sorted(dialog_classes().items()):
+        asked = inspect.signature(dialog.__init__).parameters
+        given = {key: available[key] for key in list(asked)[1:]
+                 if key in available and available[key] is not None}
+        # The two telescope editors ask under one name for two different kinds of station.
+        if "Space" in name and "telescope" in given:
+            from pastrocore.base.spacetelescope import SpaceTelescope
+            given["telescope"] = SpaceTelescope()
+        # Runs of capitals stay together, or `IFEditorDialog` reads as `i-f-editor`.
+        cut = re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "-", name)
+        label = "dialog-" + cut.lower().replace("-dialog", "")
+        try:
+            yield label, dialog(**given)
+        except Exception as why:  # noqa: BLE001 -- said out loud, never swallowed
+            print(f"{label}: cannot be built -- {why}", file=sys.stderr)
+
+
 def shots(window, application):
     """Yield `(name, widget)` for every screen the manual shows.
 
@@ -130,6 +258,7 @@ def shots(window, application):
     yield "window", window
     open_everything(window)
     application.processEvents()
+    yield from dialogs(window)
 
     container = outermost(window)
     if container is None:
