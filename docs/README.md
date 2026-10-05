@@ -1,11 +1,12 @@
 # pAstroCORE documentation
 
-Nine pages, and every Python example on them runs as part of the test suite.
+Ten pages, and every Python example on them runs as part of the test suite.
 
 | | |
 | --- | --- |
 | [**Your first schedule**](first-schedule.md) | Start here if you came to make a schedule. From an empty window to a VEX file, in the application |
 | [**A first project**](guide.md) | The same ground through the Python API, for a script or a second caller |
+| [**Every tab and dialog**](interface.md) | What each screen is for and what its controls do |
 | [**The calculations**](calculations.md) | What each one produces, what it needs, and what makes a result go stale |
 | [**Asking something of the numbers**](analysis.md) | Windows, gaps, coverage and statistics over results that already exist |
 | [**From a terminal**](command-line.md) | `pastrocore-cli`: what a project holds, calculating, exporting, sessions, any request with `ask`, and a shell |

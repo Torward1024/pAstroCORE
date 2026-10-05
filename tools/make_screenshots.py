@@ -76,6 +76,25 @@ def hide_the_path(window):
         message.setText("")
 
 
+def hide_paths(widget, real):
+    """Replace the directory this ran from, wherever a screen shows it.
+
+    Notes:
+        - A path reaches a screen three ways -- the status bar, a report, a field filled with
+          where the project is -- and each was found by looking at a picture rather than by
+          reasoning. This covers the class: whatever a widget says, it does not say the
+          temporary directory this ran in, under the name of whoever ran it.
+    """
+    from PySide6.QtWidgets import QLabel, QLineEdit
+
+    shown = "D:\\schedules" if os.name == "nt" else "/home/you/schedules"
+    for kind in (QLineEdit, QLabel):
+        for found in widget.findChildren(kind):
+            said = found.text()
+            if said and real in said:
+                found.setText(said.replace(real, shown))
+
+
 def grab(widget, name):
     """Write one widget to `docs/images/<name>.png`."""
     IMAGES.mkdir(parents=True, exist_ok=True)
@@ -298,6 +317,7 @@ def main():
             application.processEvents()
             for name, widget in shots(window, application):
                 hide_the_path(window)
+                hide_paths(widget, str(workspace))
                 if asked.list:
                     print(name)
                     continue
