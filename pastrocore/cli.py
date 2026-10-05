@@ -528,14 +528,14 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
 
     said = commands.add_parser("info", help="what a project holds, and what of it is stale")
-    said.add_argument("project")
+    said.add_argument("project", help="the project directory, or a package")
     said.set_defaults(run=info)
 
     listed = commands.add_parser("calculations", help="what can be calculated")
     listed.set_defaults(run=calculations)
 
     ran = commands.add_parser("run", help="calculate, for every observation in a project")
-    ran.add_argument("project")
+    ran.add_argument("project", help="the project directory, or a package")
     ran.add_argument("--only", nargs="+", metavar="KEY",
                      help="calculations to run; everything offered by default")
     ran.add_argument("--time-step", type=float, default=600.0, dest="time_step",
@@ -547,15 +547,15 @@ def build_parser() -> argparse.ArgumentParser:
     ran.set_defaults(run=run)
 
     written = commands.add_parser("export", help="write results out as text or pictures")
-    written.add_argument("project")
-    written.add_argument("destination")
+    written.add_argument("project", help="the project directory, or a package")
+    written.add_argument("destination", help="the directory to write the files into")
     written.add_argument("--only", nargs="+", metavar="KEY")
     written.add_argument("--pictures", action="store_true", help="draw them as well")
     written.set_defaults(run=export)
 
     asked = commands.add_parser(
         "analyze", help="ask something of results that have already been calculated")
-    asked.add_argument("project")
+    asked.add_argument("project", help="the project directory, or a package")
     asked.add_argument("what", choices=["describe", "summary", "windows", "coverage"],
                        help="describe: what can be asked; summary: the numbers; "
                             "windows: runs of a true/false column; coverage: across stations")
@@ -576,8 +576,8 @@ def build_parser() -> argparse.ArgumentParser:
     asked.set_defaults(run=analyze)
 
     packed = commands.add_parser("package", help="pack a project into one file, to send")
-    packed.add_argument("project")
-    packed.add_argument("destination")
+    packed.add_argument("project", help="the project directory, or a package")
+    packed.add_argument("destination", help="the package file to write")
     packed.add_argument("--model-only", action="store_true", dest="model_only",
                         help="leave the results out; a few KB that reproduce the configuration")
     packed.add_argument("--force", action="store_true", help="replace a file that is there")
@@ -585,7 +585,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     schedule = commands.add_parser(
         "vex", help="write the schedule as VEX, for a station or a correlator")
-    schedule.add_argument("project")
+    schedule.add_argument("project", help="the project directory, or a package")
     schedule.add_argument("destination",
                           help="the file to write, or a directory for a project with several "
                                "observations -- a VEX file is one experiment")
@@ -594,7 +594,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     correlator = commands.add_parser(
         "cfx", help="write the schedule as CFX, for the ASC correlator")
-    correlator.add_argument("project")
+    correlator.add_argument("project", help="the project directory, or a package")
     correlator.add_argument("destination",
                             help="the file to write, or a directory -- a CFX file is one "
                                  "frequency setup, so several bands are several files")
@@ -604,19 +604,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     spoiled = commands.add_parser(
         "affected", help="which results editing something of a type would make wrong")
-    spoiled.add_argument("project")
+    spoiled.add_argument("project", help="the project directory, or a package")
     spoiled.add_argument("type", help="Telescope, SpaceTelescope, Source, Scan, IF, ...")
     spoiled.set_defaults(run=affected)
 
     checked = commands.add_parser(
         "check", help="say what is wrong with a session, without running it")
-    checked.add_argument("project")
-    checked.add_argument("session")
+    checked.add_argument("project", help="the project directory, or a package")
+    checked.add_argument("session", help="a session file, as `export ... --session` writes one")
     checked.set_defaults(run=check)
 
     again = commands.add_parser("replay", help="run a recorded session against this project")
-    again.add_argument("project")
-    again.add_argument("session")
+    again.add_argument("project", help="the project directory, or a package")
+    again.add_argument("session", help="a session file, as `export ... --session` writes one")
     again.set_defaults(run=replay)
 
     one = commands.add_parser(
@@ -625,7 +625,7 @@ def build_parser() -> argparse.ArgumentParser:
                     "project, OBS001, OBS001/sources, OBS001/telescopes/ALMA, OBS001/scans/#3. "
                     "A value is JSON when it reads as JSON and text otherwise; @address passes "
                     "the object there. A request that changes the project saves it.")
-    one.add_argument("project")
+    one.add_argument("project", help="the project directory, or a package")
     one.add_argument("operation", help="inspect, configure, compute, calculate, visualize, ...")
     one.add_argument("address", help="what the request is about")
     one.add_argument("attributes", nargs="*", metavar="key=value",

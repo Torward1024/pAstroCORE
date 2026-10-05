@@ -104,6 +104,19 @@ def test_a_page_shows_no_screenshot_that_is_not_made():
     assert not missing, f"these are named by a page and not written: {missing}"
 
 
+def test_the_command_line_reference_is_the_command_line():
+    """A reference written by hand is the one that goes stale: it cannot know that a command
+    gained an option. `tools/make_cli_reference.py` reads the parser the CLI is built from,
+    and this fails until a page that has drifted is written again.
+    """
+    import subprocess
+
+    done = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "make_cli_reference.py"), "--check"],
+        capture_output=True, text=True, cwd=ROOT)
+    assert done.returncode == 0, done.stderr.strip() or done.stdout.strip()
+
+
 def test_the_documentation_covers_what_r3_asks_for():
     """R3's exit criterion, as a list rather than as a feeling: installing, running, adding an
     observation, reading a result -- each with a runnable example."""
