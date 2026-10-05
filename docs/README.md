@@ -1,13 +1,15 @@
 # pAstroCORE documentation
 
-Seven pages, and every Python example on them runs as part of the test suite.
+Nine pages, and every Python example on them runs as part of the test suite.
 
 | | |
 | --- | --- |
-| [**A first project**](guide.md) | Start here. Build an observation, calculate something, read the numbers back, save it |
+| [**Your first schedule**](first-schedule.md) | Start here if you came to make a schedule. From an empty window to a VEX file, in the application |
+| [**A first project**](guide.md) | The same ground through the Python API, for a script or a second caller |
 | [**The calculations**](calculations.md) | What each one produces, what it needs, and what makes a result go stale |
 | [**Asking something of the numbers**](analysis.md) | Windows, gaps, coverage and statistics over results that already exist |
 | [**From a terminal**](command-line.md) | `pastrocore-cli`: what a project holds, calculating, exporting, sessions, any request with `ask`, and a shell |
+| [**Every command**](command-line-reference.md) | Each one with its usage and arguments, generated from the command line itself |
 | [**Installing and running**](installing.md) | The command, where its files live, the settings worth knowing |
 | [**Getting a schedule to a correlator**](formats.md) | The map of VEX and CFX: what the model answers, what a station must supply, what is none of our business |
 | [**The roadmap**](ROADMAP.md) | What is done, what comes next, and what was decided against |
