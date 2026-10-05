@@ -22,6 +22,7 @@ import io
 import contextlib
 import pathlib
 import re
+import sys
 
 import pytest
 
@@ -70,6 +71,37 @@ def test_every_example_runs(document, tmp_path, monkeypatch):
             if expected:
                 raise AssertionError(
                     f"{where} declares `# raises: {expected.group(1)}` and did not raise")
+
+
+def test_a_page_shows_no_screenshot_that_is_not_made():
+    """A screenshot in a manual goes stale the moment a form is edited, and nothing says so.
+
+    Notes:
+        - Every image a page shows must be one `tools/make_screenshots.py` writes, so a
+          renamed tab fails the build rather than leaving the manual showing last month's.
+        - The other way round is not checked: the harness makes a screen whether or not a
+          page has got round to showing it.
+    """
+    import subprocess
+
+    shown = set()
+    for path in sorted(DOCS.rglob("*.md")):
+        for name in re.findall(r"!\[[^\]]*\]\(images/([^)]+)\)",
+                               path.read_text(encoding="utf-8")):
+            shown.add((path.name, name))
+    if not shown:
+        pytest.skip("no page shows a screenshot yet")
+
+    made = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "make_screenshots.py"), "--list"],
+        capture_output=True, text=True, check=True, cwd=ROOT)
+    known = {f"{name}.png" for name in made.stdout.split()}
+
+    unknown = sorted(f"{page} shows {name}" for page, name in shown if name not in known)
+    assert not unknown, f"these are not screenshots the harness makes: {unknown}"
+
+    missing = sorted({name for _, name in shown} - {p.name for p in (DOCS / "images").glob("*")})
+    assert not missing, f"these are named by a page and not written: {missing}"
 
 
 def test_the_documentation_covers_what_r3_asks_for():
