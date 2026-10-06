@@ -8,7 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## [Unreleased]
+## [1.18.0] - 2026-10-06
+
+**Download it and start it.** The last three items on the roadmap, and the end of the ranked
+list it opened with.
 
 I1: a download per platform, with no Python on the machine. A tag builds a Windows installer,
 a macOS disk image and a Linux AppImage, and attaches them to the release.
