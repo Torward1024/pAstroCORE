@@ -2,12 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.18.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
-[![Built on MSB](https://img.shields.io/badge/built%20on-MSB%203.1.0-8a2be2.svg)](https://github.com/Torward1024/MSB)
+[![Version](https://img.shields.io/badge/version-1.18.1-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
+[![Built on MSB](https://img.shields.io/badge/built%20on-MSB%203.1.1-8a2be2.svg)](https://github.com/Torward1024/MSB)
 
 A versatile tool for scheduling radio-astronomical observations.
 
-Version 1.18.0. Download it and start it: no Python, nothing else to install. What was
+Version 1.18.1. Download it and start it: no Python, nothing else to install. What was
 written under time pressure has been put in order, one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -35,7 +35,7 @@ pip install .
 That gives two commands from any directory: `pastrocore` opens the window, `pastrocore-cli`
 does the same work in a terminal.
 
-Requires `msb_arch` 3.1.0 or later. Fifteen of its releases came out of this project: mapping
+Requires `msb_arch` 3.1.1 or later. Fifteen of its releases came out of this project: mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
 collection, a handler that could not say what arguments it takes, a journal that kept alive
 everything it recorded, and a pair documented as inverses that were not.

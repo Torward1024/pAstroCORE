@@ -33,14 +33,14 @@ def saved_project(tmp_path_factory):
     return directory
 
 
-def started(*arguments, home):
+def started(*arguments, home, where=None):
     """Run the application as its own process, with a per-user directory of its own."""
-    environment = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    environment = dict(os.environ, QT_QPA_PLATFORM="offscreen", PYTHONPATH=str(ROOT))
     for name in ("LOCALAPPDATA", "XDG_DATA_HOME", "HOME"):
         environment[name] = str(home)
     return subprocess.run([sys.executable, "-m", "pastrocore.app", *arguments],
-                          capture_output=True, text=True, cwd=ROOT, env=environment,
-                          timeout=300)
+                          capture_output=True, text=True, cwd=str(where or ROOT),
+                          env=environment, timeout=300)
 
 
 def test_the_self_test_starts_and_stops_on_its_own(tmp_path):
@@ -66,6 +66,19 @@ def test_a_path_that_is_not_a_project_is_refused(tmp_path):
 
     assert done.returncode != 0
     assert "nothing.pastro" in (done.stderr + done.stdout)
+
+
+def test_the_log_is_beside_the_settings_and_not_where_it_was_started(tmp_path):
+    """A log in whatever directory the application happened to start from is a log nobody can
+    be asked to send, and in an installed one that directory may not be writable at all."""
+    working = tmp_path / "elsewhere"
+    working.mkdir()
+    done = started("--selftest", home=tmp_path / "user", where=working)
+
+    assert done.returncode == 0, done.stderr[-2000:]
+    assert not (working / "output.log").exists(), "the log was left where it was started"
+    written = list((tmp_path / "user").rglob("output.log"))
+    assert written, "no log was written in the per-user directory"
 
 
 def test_help_says_what_it_takes(tmp_path):

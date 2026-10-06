@@ -26,6 +26,14 @@ DATA = collect_data_files("pastrocore", includes=["catalogs/*.json", "gui/icons/
 DATA += collect_data_files("astropy", includes=["**/*.dat", "**/*.csv", "**/*.ecsv"])
 DATA += collect_data_files("astropy_iers_data")
 
+#: **The source of both packages, as data.** MSB derives what an application offers by reading
+#: the source of its handlers, and a frozen build holds bytecode alone: 1.18.0 started, opened
+#: a project, and offered no calculations at all. A few hundred kilobytes of text.
+for package in ("pastrocore", "msb_arch"):
+    held = pathlib.Path(__import__(package).__file__).resolve().parent
+    DATA += [(str(found), str(pathlib.Path(package) / found.relative_to(held).parent))
+             for found in held.rglob("*.py") if "__pycache__" not in found.parts]
+
 #: Imported through a string rather than a statement, so nothing walking the code finds them.
 HIDDEN = ["matplotlib.backends.backend_qtagg", "matplotlib.backends.backend_agg",
           "pyarrow.parquet", "scipy.special", "scipy.interpolate"]

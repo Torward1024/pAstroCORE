@@ -8,6 +8,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.18.1] - 2026-10-06
+
+**1.18.0 started and could do nothing.** Reported from three machines within the hour: the
+Calculate dialog was empty on Windows and on Linux, and editing a scan refused with a message
+about resolving its source. Running the same version from a checkout was fine.
+
+### Fixed
+
+- **A build carried no source, and MSB derives what an application offers by reading it.**
+  The catalogue of calculations, the order they run in, and which methods an object answers
+  to all come from parsing the handlers.
+
+  A frozen build holds bytecode, so the derivation found nothing: `getsource` raises, the
+  catalogue comes back empty, and every request resolving a method by name fails. Confirmed by
+  making `getsource` raise in a checkout, which reproduces both reports exactly.
+
+  Both packages' `.py` files now ship as data, a few hundred kilobytes, and `--selftest`
+  counts the calculations and fails the build at zero.
+- **The log was written to the working directory.** For an installed application that is its
+  own folder, which a user cannot name and may not be able to write to. It goes beside the
+  settings in the per-user directory now.
+
+### Changed
+
+- `msb_arch` 3.1.1, which checks `name` and `isactive` when they are written rather than only
+  in the constructor.
+
 ## [1.18.0] - 2026-10-06
 
 **Download it and start it.** The last three items on the roadmap, and the end of the ranked

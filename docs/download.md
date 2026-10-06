@@ -1,13 +1,13 @@
 # Download pAstroCORE
 
-**Version 1.18.0.** One file for your machine, holding its own Python and everything else.
+**Version 1.18.1.** One file for your machine, holding its own Python and everything else.
 Nothing has to be installed first.
 
 | | | |
 | --- | --- | --- |
-| **Windows** | [pAstroCORE-1.18.0-windows-x64.exe](https://github.com/Torward1024/pAstroCORE/releases/download/v1.18.0/pAstroCORE-1.18.0-windows-x64.exe) | Run it. It installs for you alone, so Windows never asks for an administrator, and puts pAstroCORE in the Start menu. |
-| **macOS** | [pAstroCORE-1.18.0-macos-arm64.dmg](https://github.com/Torward1024/pAstroCORE/releases/download/v1.18.0/pAstroCORE-1.18.0-macos-arm64.dmg) | Open it and drag pAstroCORE into Applications. |
-| **Linux** | [pAstroCORE-1.18.0-linux-x86_64.AppImage](https://github.com/Torward1024/pAstroCORE/releases/download/v1.18.0/pAstroCORE-1.18.0-linux-x86_64.AppImage) | `chmod +x` it and run it. An AppImage installs nothing. |
+| **Windows** | [pAstroCORE-1.18.1-windows-x64.exe](https://github.com/Torward1024/pAstroCORE/releases/download/v1.18.1/pAstroCORE-1.18.1-windows-x64.exe) | Run it. It installs for you alone, so Windows never asks for an administrator, and puts pAstroCORE in the Start menu. |
+| **macOS** | [pAstroCORE-1.18.1-macos-arm64.dmg](https://github.com/Torward1024/pAstroCORE/releases/download/v1.18.1/pAstroCORE-1.18.1-macos-arm64.dmg) | Open it and drag pAstroCORE into Applications. |
+| **Linux** | [pAstroCORE-1.18.1-linux-x86_64.AppImage](https://github.com/Torward1024/pAstroCORE/releases/download/v1.18.1/pAstroCORE-1.18.1-linux-x86_64.AppImage) | `chmod +x` it and run it. An AppImage installs nothing. |
 
 Every release is on [the releases page](https://github.com/Torward1024/pAstroCORE/releases), and
 [the latest one](https://github.com/Torward1024/pAstroCORE/releases/latest) is always this one or newer.

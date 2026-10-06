@@ -66,6 +66,19 @@ def test_the_spec_names_files_that_are_here():
             f"the spec names {named}, which is not here")
 
 
+def test_the_build_carries_the_source_both_packages_are_derived_from():
+    """1.18.0 started on three machines and offered no calculations: MSB derives what an
+    application can do by reading the source of its handlers, and a frozen build holds
+    bytecode. Without the `.py` files the catalogue comes back empty and nothing works."""
+    text = SPEC.read_text(encoding="utf-8")
+    collected = re.search(r'for package in \(([^)]+)\)', text)
+    assert collected, "the spec collects no source at all"
+
+    named = set(re.findall(r'"(\w+)"', collected.group(1)))
+    assert {"pastrocore", "msb_arch"} <= named, f"the spec carries the source of {named}"
+    assert 'rglob("*.py")' in text, "the spec collects something other than source"
+
+
 def test_what_the_spec_collects_from_the_package_is_there_to_collect():
     """A pattern matching nothing ships nothing, and the build says nothing about it: the
     download starts and its catalogues are empty."""

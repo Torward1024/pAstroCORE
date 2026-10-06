@@ -39,7 +39,7 @@ from pathlib import Path
 import json
 # GUI resource file
 from pastrocore.paths import (CATALOGUES, SETTINGS, existing_or_shipped, is_leftover,
-                              settings_file, shipped_catalog)
+                              log_file, settings_file, shipped_catalog)
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
@@ -1320,7 +1320,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
         if "clear_log_on_start" in changed_keys:
             clear_log = self.settings.get("clear_log_on_start", False)
-            update_logging_clear("output.log", clear_log)
+            update_logging_clear(str(log_file()), clear_log)
             logger.info("Log file clearing setting updated to %s. This will take effect now and on the next application start.", clear_log)
 
         for kind, (setting, shipped) in CATALOGUES.items():
@@ -1782,6 +1782,23 @@ def opened_on_start(window, path) -> str:
     return f"opened '{window.project.get_name()}' with {len(held)} observation(s)"
 
 
+def said_for_itself(window, opened: str) -> int:
+    """Say what this build can do, and return what the process should exit with.
+
+    Notes:
+        - Starting is not working. A build that offers no calculations opens a window with
+          an empty Calculate dialog, which is what 1.18.0 shipped to three machines.
+        - The catalogue is derived rather than listed, so an empty one means the derivation
+          found nothing -- the one failure that only ever shows up in a build.
+    """
+    offered = window.manipulator.inspect(obj=None, method="catalogue") or []
+    print(f"pAstroCORE {__version__} started: {opened}, {len(offered)} calculation(s)")
+    if not offered:
+        print("this build offers no calculations at all", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> None:
     """Start the application.
 
@@ -1793,11 +1810,12 @@ def main() -> None:
 
     # Configure logging first: msb_arch does not configure it on import, so a record
     # emitted before this line is swallowed by the package NullHandler.
-    setup_logging(log_file="output.log")
+    setup_logging(log_file=str(log_file()))
     _startup_settings = PAstroCoreMainWindow.load_settings()
     _startup_level_name = _startup_settings.get("log_level", "INFO")
     update_logging_level(getattr(logging, _startup_level_name, logging.INFO))
-    update_logging_clear("output.log", _startup_settings.get("clear_log_on_start", False))
+    update_logging_clear(str(log_file()),
+                         _startup_settings.get("clear_log_on_start", False))
     logger.debug("Logging initialized at start-up with level=%s", _startup_level_name)
 
     _warm_coordinate_tables()
@@ -1816,9 +1834,9 @@ def main() -> None:
         # opened. Nothing is offered back, a question nobody can answer being a hang.
         app.processEvents()
         window.grab()
-        print(f"pAstroCORE {__version__} started: {said}")
+        code = said_for_itself(window, said)
         window.close()
-        sys.exit(0)
+        sys.exit(code)
 
     # Build the deferred operations and read the catalogue once, here rather than in the
     # first dialog: parsing every registered Super is 550 ms, and MSB keeps the answer.

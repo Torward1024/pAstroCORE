@@ -30,6 +30,10 @@ CATALOGUES = {"sources": ("sources_catalog_path", "sources.json"),
 #: from before they moved there.
 SETTINGS = "settings.pastro"
 
+#: What the log is called. Beside the settings: an installed application starts in its own
+#: folder, which a user cannot name and may not be able to write to.
+LOG = "output.log"
+
 
 def shipped_catalog(name: str) -> Path:
     """Return the path to a catalogue that came with the application.
@@ -83,6 +87,17 @@ def is_leftover(path: str) -> bool:
 def settings_file() -> Path:
     """Return the one file the settings are read from and written to."""
     return data_home() / SETTINGS
+
+
+def log_file() -> Path:
+    """Return the one file the log is written to, and make sure its directory is there.
+
+    Notes:
+        - Asked for before anything is logged, so the directory may not exist yet.
+    """
+    home = data_home()
+    home.mkdir(parents=True, exist_ok=True)
+    return home / LOG
 
 
 def portable(path: str) -> str:
