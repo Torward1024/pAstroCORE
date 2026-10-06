@@ -13,14 +13,13 @@ start. They land in this order, a stage or an item per release, unless a later o
 earlier one.
 
 **Stages 1 and 2 shipped in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0;
-E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** W1 is done and waiting on a release. What is left,
-in order: the manual, and then the downloads that need no Python.
+E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** W1 and D1 are done and waiting on a release. What is
+left is the downloads that need no Python.
 
 ### Stage 4 -- for anyone to install and use
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| D1 | **The documentation, whole** | An astronomer with no Python reaches a VEX file from the manual alone: installing, a first observation from the catalogues, every tab and dialog, calculations and what each plot shows, formats, sessions, the command line, troubleshooting. Screenshots are made by a script from the application, so they are regenerated rather than going stale; every code block runs in the suite, as now; the command-line reference comes from the command line itself. Read as markdown in the repository: a generated site was weighed and dropped, because the pages are already read on GitHub and a second place to publish is a second place to go stale |
 | I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
 
 ## Seen in use, and answered

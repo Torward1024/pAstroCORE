@@ -1,6 +1,6 @@
 # pAstroCORE documentation
 
-Ten pages, and every Python example on them runs as part of the test suite.
+Twelve pages, and every Python example on them runs as part of the test suite.
 
 | | |
 | --- | --- |
@@ -8,6 +8,8 @@ Ten pages, and every Python example on them runs as part of the test suite.
 | [**A first project**](guide.md) | The same ground through the Python API, for a script or a second caller |
 | [**Every tab and dialog**](interface.md) | What each screen is for and what its controls do |
 | [**The calculations**](calculations.md) | What each one produces, what it needs, and what makes a result go stale |
+| [**What each plot shows**](plots.md) | The thirteen plots, what is on each, and what to read off it |
+| [**When something goes wrong**](troubleshooting.md) | What a message means and what to do about it |
 | [**Asking something of the numbers**](analysis.md) | Windows, gaps, coverage and statistics over results that already exist |
 | [**From a terminal**](command-line.md) | `pastrocore-cli`: what a project holds, calculating, exporting, sessions, any request with `ask`, and a shell |
 | [**Every command**](command-line-reference.md) | Each one with its usage and arguments, generated from the command line itself |

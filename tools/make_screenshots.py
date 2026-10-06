@@ -12,21 +12,41 @@ Notes:
       reader's -- the same isolation the suite gives every test.
 """
 import argparse
-import copy
-import json
 import os
 import pathlib
+import re
 import shutil
 import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 IMAGES = ROOT / "docs" / "images"
-FIXTURE = ROOT / "tests" / "fixtures" / "test_project.pastro"
 
 #: What the window is grabbed at. Wide enough that a table shows its columns, and the same
 #: every run, so a regenerated screenshot differs only where the application does.
 WINDOW = (1280, 820)
+
+#: The example array, by the codes the shipped catalogue gives it, and what one of its
+#: antennas delivers over the 6 cm band, as the VLBA's status summary quotes it.
+ARRAY = ("BR", "FD", "HN", "KP", "LA", "MK", "NL", "OV", "PT", "SC")
+SEFD = [(3900.0, 7900.0, 210.0)]
+
+#: A spacecraft beside them, so the two plots about one have something to draw: Spektr-R's
+#: ten metres, its SEFD over the same band, and its orbit rounded to three figures.
+SPACECRAFT = "RA"
+SPACECRAFT_SEFD = [(3900.0, 7900.0, 4500.0)]
+ORBIT = {"a": 1.86e8, "e": 0.91, "i": 51.3, "raan": 180.0, "argp": 285.0, "nu": 0.0}
+
+#: Three standard flux calibrators, under the names the catalogue files them by, with the
+#: flux scale's values at the two frequencies this band sits between.
+CALIBRATORS = {"1328+307": {1400.0: 14.9, 5000.0: 7.3},
+               "0538+498": {1400.0: 22.4, 5000.0: 8.0},
+               "1409+524": {1400.0: 22.2, 5000.0: 6.6}}
+
+#: The band, the night, and the spacing between sampled moments.
+BAND = {"frequency": 4990.0, "bandwidth": 128.0}
+NIGHT = {"start": "2026-08-10T18:00:00", "end": "2026-08-11T08:00:00"}
+STEP = 60.0
 
 
 def isolate(home, headless):
@@ -44,21 +64,76 @@ def isolate(home, headless):
         os.environ[name] = str(home)
 
 
-def opened_project(into):
-    """Write the fixture project into `into` as a directory, and return its path.
+def catalogues():
+    """Return the shipped catalogues, read the way the application reads them."""
+    from pastrocore.paths import shipped_catalog
+    from pastrocore.utils.catalogmanager import CatalogManager
+
+    manager = CatalogManager()
+    for kind in ("telescopes", "sources"):
+        manager.load(kind, str(shipped_catalog(f"{kind}.json")))
+    return manager
+
+
+def array(manager):
+    """Return the example array: the catalogue's stations, and a spacecraft beside them.
 
     Notes:
-        - Named at construction rather than renamed: a name is given once and the model
-          refuses to change it, and "Untitled Project" across every screenshot reads as a
-          manual written against nothing.
+        - The catalogue carries geometry and no measurements, so the SEFD is given here. It
+          is one published number for ten identical antennas, not a value per station.
+    """
+    from astropy.time import Time
+
+    from pastrocore.base.spacetelescope import SpaceTelescope
+    from pastrocore.base.telescopes import Telescopes
+
+    telescopes = Telescopes()
+    for code in ARRAY:
+        dish = manager.get_telescope(code)
+        dish.set({"sefd_table": SEFD})
+        telescopes.add(dish)
+
+    orbiting = SpaceTelescope(code=SPACECRAFT, name="Spektr-R", diameter=10.0,
+                              sefd_table=SPACECRAFT_SEFD)
+    orbiting.set_keplerian(epoch=Time(NIGHT["start"]), **ORBIT)
+    telescopes.add(orbiting)
+    return telescopes
+
+
+def demo_project(into):
+    """Build the schedule the manual is drawn from, write it into `into`, and return where.
+
+    Notes:
+        - Generated rather than carried as a file, so the example cannot drift from what the
+          application makes of the same pattern, and the generator is exercised on every run.
+        - A real array on real calibrators: nothing on a screenshot is a station or a source
+          that does not exist, and the one number not in the catalogue is a published one.
     """
     sys.path.insert(0, str(ROOT))
+    from pastrocore.base.frequencies import IF, Frequencies
+    from pastrocore.base.sources import Sources
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
     from pastrocore.super.schedule_project import ScheduleProject
 
-    saved = copy.deepcopy(json.loads(FIXTURE.read_text(encoding="utf-8")))
-    saved["name"] = "Survey"
+    manager = catalogues()
+    sources = Sources()
+    for name, flux in CALIBRATORS.items():
+        source = manager.get_source(name)
+        source.set({"flux_table": flux})
+        sources.add(source)
+
+    frequencies = Frequencies()
+    frequencies.add(IF(name="C", polarizations=["RCP", "LCP"], sidebands=["USB"], **BAND))
+
+    project = ScheduleProject(name="Survey")
+    ScheduleManipulator(project).configure(obj=project, generate_observations={
+        "sources": sources, "telescopes": array(manager), "frequencies": frequencies,
+        "observation_type": "VLBI", "time_range": NIGHT, "parallel": True,
+        "scan_duration": 600.0, "num_scans": 8,
+        "pattern": {"interval_sec": 2400, "naming_mask": "SV{i}"}})
+
     directory = into / "survey.pastro"
-    ScheduleProject.from_dict(saved).to_directory(str(directory))
+    project.to_directory(str(directory))
     return directory
 
 
@@ -133,10 +208,18 @@ def open_everything(window):
     Notes:
         - An observation tab is opened by double-clicking the explorer and the analysis tab
           from the Tools menu; neither is there when a project is merely opened.
+        - One observation, not every one: three observations of the same shape would be
+          three sets of the same five screenshots.
     """
-    for observation in window.manipulator.inspect(window.project, get_items=None):
-        window.open_observation_tab(observation.name, observation.get_observation_code())
+    from pastrocore.gui.p_tab_analysis import AnalysisTab
+
+    observation = next(iter(window.manipulator.inspect(window.project, get_items=None)))
+    window.open_observation_tab(observation.name, observation.get_observation_code())
     window.open_analysis_tab()
+    # Asked as well as opened: the tab's own answer is what it is for, and an unasked one
+    # is a form with an empty table under it.
+    for tab in window.findChildren(AnalysisTab):
+        tab.ask()
 
 
 def dialog_classes():
@@ -205,6 +288,7 @@ def reports(window):
     offered = sorted(entry["key"] for entry in catalogue if entry["offer"])
     ran = manipulator.compute(obj=None, method="run", calculations=offered,
                               targets=window.project.get_observations(),
+                              time_step=STEP, target_telescope=SPACECRAFT,
                               raise_on_error=False)
     if getattr(ran, "ok", False):
         held["outcome"] = ran.value
@@ -235,7 +319,7 @@ def as_an_example(report, real):
     return swapped
 
 
-def dialogs(window):
+def dialogs(window, held):
     """Yield `(name, dialog)` for every dialog in the package.
 
     Notes:
@@ -245,10 +329,9 @@ def dialogs(window):
           so the manual does not quietly lose a screen.
     """
     import inspect
-    import re
 
     available = pool(window)
-    available.update(reports(window))
+    available.update(held)
 
     for name, dialog in sorted(dialog_classes().items()):
         asked = inspect.signature(dialog.__init__).parameters
@@ -267,17 +350,64 @@ def dialogs(window):
             print(f"{label}: cannot be built -- {why}", file=sys.stderr)
 
 
+def nothing_modal():
+    """Turn the message boxes into printed lines, for a run with nobody to click them.
+
+    Notes:
+        - A dialog reports a failure by asking for an OK nobody is here to give. Printed
+          instead, so a plot that cannot be drawn is said out loud rather than hanging.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    for level in ("critical", "warning", "information"):
+        setattr(QMessageBox, level, staticmethod(
+            lambda parent, title, text, *rest, said=level:
+            print(f"{said}: {title} -- {text}", file=sys.stderr)))
+
+
+def named(label):
+    """Return a file name for a plot's label: `Space Telescope Pointing` is one word a part."""
+    return "plot-" + re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+
+
+def plots(window):
+    """Yield `(name, tab)` for every plot the dialog offers, opened as a reader opens one.
+
+    Notes:
+        - Driven through the dialog: which widget draws which result is its own answer, and
+          what it offers is what the observation has results for.
+        - The tabs stay open behind each other, which is what they do for a reader too.
+    """
+    from pastrocore.gui.p_dialog_visualize import VisualizationDialog
+
+    dialog = VisualizationDialog(window.manipulator, parent=window)
+    dialog.resize(*WINDOW)
+    offered = dialog.ui.comboBoxVisualizationType
+    for index in range(offered.count()):
+        offered.setCurrentIndex(index)
+        dialog.perform_visualization()
+        drawn = dialog.ui.tabWidget.currentWidget()
+        if drawn is None:
+            print(f"{offered.itemText(index)}: no tab was opened", file=sys.stderr)
+            continue
+        yield named(offered.itemText(index)), drawn
+
+
 def shots(window, application):
     """Yield `(name, widget)` for every screen the manual shows.
 
     Notes:
         - The window first, while the project tab is the one showing, which is what a reader
           meets on opening a project. Walking the tabs afterwards leaves the last one current.
+        - Calculated before the tabs are opened, in the order a reader works in: the analysis
+          tab reads what there is when it is built, and an empty one shows nothing.
     """
     yield "window", window
+    held = reports(window)
     open_everything(window)
     application.processEvents()
-    yield from dialogs(window)
+    yield from dialogs(window, held)
+    yield from plots(window)
 
     container = outermost(window)
     if container is None:
@@ -303,12 +433,13 @@ def main():
     workspace = pathlib.Path(tempfile.mkdtemp(prefix="pastrocore-shots-"))
     try:
         isolate(workspace / "user", asked.headless)
-        directory = opened_project(workspace)
+        directory = demo_project(workspace)
 
         from PySide6.QtWidgets import QApplication
 
         from pastrocore.app import PAstroCoreMainWindow
 
+        nothing_modal()
         application = QApplication.instance() or QApplication([])
         window = PAstroCoreMainWindow()
         try:

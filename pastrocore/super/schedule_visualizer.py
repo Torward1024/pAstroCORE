@@ -38,6 +38,10 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 UV_UNITS = {"wavelengths": {"label": "Wavelengths", "axis": "wavelengths"},
             "earth_diameters": {"label": "Earth Diameters", "axis": "xED"}}
 
+#: What the right axis of the pointing plot carries, where a panel has one and the figure
+#: carries it once for a stack of them.
+RANGE_LABEL = "Range, (1000 km)"
+
 
 def uv_units(units: Any) -> str:
     """Return the key a request's `units` names.
@@ -818,8 +822,16 @@ class ScheduleVisualizer(Super):
                           label="Az" if index == 0 else "")
                 axis.plot(times[usable], elevation[usable], color=el_color, linewidth=width,
                           label="El" if index == 0 else "")
-                axis.set_ylabel(f"{station}\nAz/El, (deg)",
-                                fontsize=self._style_config["font"]["label_size"])
+                if rows > 1:
+                    # Inside the panel, as `az_el` does it. A label per panel is a label
+                    # taller than the panel, so ten of them wrote over each other.
+                    axis.text(0.005, 0.92, station, transform=axis.transAxes, ha="left",
+                              va="top", fontsize=self._style_config["font"]["tick_size"],
+                              bbox=dict(facecolor="white", alpha=0.75, edgecolor="none",
+                                        pad=1.5))
+                else:
+                    axis.set_ylabel(labels["ylabel"],
+                                    fontsize=self._style_config["font"]["label_size"])
                 axis.grid(True, alpha=0.3)
 
                 if "range" in data.columns:
@@ -829,8 +841,9 @@ class ScheduleVisualizer(Super):
                         right.plot(times[usable], distance[usable] / 1e6, color=range_color,
                                    linewidth=width, linestyle="--",
                                    label="Range" if index == 0 else "")
-                        right.set_ylabel("Range, (1000 km)",
-                                         fontsize=self._style_config["font"]["label_size"])
+                        if rows == 1:
+                            right.set_ylabel(RANGE_LABEL,
+                                             fontsize=self._style_config["font"]["label_size"])
                         if index == 0:
                             right.legend(loc="upper right",
                                          fontsize=self._style_config["font"]["legend_size"])
@@ -843,8 +856,19 @@ class ScheduleVisualizer(Super):
                 result["telescopes"] += 1
                 result["points"] += int(np.count_nonzero(usable))
 
-            axes[-1].set_xlabel(labels["xlabel"],
-                                fontsize=self._style_config["font"]["label_size"])
+            if rows > 1:
+                # Margins for the three-line title, the time label and the two axis labels,
+                # which are the figure's once the panels no longer carry their own.
+                fig.subplots_adjust(left=0.07, bottom=0.08, right=0.90, top=0.88, hspace=0.12)
+                fig.text(0.015, 0.48, labels["ylabel"], va="center", rotation="vertical",
+                         fontsize=self._style_config["font"]["label_size"])
+                fig.text(0.955, 0.48, RANGE_LABEL, va="center", rotation=270,
+                         fontsize=self._style_config["font"]["label_size"])
+                fig.text(0.5, 0.02, labels["xlabel"], ha="center",
+                         fontsize=self._style_config["font"]["label_size"])
+            else:
+                axes[-1].set_xlabel(labels["xlabel"],
+                                    fontsize=self._style_config["font"]["label_size"])
             return self._finalize_plot(fig, attributes, result)
 
     def _visualize_telescope_visibility(self, obj: Observation, attributes: Dict[str, Any],
@@ -903,10 +927,14 @@ class ScheduleVisualizer(Super):
                             fontsize=self._style_config["font"]["label_size"])
             axis.set_title(labels["title"],
                            fontsize=self._style_config["font"]["title_size"])
+            axis.set_ylabel(labels["ylabel"],
+                            fontsize=self._style_config["font"]["label_size"])
             axis.grid(True, axis="x", alpha=0.3)
             if result["telescopes"]:
-                axis.legend(loc="upper right",
-                            fontsize=self._style_config["font"]["legend_size"])
+                # Beside the plot, as every other legend here is. In the corner it sat on the
+                # band it was naming, which is the one place it cannot be read.
+                self._legend_beside(fig, [Patch(facecolor=visible_color, label="Visible")],
+                                    "Spacecraft:")
             return self._finalize_plot(fig, attributes, result)
 
     @staticmethod
@@ -2229,6 +2257,11 @@ class ScheduleVisualizer(Super):
                 return self._create_empty_plot(fig, "sefd", code, labels=labels)
 
             ax.set_yscale("log")
+            # A bar runs from the bottom of the axis, and left to itself that was the smallest
+            # value drawn: ten stations alike came out as a skirting board under the eleventh.
+            drawn = [bar.get_height() for bar in ax.patches if bar.get_height() > 0]
+            if drawn:
+                ax.set_ylim(bottom=min(drawn) / 10.0)
             ax.set_xticks(np.arange(len(stations)))
             ax.set_xticklabels(stations, fontsize=self._style_config["font"]["tick_size"])
 

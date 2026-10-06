@@ -79,8 +79,8 @@ def test_a_page_shows_no_screenshot_that_is_not_made():
     Notes:
         - Every image a page shows must be one `tools/make_screenshots.py` writes, so a
           renamed tab fails the build rather than leaving the manual showing last month's.
-        - The other way round is not checked: the harness makes a screen whether or not a
-          page has got round to showing it.
+        - A file in `images` that the harness no longer makes fails too: a renamed screen
+          otherwise leaves the old picture behind, for a page to go on showing.
     """
     import subprocess
 
@@ -100,8 +100,12 @@ def test_a_page_shows_no_screenshot_that_is_not_made():
     unknown = sorted(f"{page} shows {name}" for page, name in shown if name not in known)
     assert not unknown, f"these are not screenshots the harness makes: {unknown}"
 
-    missing = sorted({name for _, name in shown} - {p.name for p in (DOCS / "images").glob("*")})
+    on_disk = {path.name for path in (DOCS / "images").glob("*")}
+    missing = sorted({name for _, name in shown} - on_disk)
     assert not missing, f"these are named by a page and not written: {missing}"
+
+    left_over = sorted(on_disk - known)
+    assert not left_over, f"these are no longer screens the harness makes: {left_over}"
 
 
 def test_the_command_line_reference_is_the_command_line():

@@ -10,6 +10,23 @@ What is planned, and what was measured on the way to deciding it, is in
 
 ## [Unreleased]
 
+D1: the manual, whole. Twelve pages, from an empty window to a VEX file without Python --
+a walkthrough, every tab and dialog, what each of the thirteen plots shows, and what to do when
+something goes wrong. The command-line reference is generated from the command line itself.
+
+**Read as markdown in the repository.** A generated site was weighed and dropped: the pages are
+already read on GitHub, and a second place to publish is a second place to go stale.
+
+The 39 screenshots are made from the application by `tools/make_screenshots.py`, against an
+example schedule it builds through the generator -- the VLBA and Spektr-R on three calibrators
+at 6 cm. A page naming a screen the harness does not make fails the suite, and so does a picture
+left behind by a renamed one.
+
+Three plots were wrong to look at and are fixed: the pointing plot labelled every panel's axis
+and the labels ran into each other, bars on the SEFD plot ran from the smallest value drawn so
+an array of alike antennas came out as a skirting board, and the spacecraft visibility legend
+sat on the band it was naming.
+
 W1: the prose cut down to one style. A one-line summary and Google sections in a docstring,
 `Notes` only for what a caller must know, a comment of two lines saying why, a paragraph of
 four. Every docstring and comment in `pastrocore/`, every `.md` in the repository, and every

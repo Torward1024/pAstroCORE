@@ -38,7 +38,7 @@ code. **VLBI** needs two stations to make a scan; **SINGLE_DISH** needs one.
 Double-click the observation in the explorer to open it. It has four tabs: the stations, the
 sources, the bands, and the scans that join them.
 
-![An observation](images/tab-obs_default.png)
+![An observation](images/tab-sv1.png)
 
 ## The stations
 
@@ -50,7 +50,7 @@ shipped catalogue holds 246 stations.
 Pick what you need and add it. **Add Telescope** builds one by hand instead, and **Add Space
 Telescope** one that follows an orbit rather than standing still.
 
-![Telescopes](images/tab-obs_default-telescopes.png)
+![Telescopes](images/tab-sv1-telescopes.png)
 
 The green dot is the station being active in this observation. An inactive one stays in the
 project and takes no part in a calculation, which is how you try an array without it.
@@ -112,7 +112,7 @@ assumptions of this run rather than properties of a station, so they go with the
 ![Plots](images/dialog-visualization.png)
 
 Each plot opens in its own tab with the filters it takes — sources, scans, stations,
-baselines, bands. [What each plot shows](calculations.md) says what is on each one.
+baselines, bands. [What each plot shows](plots.md) says what is on each one.
 
 To ask something of the numbers rather than look at them — when a source is up, for how long,
 where the gaps are — `Ctrl+Shift+A` opens the [analysis tab](analysis.md).
@@ -145,5 +145,8 @@ ends any other way, the next start offers them back.
 | | |
 | --- | --- |
 | [The calculations](calculations.md) | What each produces, what it needs, what makes it stale |
+| [What each plot shows](plots.md) | The thirteen plots, and what to read off each |
+| [Every tab and dialog](interface.md) | What each control does |
+| [When something goes wrong](troubleshooting.md) | What a message means and what to do |
 | [Asking something of the numbers](analysis.md) | Windows, gaps, coverage, statistics |
 | [From a terminal](command-line.md) | The same requests without the window |

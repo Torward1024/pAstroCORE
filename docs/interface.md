@@ -64,14 +64,14 @@ leaves its results on disk until the next save.
 
 ## An observation
 
-![An observation](images/tab-obs_default.png)
+![An observation](images/tab-sv1.png)
 
 The code and the type at the top, then four tables. A code is unique in a project: renaming
 one onto another's code is refused.
 
 ### Telescopes
 
-![Telescopes](images/tab-obs_default-telescopes.png)
+![Telescopes](images/tab-sv1-telescopes.png)
 
 **Add Telescope from Catalog** takes one from the 246 shipped; **Add Telescope** and **Add
 Space Telescope** build one by hand. **Import New Telescope** reads a file written by **Export
@@ -80,21 +80,21 @@ holds can be imported beside it.
 
 ### Sources
 
-![Sources](images/tab-obs_default-sources.png)
+![Sources](images/tab-sv1-sources.png)
 
 **Add Source from Catalog** takes one of the 590 shipped. The position is shown as the source
 answers it, in hours and arcseconds.
 
 ### Frequencies
 
-![Frequencies](images/tab-obs_default-frequencies.png)
+![Frequencies](images/tab-sv1-frequencies.png)
 
 One row per band. **Covers** is the span the frequency and bandwidth work out to, which is the
 column that makes two rows recognisable as the same piece of spectrum.
 
 ### Scans
 
-![Scans](images/tab-obs_default-scans.png)
+![Scans](images/tab-sv1-scans.png)
 
 One row per scan: when it starts, how long, the source, and how many stations and bands. A
 scan that cannot be active — too few stations for the kind of observation, or a source the
@@ -189,7 +189,8 @@ over a measurement.
 ![Plots](images/dialog-visualization.png)
 
 Choose the observation and the plot; **View** opens it in a tab with the filters it takes.
-Only a plot the observation has results for is offered. **Export** writes the picture.
+Only a plot the observation has results for is offered. **Export** writes the rows behind the
+plot as a text table. [What each plot shows](plots.md) goes through the thirteen.
 
 ### Export Calculated Data
 

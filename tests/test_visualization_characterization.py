@@ -585,6 +585,125 @@ def test_unticking_stations_leaves_only_their_panels(manipulator, observation):
         assert len(figure.legends) == 1 and len(figure.texts) == 3
 
 
+# --- a panel per station, pointing at a spacecraft --------------------------------------------------
+
+def ten_stations_tracking(observation):
+    """A spacecraft-pointing result for ten stations, written straight into the observation."""
+    import numpy as np
+    import polars as pl
+
+    from pastrocore.base.data_structure import CalculatedDataStructure
+
+    codes = [f"T{index:02d}" for index in range(10)]
+    moments = np.arange(30) * 600.0 / 86400.0 + 61298.0
+    rows = {"time": [], "target_code": [], "scan_name": [], "telescope_code": [],
+            "az": [], "el": [], "range": []}
+    for number, code in enumerate(codes):
+        rows["time"].extend(moments)
+        rows["target_code"].extend(["RADIO"] * 30)
+        rows["scan_name"].extend(["s"] * 30)
+        rows["telescope_code"].extend([code] * 30)
+        rows["az"].extend(100.0 + number + np.arange(30))
+        rows["el"].extend(20.0 + np.arange(30) / 2.0)
+        rows["range"].extend(2.0e7 + np.arange(30) * 1.0e5)
+    observation.set_calculated_data_by_key(
+        "telescope_az_el",
+        pl.DataFrame(rows, schema=CalculatedDataStructure.get_dtypes("telescope_az_el")),
+        {"time_step": 600.0, "scan_count": 1, "target_code": "RADIO",
+         "position_store_key": "telescope_positions", "orbit_store_key": "interpolated_orbits"})
+    return codes
+
+
+def draw_pointing(manipulator, observation, codes):
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    figure = Figure(figsize=(15.5, 9.0), dpi=90)
+    FigureCanvasAgg(figure)             # a renderer, so where things land can be measured
+    answer = manipulator.visualize(obj=observation, plot_type="telescope_az_el",
+                                   return_figure=True, show=False, raise_on_error=False,
+                                   target_code="RADIO", telescopes=codes, scans=["s"],
+                                   figure=figure)
+    assert answer.ok, answer.error
+    figure.canvas.draw()
+    return figure
+
+
+def written_labels(figure):
+    """Every word the figure puts beside its panels: axis labels, and the figure's own text."""
+    beside = [axes.yaxis.label for axes in figure.get_axes()]
+    beside += [axes.xaxis.label for axes in figure.get_axes()]
+    return [text for text in beside + list(figure.texts) if text.get_text().strip()]
+
+
+def test_a_panel_label_does_not_write_over_the_one_below(manipulator, observation):
+    """Ten panels, each labelled its own axis: the labels were longer than a panel is tall."""
+    codes = ten_stations_tracking(observation)
+    figure = draw_pointing(manipulator, observation, codes)
+    renderer = figure.canvas.get_renderer()
+
+    boxes = [(text.get_text(), text.get_window_extent(renderer))
+             for text in written_labels(figure)]
+    collided = [f"'{one}' over '{other}'"
+                for index, (one, first) in enumerate(boxes)
+                for other, second in boxes[index + 1:] if first.overlaps(second)]
+    assert not collided, f"{len(collided)} labels write over each other: {collided[:4]}"
+
+
+def test_a_panel_says_which_station_it_is(manipulator, observation):
+    """Ten panels of lines are one plot only if each says whose lines they are."""
+    codes = ten_stations_tracking(observation)
+    figure = draw_pointing(manipulator, observation, codes)
+
+    named = {text.get_text() for axes in figure.get_axes() for text in axes.texts}
+    assert set(codes) <= named, f"panels named {sorted(named)} for stations {codes}"
+
+
+# --- bars on a log axis -----------------------------------------------------------------------------
+
+def an_array_and_a_spacecraft(observation):
+    """An SEFD result where ten stations are alike and one is twenty times worse."""
+    import polars as pl
+
+    from pastrocore.base.data_structure import CalculatedDataStructure
+
+    codes = [f"T{index:02d}" for index in range(10)] + ["RADIO"]
+    values = [210.0] * 10 + [4500.0]
+    rows = {"telescope_code": codes, "if_name": ["C"] * 11, "frequency": [4990.0] * 11,
+            "bandwidth": [128.0] * 11, "sefd": values, "origin": ["table"] * 11,
+            "tsys": [None] * 11, "effective_area": [None] * 11, "efficiency": [None] * 11,
+            "basis": ["measured"] * 11, "reason": [None] * 11, "filled": [False] * 11}
+    observation.set_calculated_data_by_key(
+        "sefd", pl.DataFrame(rows, schema=CalculatedDataStructure.get_dtypes("sefd")),
+        {"filled": 0})
+    return codes
+
+
+def test_the_shortest_bar_is_tall_enough_to_see(manipulator, observation):
+    """A bar runs from the bottom of its axis, and on a log axis that bottom was the smallest
+    value drawn: ten identical stations came out as a skirting board under the eleventh."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    codes = an_array_and_a_spacecraft(observation)
+    figure = Figure(figsize=(15.5, 9.0), dpi=90)
+    FigureCanvasAgg(figure)
+    answer = manipulator.visualize(obj=observation, plot_type="sefd", return_figure=True,
+                                   show=False, raise_on_error=False, telescopes=codes,
+                                   frequencies=[4990.0], figure=figure)
+    assert answer.ok, answer.error
+    figure.canvas.draw()
+
+    axes = figure.get_axes()[0]
+    panel = axes.get_window_extent(figure.canvas.get_renderer())
+    # What is on screen, not what the artist is: a bar runs from zero, which on a log axis
+    # is far below the panel, so its own height says nothing about what is seen.
+    seen = sorted(min(bar.get_window_extent().y1, panel.y1) - panel.y0 for bar in axes.patches)
+    assert len(seen) == len(codes), f"{len(seen)} bars for {len(codes)} stations"
+    assert seen[0] > panel.height * 0.2, (
+        f"the shortest bar is {seen[0] / panel.height:.0%} of the panel")
+
+
 # --- the sky outside the Mollweide ellipse ------------------------------------------------------------
 
 def test_the_cursor_leaving_the_mollweide_ellipse_asks_nothing_impossible(manipulator, observation):
