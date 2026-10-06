@@ -25,8 +25,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-pastrocore.spec
+# The spec that builds a download lives in `packaging/` and is kept. This is the one
+# PyInstaller used to drop in the root.
+/pastrocore.spec
 build/
 dist/
+
+# Made by `tools/make_icons.py` from the icon the application ships, every build.
+packaging/pastrocore.ico
+packaging/pastrocore.icns
+packaging/pastrocore.iconset/
 .vscode/
 pAstroCORE.code-workspace

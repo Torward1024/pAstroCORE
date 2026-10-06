@@ -18,7 +18,7 @@ from pastrocore.base.observation import Observation, OBSERVATION_TYPES
 from pastrocore.utils.catalogmanager import CatalogManager
 # UI files. The dialogs are imported where they are opened rather than here: between them
 # they pull in matplotlib and every visualization tab, which is 570 ms of every start-up.
-from pastrocore import theme
+from pastrocore import __version__, theme
 from pastrocore.gui import icon_theme
 from pastrocore.gui.p_custom_model import listening
 from pastrocore.gui.styling import load_stylesheet
@@ -1744,6 +1744,44 @@ def _warm_coordinate_tables() -> None:
     threading.Thread(target=warm, name="astropy-warmup", daemon=True).start()
 
 
+def asked_for(arguments):
+    """Return what the command line asks for, and whatever is left for Qt.
+
+    Args:
+        arguments (list): The arguments after the program's own name.
+
+    Returns:
+        tuple: What was parsed, and the arguments to hand on to `QApplication`.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="pastrocore", description="Planning and checking VLBI schedules, ground and space")
+    parser.add_argument("project", nargs="?",
+                        help="a project directory or package to open on start-up")
+    parser.add_argument("--selftest", action="store_true",
+                        help="open, draw and close again, saying what was opened")
+    parser.add_argument("--version", action="version", version=f"pAstroCORE {__version__}")
+    return parser.parse_known_args(arguments)
+
+
+def opened_on_start(window, path) -> str:
+    """Open the project a command line named, and return a line saying what was opened.
+
+    Raises:
+        SystemExit: With the reason, where the path is not a project. A build that cannot
+            open what it was handed says so rather than drawing an empty window.
+    """
+    if not path:
+        return "no project opened"
+    try:
+        window._open_project_at(str(path))
+    except Exception as why:                            # noqa: BLE001 - said, then given up
+        raise SystemExit(f"{path}: {why}")
+    held = window.project.get_observations()
+    return f"opened '{window.project.get_name()}' with {len(held)} observation(s)"
+
+
 def main() -> None:
     """Start the application.
 
@@ -1751,6 +1789,8 @@ def main() -> None:
         - Logging is configured first, `msb_arch` not configuring it on import; defaults come
           before the settings, because reading them already logs.
     """
+    asked, for_qt = asked_for(sys.argv[1:])
+
     # Configure logging first: msb_arch does not configure it on import, so a record
     # emitted before this line is swallowed by the package NullHandler.
     setup_logging(log_file="output.log")
@@ -1762,13 +1802,24 @@ def main() -> None:
 
     _warm_coordinate_tables()
 
-    app = QApplication(sys.argv)
+    app = QApplication([sys.argv[0], *for_qt])
     # One palette, generated from the tokens in `pastrocore.theme` (U1). It follows the
     # desktop unless the settings say otherwise, and a user's own sheet still replaces it.
     app.setStyleSheet(load_stylesheet(_startup_settings.get("theme", "system"),
                                       system_is_dark(app)))
     window = PAstroCoreMainWindow(_startup_settings)
     window.show()
+    said = opened_on_start(window, asked.project)
+
+    if asked.selftest:
+        # What a build says for itself: drawn once, closed, and a line naming what it
+        # opened. Nothing is offered back, a question nobody can answer being a hang.
+        app.processEvents()
+        window.grab()
+        print(f"pAstroCORE {__version__} started: {said}")
+        window.close()
+        sys.exit(0)
+
     # Build the deferred operations and read the catalogue once, here rather than in the
     # first dialog: parsing every registered Super is 550 ms, and MSB keeps the answer.
     threading.Thread(target=window._warm_manipulator, name="warm-operations",
