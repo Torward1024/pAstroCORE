@@ -10,6 +10,28 @@ What is planned, and what was measured on the way to deciding it, is in
 
 ## [Unreleased]
 
+I1: a download per platform, with no Python on the machine. A tag builds a Windows installer,
+a macOS disk image and a Linux AppImage, and attaches them to the release.
+
+**Each is installed and started by the machine that made it**, against the fixture project. A
+download that does not start is a failed build rather than something a user finds. That is what
+`pastrocore --selftest` is for: it opens, draws, closes, and says what it opened.
+
+`pastrocore` now takes a project to open as an argument, which is also what a file association
+hands over. `--version` says which version is running.
+
+The Windows installer installs for one user, under their own profile, so Windows never asks for
+an administrator. Nothing is signed: each platform asks once whether you meant it, and
+[the download page](docs/download.md) says what to click.
+
+Every download carries its version, so two of them on a disk are told apart.
+`docs/download.md` is written from that version by `tools/make_download_page.py`, and the suite
+fails when it drifts.
+
+PyInstaller ships whatever it can import, so a build carries the environment it ran in rather
+than the dependency list: the first build here was 4.9 GB and held torch, jax and llvmlite.
+From a clean environment it is 515 MB, and the workflow refuses a download over 500 MB.
+
 D1: the manual, whole. Twelve pages, from an empty window to a VEX file without Python --
 a walkthrough, every tab and dialog, what each of the thirteen plots shows, and what to do when
 something goes wrong. The command-line reference is generated from the command line itself.

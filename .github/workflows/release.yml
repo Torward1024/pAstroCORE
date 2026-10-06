@@ -75,8 +75,11 @@ jobs:
           '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-' -Wait
         $installed = Join-Path $env:LOCALAPPDATA 'Programs\pAstroCORE\pAstroCORE.exe'
         if (-not (Test-Path $installed)) { throw "the installer left nothing at $installed" }
-        & $installed --selftest "${{ runner.temp }}/survey.pastro"
-        if ($LASTEXITCODE -ne 0) { throw "the installed application exited $LASTEXITCODE" }
+        # Started rather than called: a windowed program is not waited for by a shell, and
+        # `$LASTEXITCODE` came back empty from one that had started, run and exited 0.
+        $run = Start-Process -FilePath $installed -Wait -PassThru -NoNewWindow `
+          -ArgumentList '--selftest', "${{ runner.temp }}/survey.pastro"
+        if ($run.ExitCode -ne 0) { throw "the installed application exited $($run.ExitCode)" }
 
     - name: Install it and start it (macOS)
       if: runner.os == 'macOS'
