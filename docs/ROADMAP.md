@@ -13,14 +13,12 @@ start. They land in this order, a stage or an item per release, unless a later o
 earlier one.
 
 **Stages 1 and 2 shipped in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0;
-E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** W1 and D1 are done and waiting on a release. What is
-left is the downloads that need no Python.
+E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0.** W1, D1 and I1 are done and waiting on a release,
+which leaves nothing on this list.
 
-### Stage 4 -- for anyone to install and use
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
+**Where that leaves it.** Everything ranked here has landed. What is still open is in the two
+sections below: four items parked on a decision, and two formats waiting on a correlator
+reading a file. A new item comes from using it rather than from finishing the list.
 
 ## Seen in use, and answered
 
