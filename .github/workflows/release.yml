@@ -126,6 +126,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # The page links at files by name, and every name carries the version. A tag that does
+    # not match it would publish a page whose three links lead nowhere.
+    - name: Check the download page names this version
+      run: |
+        version=$(grep -oP '__version__ = "\K[^"]+' pastrocore/__init__.py)
+        tag="${GITHUB_REF_NAME#v}"
+        [ "$version" = "$tag" ] || { echo "::error::tag $tag, package $version"; exit 1; }
+        grep -q "releases/download/v$version/" docs/download.md \
+          || { echo "::error::docs/download.md does not link at v$version"; exit 1; }
+
     - name: Collect every download
       uses: actions/download-artifact@v4
       with:

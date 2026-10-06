@@ -11,6 +11,7 @@ that failure take a release to discover.
 import ast
 import pathlib
 import re
+import sys
 
 import pytest
 
@@ -82,10 +83,33 @@ def test_the_installer_writes_the_name_the_workflow_looks_for():
     written = re.search(r"OutputBaseFilename=(\S+)", INSTALLER.read_text(encoding="utf-8"))
     assert written, "the installer script says nothing about what it writes"
 
-    name = written.group(1).replace("{#Name}", "pAstroCORE").replace("{#Version}", "*")
-    looked_for = WORKFLOW.read_text(encoding="utf-8")
-    assert "pAstroCORE-*-windows-x64.exe" in looked_for, "the workflow looks for another name"
-    assert name.startswith("pAstroCORE-") and name.endswith("-windows-x64"), name
+    # The workflow matches on a pattern, the version being the one part of the name it
+    # cannot know: `{#Version}` is what the compiler fills in and `*` is what finds it.
+    name = written.group(1).replace("{#Name}", "pAstroCORE").replace("{#Version}", "*") + ".exe"
+    assert name in WORKFLOW.read_text(encoding="utf-8"), (
+        f"the installer writes {name} and the workflow looks for something else")
+
+
+def test_the_download_page_links_at_the_files_that_are_built():
+    """Two lists of three names -- what is built and what is linked -- and nothing says when
+    they stop agreeing except a release with three dead links on its page."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    from make_download import DOWNLOADS
+
+    page = (ROOT / "docs" / "download.md").read_text(encoding="utf-8")
+    for held in DOWNLOADS.values():
+        assert held["suffix"] in page, f"the page links at no {held['suffix']}"
+
+
+def test_every_download_says_which_version_it_is():
+    """Two of them on a disk are told apart by their names and by nothing else."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    from make_download import DOWNLOADS, download_name
+
+    where = "linux" if sys.platform.startswith("linux") else sys.platform
+    if where not in DOWNLOADS:
+        pytest.skip(f"nothing is built for {where}")
+    assert "9.9.9" in download_name("9.9.9", where)
 
 
 def test_every_platform_is_built_and_started():

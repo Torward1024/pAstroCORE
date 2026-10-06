@@ -22,6 +22,30 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 NAME = "pAstroCORE"
 
+#: What each platform's download is called, and the machine CI builds it on. The name is
+#: also the link on the download page, so it is written here and read by both.
+DOWNLOADS = {
+    "win32": {"suffix": "windows-x64.exe", "machine": ("AMD64", "x86_64")},
+    "darwin": {"suffix": "macos-arm64.dmg", "machine": ("arm64",)},
+    "linux": {"suffix": "linux-x86_64.AppImage", "machine": ("x86_64",)},
+}
+
+
+def download_name(number: str, where: str = None) -> str:
+    """Return what this platform's download is called, version and all.
+
+    Raises:
+        SystemExit: On a machine the name does not describe. A file called `x86_64` that
+            holds arm64 binaries is worse than a build that stopped.
+    """
+    where = where or ("linux" if sys.platform.startswith("linux") else sys.platform)
+    held = DOWNLOADS.get(where)
+    if held is None:
+        sys.exit(f"nothing is built for {where}")
+    if platform.machine() not in held["machine"]:
+        sys.exit(f"this is a {platform.machine()} machine and the name says {held['suffix']}")
+    return f"{NAME}-{number}-{held['suffix']}"
+
 #: What a `.desktop` file has to say for a Linux menu to show the application at all.
 DESKTOP = """[Desktop Entry]
 Type=Application
@@ -66,7 +90,7 @@ def for_windows(built, number):
     if not pathlib.Path(compiler).is_file():
         sys.exit("Inno Setup is not here: ISCC builds the installer")
     run(compiler, f"/DVersion={number}", "packaging/pastrocore.iss")
-    return DIST / f"{NAME}-{number}-windows-x64.exe"
+    return DIST / download_name(number)
 
 
 def for_macos(built, number):
@@ -77,7 +101,7 @@ def for_macos(built, number):
     shutil.copytree(built, staging / built.name, symlinks=True)
     os.symlink("/Applications", staging / "Applications")
 
-    written = DIST / f"{NAME}-{number}-macos-{platform.machine()}.dmg"
+    written = DIST / download_name(number)
     written.unlink(missing_ok=True)
     run("hdiutil", "create", "-volname", NAME, "-srcfolder", staging, "-ov",
         "-format", "UDZO", written)
@@ -104,7 +128,7 @@ def for_linux(built, number):
                      encoding="utf-8")
     start.chmod(0o755)
 
-    written = DIST / f"{NAME}-{number}-linux-{platform.machine()}.AppImage"
+    written = DIST / download_name(number)
     written.unlink(missing_ok=True)
     run(tool, folder, written, env={**os.environ, "ARCH": platform.machine()})
     return written

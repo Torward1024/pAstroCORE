@@ -1,6 +1,25 @@
 # Installing and running
 
-## Installing
+## A download, with no Python
+
+[The latest release](https://github.com/Torward1024/pAstroCORE/releases/latest) carries one
+file per platform. They hold their own Python and everything else, so nothing has to be
+installed first.
+
+| | What to do | Where it ends up |
+| --- | --- | --- |
+| **Windows** | Run `pAstroCORE-windows-x64.exe` | Your own profile, so Windows never asks for an administrator. A shortcut goes in the Start menu, and on the desktop if you tick it |
+| **macOS** | Open `pAstroCORE-macos-arm64.dmg` and drag the application into Applications | `/Applications`, like anything else |
+| **Linux** | `chmod +x pAstroCORE-linux-x86_64.AppImage` and run it | Wherever you put the file. An AppImage installs nothing |
+
+**The first start needs one extra click**, because the downloads are not signed. Windows shows
+*Windows protected your PC*: **More info → Run anyway**. macOS says it cannot check the
+developer: right-click the application and choose **Open**, once.
+
+Each release is built by CI, which then installs it and starts it against a project. A download
+that does not start is a failed build rather than a release.
+
+## Installing with pip instead
 
 Python 3.12 or later.
 

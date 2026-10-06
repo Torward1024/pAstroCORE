@@ -121,6 +121,17 @@ def test_the_command_line_reference_is_the_command_line():
     assert done.returncode == 0, done.stderr.strip() or done.stdout.strip()
 
 
+def test_the_download_page_names_the_version_that_is_here():
+    """Every link on it carries the version, so a bump leaves the page pointing at the
+    release before it. `tools/make_download_page.py` writes it; this fails when it drifts."""
+    import subprocess
+
+    done = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "make_download_page.py"), "--check"],
+        capture_output=True, text=True, cwd=ROOT)
+    assert done.returncode == 0, done.stderr.strip() or done.stdout.strip()
+
+
 def test_the_documentation_covers_what_r3_asks_for():
     """R3's exit criterion, as a list rather than as a feeling: installing, running, adding an
     observation, reading a result -- each with a runnable example."""

@@ -11,6 +11,19 @@ Version 1.17.0. The parts written under time pressure have been put in order, on
 stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
+## Get the latest version
+
+**[Download pAstroCORE](docs/download.md)** — one file for Windows, macOS or Linux, holding
+its own Python. Nothing has to be installed first, and
+[the releases page](https://github.com/Torward1024/pAstroCORE/releases/latest) has the same
+files beside what changed.
+
+The downloads are not signed, so the first start needs one extra click: on Windows, **More
+info → Run anyway**; on macOS, right-click the application and choose **Open**. The
+[download page](docs/download.md) says it again where it is needed.
+
+## Built on MSB
+
 Built on the [MSB](https://github.com/Torward1024/MSB) architecture: you describe the data as
 typed entities, and everything reaches it through one orchestrator by sending a request that
 is data rather than a call.

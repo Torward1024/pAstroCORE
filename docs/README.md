@@ -1,9 +1,10 @@
 # pAstroCORE documentation
 
-Twelve pages, and every Python example on them runs as part of the test suite.
+Thirteen pages, and every Python example on them runs as part of the test suite.
 
 | | |
 | --- | --- |
+| [**Download it**](download.md) | One file per platform, with no Python on the machine |
 | [**Your first schedule**](first-schedule.md) | Start here if you came to make a schedule. From an empty window to a VEX file, in the application |
 | [**A first project**](guide.md) | The same ground through the Python API, for a script or a second caller |
 | [**Every tab and dialog**](interface.md) | What each screen is for and what its controls do |
