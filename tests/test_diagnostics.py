@@ -39,8 +39,12 @@ def test_nothing_sent_names_the_person_or_their_directories(tmp_path):
             f"user={person} ran it\n")
 
     clean = without_identity(text)
-    assert str(home) not in clean, f"the home directory survived:\n{clean}"
-    assert person not in clean, f"the person's name survived:\n{clean}"
+    # Read with the placeholders taken out: CI runs as a user called `user`, and `<user>`
+    # written over the name holds the very word this looks for.
+    left = clean.replace(diagnostics.HOME, "").replace(diagnostics.PERSON, "")
+
+    assert str(home) not in left, f"the home directory survived:\n{clean}"
+    assert person not in left, f"the person's name survived:\n{clean}"
     assert "survey.pastro" in clean, "scrubbing took the useful part with it"
 
 
