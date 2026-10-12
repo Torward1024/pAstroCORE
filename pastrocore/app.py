@@ -272,6 +272,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionExit: self.close,
             self.ui.actionPreferences: self.open_preferences,
             self.ui.actionAbout: self.show_about,
+            self.ui.actionDiagnostics: self.collect_diagnostics,
             self.ui.actionSource_Catalog_Manager: self.open_source_catalog_manager,
             self.ui.actionTelescope_Catalog_Manager: self.open_telescope_catalog_manager,
             self.ui.actionCalculate: self.open_calculation_dialog,
@@ -1387,6 +1388,34 @@ class PAstroCoreMainWindow(QMainWindow):
         dialog.exec()
 
     @Slot()
+    def collect_diagnostics(self):
+        """Write the one file to send when something goes wrong.
+
+        Notes:
+            - Where to put it is asked, so the file lands somewhere the sender can find it.
+            - What it holds is said afterwards, nobody being asked to send what they have
+              not been told the contents of.
+        """
+        from pastrocore.diagnostics import collect
+
+        suggested = str(Path.home() / f"pastrocore-report-{__version__}.zip")
+        path, _ = QFileDialog.getSaveFileName(self, "Collect Diagnostics", suggested,
+                                              "Zip archives (*.zip)")
+        if not path:
+            return
+        try:
+            written = collect(path, self.manipulator, self.project)
+        except Exception as e:                      # noqa: BLE001 - said, never a crash
+            logger.error("Could not write the report: %s", str(e), exc_info=True)
+            QMessageBox.critical(self, "Collect Diagnostics",
+                                 f"Could not write the report: {e}")
+            return
+        QMessageBox.information(
+            self, "Collect Diagnostics",
+            f"Written to {written.name}.\n\nIt holds the version, the platform, your settings "
+            f"and the end of the log, with home directories and user names taken out.")
+
+    @Slot()
     def handle_project_explorer_click(self, index):
         """Handle clicks on Project Explorer.
 
@@ -1786,17 +1815,16 @@ def said_for_itself(window, opened: str) -> int:
     """Say what this build can do, and return what the process should exit with.
 
     Notes:
-        - Starting is not working. A build that offers no calculations opens a window with
-          an empty Calculate dialog, which is what 1.18.0 shipped to three machines.
-        - The catalogue is derived rather than listed, so an empty one means the derivation
-          found nothing -- the one failure that only ever shows up in a build.
+        - Starting is not working, and offering a calculation is not running one, which is
+          why `selftest` does the work rather than counting what is on offer.
     """
-    offered = window.manipulator.inspect(obj=None, method="catalogue") or []
-    print(f"pAstroCORE {__version__} started: {opened}, {len(offered)} calculation(s)")
-    if not offered:
-        print("this build offers no calculations at all", file=sys.stderr)
-        return 1
-    return 0
+    from pastrocore.selftest import check
+
+    said, code = check(window.manipulator, window.project)
+    print(f"pAstroCORE {__version__} started: {opened}, {said}")
+    if code:
+        print(f"this build cannot do its own work: {said}", file=sys.stderr)
+    return code
 
 
 def main() -> None:
@@ -1826,7 +1854,9 @@ def main() -> None:
     app.setStyleSheet(load_stylesheet(_startup_settings.get("theme", "system"),
                                       system_is_dark(app)))
     window = PAstroCoreMainWindow(_startup_settings)
-    window.show()
+    # Maximized, not merely shown: the window is tables beside plots, and the first thing
+    # anybody did with it was drag it bigger.
+    window.showMaximized()
     said = opened_on_start(window, asked.project)
 
     if asked.selftest:

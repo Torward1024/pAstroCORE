@@ -1,34 +1,36 @@
 # pAstroCORE roadmap
 
-**1.18.0 shipped.** What is left, what was decided against, and why.
+**1.18.1 shipped.** Where it stands, what is still open, and what was decided against.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
 
-## Next -- finishing it
+## Where it stands
 
-Seventeen items from using it, ranked: what cost an hour every day first, what a new user
-sees second, what it cannot do yet third, and last what lets any astronomer install it and
-start. They land in this order, a stage or an item per release, unless a later one needs an
-earlier one.
+The ranked list this roadmap opened with is finished. Seventeen items, in the order they cost
+something: stages 1 and 2 in 1.10.0 and 1.11.0, O1 in 1.12.0, C1 and S1 in 1.13.0, L4 in
+1.14.0, E1 in 1.15.0, U1 in 1.16.0, A3 in 1.17.0, and W1, D1 and I1 in 1.18.0.
 
-**Stages 1 and 2 shipped in 1.10.0 and 1.11.0; O1 in 1.12.0; C1 and S1 in 1.13.0; L4 in 1.14.0;
-E1 in 1.15.0; U1 in 1.16.0; A3 in 1.17.0; W1, D1 and I1 in 1.18.0.** Nothing is left on this
-list.
+**Since 06.10.2026 it is being used by people who did not write it**, which is where the next
+items come from. Two are open; nothing is scheduled against them, because a report from use
+outranks anything either of us would think of.
 
-**Where that leaves it.** Everything ranked here has landed. What is still open is in the two
-sections below: four items parked on a decision, and two formats waiting on a correlator
-reading a file. A new item comes from using it rather than from finishing the list.
-
-## Seen in use, and answered
-
-Two reports from using it, both answered in 1.12.0 -- one a fix, one a measurement. Kept here so
-that neither is chased twice.
+## Open
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| R1 | **Result files go missing from a project directory** | **Answered, 16.09.2026: they were deleted by File -> New Project and by File -> Open.** A window lets go of a project through `compute(method="release")`, which reached `ScheduleProject.remove_all`, which asked each observation to `clear_calculated_data` -- and that erases the results *on disk* as well as in memory. So opening a second project deleted the first one's results out of its saved directory, silently. `remove_all` lets go of what is in hand now; the disk is changed by a save (which drops the results of observations the project no longer has) and by the deliberate Clear Data, and by nothing else. `test_results_survive` walks a session and fails on the old code in four places |
-| M1 | **Memory grows through a session and does not come back** | **Answered, 16.09.2026: caches filling, not a leak -- and it stops.** A harness opens the visualization dialog, draws every plot it offers and opens four editors, over and over. Objects grew by 1 300 a round for a dozen rounds and then by 5: matplotlib's text metrics are an `lru_cache(4096)`, and a new tab means a new renderer, so every round filled it with new keys (about 400 `FontProperties` each) until it was full. The resident set flattens with it -- 339 MB to 377 MB over twelve rounds, then 378 MB at twenty-four. The other two things that grow are bounded by settings: the request journal at `session_limit` (5 000 entries of plain data -- what a request named is recorded by name, so nothing in the model is pinned), and the results in hand at the residency budget, which is the design. Nothing else accumulates: widgets, tabs and figures all reach zero. Two things were fixed on the way -- the visualization dialog removed a tab without closing it, so the tab's own teardown never freed its figure, and the same on the dialog's own close; `test_memory_bounds` holds both, and the journal's limit |
+| P1 | **Used by people who did not write it** | Reports come from a laboratory and then from other departments, and each one ends in a fix, a test that would have caught it, or a line here saying why it stands. The downloads install and start on machines nobody here has touched. Exit: the reports stop being about whether it runs and start being about what it should do |
+| V7 | **A correlator reads a file this wrote** | VEX and CFX are written by the model, read back by it, and checked against real files by the suite -- and no correlator has yet accepted one. Until it has, the formats are a well-tested guess. Exit: a file this wrote is taken by a correlator, and whatever it says is wrong is fixed or written down |
+
+## Seen in use, and answered
+
+Three reports from using it, kept so that none is chased twice.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| R1 | **Result files go missing from a project directory** | **Answered, 16.09.2026: they were deleted by File -> New Project and by File -> Open.** Letting go of a project reached `clear_calculated_data`, which erases results *on disk* as well as in memory, so opening a second project silently deleted the first one's. The disk is now changed by a save and by the deliberate Clear Data, and by nothing else. `test_results_survive` walks a session and fails on the old code in four places |
+| M1 | **Memory grows through a session and does not come back** | **Answered, 16.09.2026: caches filling, not a leak -- and it stops.** Drawing every plot and opening four editors, over and over, grew objects by 1 300 a round for a dozen rounds and then by 5: matplotlib's text metrics are an `lru_cache(4096)`, filled by a new renderer per tab. The resident set flattens with it, 339 MB to 378 MB over twenty-four rounds. What else grows is bounded by settings. Two real leaks were fixed on the way, and `test_memory_bounds` holds all of it |
+| I2 | **A download started and could do nothing** | **Answered, 06.10.2026, within the hour of 1.18.0 reaching three machines: the Calculate dialog was empty and editing a scan refused.** MSB derives what an application offers by reading the source of its handlers, and a frozen build holds bytecode, so the catalogue came back empty and every request resolving a method by name failed. Running the same version from a checkout was fine, which is why 1 547 tests passed. Both packages' source ships in the build now, and `--selftest` runs the calculations and draws the plots rather than counting what is on offer -- so CI fails a build that cannot do its own work |
 
 ## Parked
 
@@ -37,7 +39,6 @@ that neither is chased twice.
 | L3 | Client-server | **Parked.** What it needs decided is storage, identity, and what a long calculation looks like to a caller who is not watching -- and those are answered by knowing who the callers are. Everything it would be built on is in place and does not go stale: a request is data, a session is a file, a project is a file |
 | K1 | SKED | **Waiting for a real file.** No example here is certainly sked output, and an exporter written against a guess is a file that looks right and is not |
 | G14 | What a plot shows when it has nothing to show | **Stated by the A3 audit, 28.09.2026, and standing.** Every plot handler builds a labelled empty plot when its filters select nothing -- axes, title, units, forty-eight call sites of it -- and every one of those is thrown away: the operation clears the figure for an empty answer, and the tab clears its canvas. What a user sees is a blank white panel. Either the empty labelled axes are shown, which means the operation returning them and the tab keeping them, or they are not built at all and forty-eight `labels={...}` blocks go. It is a decision about what the window should look like rather than a defect, and it is the user's. Exit: one of the two, with a form-pixel test of an empty tab |
-| G16 | A write of several fields that one of them refuses | **Stated by the A3 audit, 29.09.2026, and standing.** `BaseEntity.set` restores the whole group when an `@invariant` refuses it, and its own comment says so -- "if the group leaves the object breaking a rule, every attribute in it goes back" -- but a per-field `Annotated[...]` constraint refuses inside `setattr`, part way through the loop, and the fields already written stay written. `set({"name": "CHANGED", "elevation_range": (90, 10)})` refuses the range and renames the station. It is why the two station editors still restate the model's own rules about ranges and diameters before writing: without that, a refusal leaves half an edit on the object a form was handed. Exit: a `set` that is all-or-nothing whatever refuses it, released in msb_arch and pinned here, and the restated rules taken back out of `p_dialog_edit_telescope.refusal` and `p_dialog_edit_space_telescope.refusal` |
 | G15 | A rule about what a container holds, when a held item changes | **Stated by the A3 audit, 29.09.2026, and standing.** `@invariant` on a container is checked when its *composition* changes -- added, replaced, removed -- and msb_arch puts the items back when it refuses. Writing a field on an item it already holds changes no composition, so nothing re-checks: renaming one observation onto another's code was taken, saved, and then refused on the way back in by the rule that had not run, leaving a file that could not be opened. `ScheduleProject.set_observation_code` closes the one field in this application where it matters, by doing what msb_arch does for composition. The general case belongs in msb_arch and is a design question there: an item has no back-reference to what holds it, and giving every attribute write one is a cost paid on every write. Exit: either a container operation that writes through to a held item and re-checks -- `update_item(name, params)`, symmetric with `set_item` -- or a stated decision that the rule is the caller's to re-check, with the doctrine written down |
 | E2 | What an equatorial mount is limited in, where the SEFD track cuts | **Stated by the A3 audit, 28.09.2026, and standing.** The track drops the samples outside `elevation_range`, because a flat atmosphere's airmass runs away at the horizon and a station whose limit is 15 degrees was drawing spikes of tens of millions of janskys at elevations it never uses. For an azimuthal mount that field *is* an elevation limit. For an equatorial one it holds declinations -- the same field, read as whichever the mount needs, which is how `source_visibility` and `az_el` already read it -- so the cut lands in the wrong place, and with limits of -90 to 90 it does not land at all and the spike comes back. What the right cut is, is a modelling decision rather than a defect to patch: either the track takes its answer from `source_visibility`, which already applies each mount's own limits in its own frame, or a station carries a horizon mask of its own, which is the thing an observatory actually publishes. Neither can be settled by the fixture. Exit: one of the two, with an equatorial station in the sensitivity tests. **The same field reaches a written schedule**: `$ANTENNA` states `horizon_map_el` from `elevation_range`, which for an equatorial mount is a declination limit written as a horizon -- a plausible wrong answer in a file a correlator reads, and the same decision resolves it |
 
@@ -81,6 +82,8 @@ that happens when one is sent.
 | **1.15.0** | **E1.** How well a schedule would be heard. Each station's SEFD per band, from its table or its dish and system temperature, with where it came from; the same SEFD followed along every scan by elevation; each baseline's noise summed over the time both stations see the source, against the source's power-law flux and a threshold, and the shortest scan that would detect it. The weather and the gain curves are the run's assumptions and go with the request -- a station carries only what was measured of it, and a computed SEFD written into its table when asked. Checked against the VLBA's published baseline sensitivities; drawn, exported, and asked for in the calculation dialog, which offers each parameter only beside a calculation that takes it |
 | **1.16.0** | **U1.** One palette, as tokens, from which the window's stylesheet and the plots' colours are both generated -- light and dark, chosen in Preferences, following the desktop by default. Everything is styled, including what no form mentions: scrollbars, the buttons of a spin box, the calendar under a date, a tooltip. The icon set takes its ink from the palette rather than shipping twice. The toolbar says what its buttons do, the telescope editor is four groups instead of fourteen rows, every dialog names the button that does the thing, and the number column shows its own `#` |
 | **1.17.0** | **A3.** The fifth audit: every module read once against what it is *for*. Twelve passes, sixty-eight findings, seventy-six tests added. A spacecraft placed by Keplerian elements stood 32 960 km from its own elements at the epoch, because a true anomaly was propagated as a mean one and the one test for it used a near-circular orbit; an equatorial mount was blind before transit, because its limits were read as a straight interval rather than an arc; renaming an observation onto a code another one carries was taken, saved, and refused on the way back in by the rule that had not run, leaving a file that could not be opened; and 801 of the 1 633 names in the shipped source catalogue could not be searched for, because a search box read what was typed as a regular expression and half of those names hold a `+`. Four findings are decisions rather than defects and stand as E2, G14, G15 and G16 |
+| **1.18.0** | **W1, D1, I1.** The prose held to one style and counted, history included. The manual whole: thirteen pages, 39 screenshots made from the application against a schedule it generates. A download per platform that installs and starts with no Python, built by a tag and started by the machine that made it |
+| **1.18.1** | **I2.** A build carries the source MSB derives it from, and `--selftest` does the work rather than counting it. The log moved beside the settings |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in
@@ -102,3 +105,6 @@ the model, and what an exported file leaves for somebody else to fill in, is in
 - **A check in the constructor is a check nowhere.** Six of them were found: `set` and a saved
   project reach neither. An `@invariant` holds on every path -- and, being a check that runs on
   every write, it does no expensive work to decide.
+- **A test that runs from a checkout says nothing about a build.** 1 547 of them passed and
+  1.18.0 shipped a window that could do nothing, because what breaks in a frozen build exists
+  only there. A build is now asked to calculate and draw, by the machine that made it.

@@ -1481,6 +1481,16 @@ def test_every_file_this_application_reads_tolerates_a_byte_order_mark():
     assert not offenders, f"read with utf-8 rather than utf-8-sig: {offenders}"
 
 
+def test_the_window_opens_maximized():
+    """Tables beside plots in a window sized for neither: the first thing anybody did was
+    drag it bigger. Held here because `show()` is what a reader of `main` would write."""
+    text = (ROOT / "pastrocore" / "app.py").read_text(encoding="utf-8-sig")
+    main = text[text.index("\ndef main("):]
+
+    assert "window.showMaximized()" in main, "main shows the window without maximizing it"
+    assert "window.show()" not in main, "main shows the window twice, or shows it small"
+
+
 def test_the_code_is_written_in_one_language():
     """The forms are checked for look-alike letters already; the code was not checked at all.
 

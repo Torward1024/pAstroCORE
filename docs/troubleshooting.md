@@ -5,8 +5,12 @@ something on purpose, and the refusal says which rule it was.
 
 **Where to look first.** The status bar carries the last line the log wrote, coloured by level.
 **Tools → Calculations Report** keeps the last run's outcome per step, with a **Why** beside
-anything that did not work. Everything also reaches `output.log`, beside where the application
-was started; **Preferences → Common** sets how much.
+anything that did not work. Everything also reaches `output.log`, in the same per-user folder
+as the settings; **Preferences → Common** sets how much.
+
+**Before you write to anybody**, use **Help → Collect Diagnostics**. It writes one file holding
+the version, the platform, your settings and the end of the log, with home directories and user
+names taken out of all three. Sending it saves the two exchanges that otherwise come first.
 
 ## A calculation
 

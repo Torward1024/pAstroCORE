@@ -8,6 +8,58 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.19.0] - 2026-10-07
+
+The first release shaped by somebody else using it.
+
+### Added
+
+- **Help -> Collect Diagnostics.** One file to send when something goes wrong: the version, the
+  platform, what the build offers, what the project holds, the settings, and the last 2 000
+  lines of the log.
+
+  Home directories and user names are taken out of all three, in every spelling -- including
+  Windows' 8.3 form, which a log writes about half the time and which the first version of the
+  scrubbing left in. Found by reading an archive rather than by testing for it.
+
+### Changed
+
+- **`--selftest` does the work rather than counting it.** It runs the calculations the opened
+  project allows and draws every plot that has a result, and fails on zero of either. Offering
+  a calculation is not running one, and CI now sees the difference.
+- **The window opens maximized.** It is tables beside plots, and the first thing anybody did
+  with it was drag it bigger.
+- `msb_arch` 3.1.2. A group of attributes one of which is refused now leaves none of itself
+  written, which is what the two station editors worked around. Their restated rules stay, for
+  the wording rather than for the object.
+
+### Fixed
+
+- **A scratch directory that would not go was reported as discarded.** `rmtree` with
+  `ignore_errors=True`, then a line in the log saying it was gone: on Windows a file is held a
+  moment after it is closed, so the directory survived and the next start offered it again.
+
+  It is tried twice now, the answer is read off the disk rather than taken from the call, and a
+  removal that did not happen is said. Found as a test that failed once in a full run and never
+  again.
+
+
+### Added
+
+- **Help -> Collect Diagnostics.** One file to send when something goes wrong: the version, the
+  platform, what the build offers, what the project holds, the settings, and the last 2 000
+  lines of the log.
+
+  Home directories and user names are taken out of all three, in every spelling -- including
+  Windows' 8.3 form, which a log writes about half the time and which the first version of the
+  scrubbing left in. Found by reading an archive rather than by testing for it.
+
+### Changed
+
+- **`--selftest` does the work rather than counting it.** It runs the calculations the opened
+  project allows and draws every plot that has a result, and fails on zero of either. Offering
+  a calculation is not running one, and CI now sees the difference.
+
 ## [1.18.1] - 2026-10-06
 
 **1.18.0 started and could do nothing.** Reported from three machines within the hour: the

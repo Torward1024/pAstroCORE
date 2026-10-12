@@ -147,6 +147,7 @@
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionDiagnostics"/>
     <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
@@ -469,6 +470,18 @@
    </property>
    <property name="iconText">
     <string>Settings</string>
+   </property>
+  </action>
+  <action name="actionDiagnostics">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/diagnostics.svg</normaloff>:/icons/diagnostics.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Collect Diagnostics...</string>
+   </property>
+   <property name="toolTip">
+    <string>One file to send when something goes wrong</string>
    </property>
   </action>
   <action name="actionAbout">

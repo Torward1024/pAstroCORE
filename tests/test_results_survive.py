@@ -267,3 +267,33 @@ def test_the_window_closes_after_a_save_without_asking_about_saved_results(qt_ap
         window.close()
         window.deleteLater()
         qt_application.processEvents()
+
+
+def test_a_scratch_directory_that_will_not_go_is_said_rather_than_claimed(tmp_path,
+                                                                         monkeypatch):
+    """`rmtree(..., ignore_errors=True)` followed by "Discarded" is a claim the code does not
+    check. Windows holds a file open a moment after it is closed, and under a full suite the
+    directory survived while the log said it was gone -- so the next start offered it again,
+    with nothing saying why."""
+    import polars as pl
+
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import AbandonedSession, ScratchSpace
+
+    root = tmp_path / "scratch"
+    space = ScratchSpace(root=root, session="1-stuck")
+    space.store.write("obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
+
+    # What Windows does when something still holds a file: the call works and removes nothing.
+    monkeypatch.setattr(scratch_module.shutil, "rmtree", lambda *a, **k: None)
+    session = AbandonedSession(space.path, {"pid": 1, "started": 0.0, "project": None})
+
+    # Collected from the logger itself: msb_arch attaches its own handlers and does not propagate,
+    # so `caplog` sees none of this.
+    warned = []
+    monkeypatch.setattr(scratch_module.logger, "warning",
+                        lambda message, *args: warned.append(message % args if args else message))
+    session.discard()
+
+    assert space.path.exists(), "the stand-in removed something"
+    assert any("Could not remove" in said for said in warned), f"nothing was said: {warned}"

@@ -119,6 +119,22 @@ def _is_a_scratch_directory(candidate: Path, root: Path) -> bool:
     return True
 
 
+def _removed(path: Path) -> bool:
+    """Remove a directory, and say whether it is gone.
+
+    Notes:
+        - Windows holds a file open a moment longer, which `ignore_errors` turns into a call
+          that removes nothing and says so to nobody. Tried twice, and the directory answers.
+    """
+    for again in (False, True):
+        if again:
+            time.sleep(0.1)
+        shutil.rmtree(path, ignore_errors=True)
+        if not path.exists():
+            return True
+    return False
+
+
 class AbandonedSession:
     """A scratch directory whose session is no longer running.
 
@@ -154,8 +170,11 @@ class AbandonedSession:
         if not _is_a_scratch_directory(self.path, self.path.parent):
             logger.error("Refusing to delete '%s': it is not a scratch directory", self.path)
             return
-        shutil.rmtree(self.path, ignore_errors=True)
-        logger.info("Discarded abandoned session at '%s'", self.path)
+        if _removed(self.path):
+            logger.info("Discarded abandoned session at '%s'", self.path)
+        else:
+            logger.warning("Could not remove '%s'; it will be offered again next time",
+                           self.path)
 
     def __repr__(self) -> str:
         return f"AbandonedSession(path={str(self.path)!r}, results={self.results})"
@@ -227,8 +246,10 @@ class ScratchSpace:
             logger.error("Refusing to delete '%s': it is not a scratch directory", self._path)
             self._path = None
             return
-        shutil.rmtree(self._path, ignore_errors=True)
-        logger.info("Removed this session's scratch directory")
+        if _removed(self._path):
+            logger.info("Removed this session's scratch directory")
+        else:
+            logger.warning("Could not remove this session's scratch directory '%s'", self._path)
         self._path = None
 
     @classmethod

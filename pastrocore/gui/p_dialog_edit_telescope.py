@@ -187,8 +187,8 @@ class TelescopeEditorDialog(QDialog):
         Notes:
             - Asked of the fields before anything is written: the station this dialog is
               handed is the one the observation holds.
-            - A range low to high and a positive diameter are the model's own rules, restated
-              here only because a refused `set` leaves the fields already written (G16).
+            - The model's own rules, said here in words a reader of this form can act
+              on. Since msb_arch 3.1.2 they guard the wording rather than the object.
         """
         code = self.ui.codeEdit.text().strip()
         if not code or not self.ui.nameEdit.text().strip():

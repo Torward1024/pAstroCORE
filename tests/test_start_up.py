@@ -11,6 +11,7 @@ These run it as a subprocess, because that is the only way to tell "the function
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -58,6 +59,19 @@ def test_a_project_named_on_the_command_line_is_the_one_that_opens(saved_project
 
     assert done.returncode == 0, done.stderr[-2000:]
     assert "1 observation" in done.stdout, done.stdout
+
+
+def test_the_self_test_calculates_and_draws(saved_project, tmp_path):
+    """Starting is not working, and offering calculations is not running them. 1.18.0 passed
+    every test and shipped a build whose Calculate dialog was empty, so what a build claims
+    about itself is now what it did: a run, and a figure per plot."""
+    done = started("--selftest", str(saved_project), home=tmp_path)
+
+    assert done.returncode == 0, done.stderr[-2000:]
+    calculated = re.search(r"(\d+) calculated", done.stdout)
+    drawn = re.search(r"(\d+) drawn", done.stdout)
+    assert calculated and int(calculated.group(1)) > 0, done.stdout
+    assert drawn and int(drawn.group(1)) > 0, done.stdout
 
 
 def test_a_path_that_is_not_a_project_is_refused(tmp_path):

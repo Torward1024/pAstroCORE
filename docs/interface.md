@@ -15,7 +15,7 @@ Every screenshot here is made from the application by `tools/make_screenshots.py
 | **Tools** | Calculate, Visualize, Analyze, Export Calculated Data, Generate Observations, Session Viewer, Calculations Report |
 | **Options** | Preferences, and the two catalogue browsers |
 | **Window** | Show or hide the project explorer |
-| **Help** | About |
+| **Help** | Collect Diagnostics, About |
 
 The **toolbar** carries twelve of those actions. They are the menu's own, so one the window
 disables is disabled in both places.
