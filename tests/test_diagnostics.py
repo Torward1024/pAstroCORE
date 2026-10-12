@@ -29,6 +29,7 @@ def test_a_report_says_what_is_running():
 def test_nothing_sent_names_the_person_or_their_directories(tmp_path):
     """The log names every directory a project was opened from, and each is under a home
     directory named after somebody."""
+    from pastrocore import diagnostics
     from pastrocore.diagnostics import without_identity
 
     home = pathlib.Path.home()
