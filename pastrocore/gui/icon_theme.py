@@ -31,6 +31,51 @@ SIZES = (16, 20, 24, 32, 48)
 MARK = "_icon_theme"
 
 
+#: How far apart the solid colours of one drawing may be, per channel. Rendering a stroke
+#: leaves neighbouring shades of the same ink; a picture spans the range.
+SPREAD = 64
+
+
+def in_one_ink(icon: QIcon) -> bool:
+    """Whether an icon is a shape drawn in a single colour, which is what may be repainted.
+
+    Notes:
+        - Read off the pixels rather than off a file name: the set is monochrome by rule, and
+          the application's own icon is a picture that filling would turn into a square.
+    """
+    for size in reversed(SIZES):
+        image = icon.pixmap(QSize(size, size)).toImage()
+        if not image.isNull() and image.width():
+            return _one_ink(image)
+    return False
+
+
+def _one_ink(image) -> bool:
+    """Whether a rendered icon's solid pixels are shades of one colour.
+
+    Notes:
+        - Measured as the spread per channel rather than as a count of colours: a stroked
+          icon rendered at 48 px holds a score of shades, and a photograph a thousand.
+    """
+    low = [255, 255, 255]
+    high = [0, 0, 0]
+    seen = False
+    for y in range(image.height()):
+        for x in range(image.width()):
+            pixel = image.pixel(x, y)
+            # Edges are the same ink at a lower alpha, so only solid pixels are read.
+            if ((pixel >> 24) & 0xFF) <= 200:
+                continue
+            seen = True
+            for channel, shift in enumerate((16, 8, 0)):
+                value = (pixel >> shift) & 0xFF
+                low[channel] = min(low[channel], value)
+                high[channel] = max(high[channel], value)
+            if any(high[c] - low[c] > SPREAD for c in range(3)):
+                return False
+    return seen
+
+
 def retint(icon: QIcon, colour: str) -> QIcon:
     """Return the same drawing in another ink.
 
@@ -39,10 +84,10 @@ def retint(icon: QIcon, colour: str) -> QIcon:
         colour (str): What to draw it in, as `#rrggbb`.
 
     Returns:
-        QIcon: The icon, at every size in `SIZES`, filled with the colour. The original when it
-            is empty -- there is nothing to recolour and nothing to lose.
+        QIcon: The icon, at every size in `SIZES`, filled with the colour. The original when
+            it is empty or is a picture -- neither has one ink to replace.
     """
-    if icon.isNull():
+    if icon.isNull() or not in_one_ink(icon):
         return icon
     ink = QColor(colour)
     tinted = QIcon()

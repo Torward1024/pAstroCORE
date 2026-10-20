@@ -1849,10 +1849,8 @@ def main() -> None:
     _warm_coordinate_tables()
 
     app = QApplication([sys.argv[0], *for_qt])
-    # One palette, generated from the tokens in `pastrocore.theme` (U1). It follows the
-    # desktop unless the settings say otherwise, and a user's own sheet still replaces it.
-    app.setStyleSheet(load_stylesheet(_startup_settings.get("theme", "system"),
-                                      system_is_dark(app)))
+    # The palette is the window's: `apply_theme` puts the same tokens on the sheet, the
+    # plots and the icons. Doing it here as well generated 333 lines twice at every start.
     window = PAstroCoreMainWindow(_startup_settings)
     # Maximized, not merely shown: the window is tables beside plots, and the first thing
     # anybody did with it was drag it bigger.

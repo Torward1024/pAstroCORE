@@ -1508,3 +1508,14 @@ def test_the_code_is_written_in_one_language():
                 found.setdefault(path.relative_to(ROOT).as_posix(), []).append(number)
 
     assert not found, f"Cyrillic in the source: {found}"
+
+
+def test_the_stylesheet_is_generated_once_at_start_up():
+    """`main` set it and the window's constructor set it again, so every start generated
+    333 lines twice and the log said so twice. The window owns the palette: its `apply_theme`
+    puts the same tokens on the sheet, the plots and the icons."""
+    text = (ROOT / "pastrocore" / "app.py").read_text(encoding="utf-8-sig")
+    main = text[text.index("\ndef main("):]
+
+    assert "setStyleSheet" not in main, "main applies the stylesheet the window owns"
+    assert "load_stylesheet" not in main, "main generates a stylesheet of its own"

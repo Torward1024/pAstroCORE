@@ -253,3 +253,44 @@ def test_a_user_s_own_stylesheet_still_wins(tmp_path, monkeypatch):
                                                     encoding="utf-8")
 
     assert styling.load_stylesheet("dark") == "QWidget { background: pink; }"
+
+
+def test_the_application_s_own_picture_is_not_repainted(qt_application):
+    """The window's icon is a picture of a dish under a sky, and repainting fills every
+    opaque pixel with one ink: the title bar and the taskbar showed a blue square. The icon
+    set is monochrome by rule, and a picture is not part of it."""
+    from PySide6.QtCore import QSize
+    from PySide6.QtGui import QIcon
+
+    from pastrocore.gui import icon_theme, rc_icons  # noqa: F401 - the resource registers itself
+
+    picture = QIcon(":/icons/pAstroCORE_icon.png")
+    assert not picture.isNull(), "the application's icon is not in the resource"
+
+    left = icon_theme.retint(picture, theme.PALETTES["dark"]["icon"])
+
+    before = picture.pixmap(QSize(32, 32)).toImage()
+    after = left.pixmap(QSize(32, 32)).toImage()
+    assert after == before, "the application's picture was repainted in one colour"
+
+
+def test_a_window_carrying_a_picture_keeps_it_when_its_icons_are_painted(qt_application):
+    """`paint` walks a window's actions, its buttons and its own icon. The first two are the
+    monochrome set; the third is whatever the window was given."""
+    from PySide6.QtCore import QSize
+    from PySide6.QtGui import QAction, QIcon
+    from PySide6.QtWidgets import QWidget
+
+    from pastrocore.gui import icon_theme, rc_icons  # noqa: F401 - the resource registers itself
+
+    window = QWidget()
+    window.setWindowIcon(QIcon(":/icons/pAstroCORE_icon.png"))
+    action = QAction(QIcon(":/icons/calculate.svg"), "Calculate", window)
+    window.addAction(action)
+
+    before = window.windowIcon().pixmap(QSize(32, 32)).toImage()
+    icon_theme.paint(window, theme.PALETTES["dark"]["icon"])
+
+    assert window.windowIcon().pixmap(QSize(32, 32)).toImage() == before, (
+        "the window's own picture was repainted")
+    assert drawn_in(action.icon(), theme.PALETTES["dark"]["icon"]), "the action was not painted"
