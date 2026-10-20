@@ -17,7 +17,7 @@ Every screenshot here is made from the application by `tools/make_screenshots.py
 | **Window** | Show or hide the project explorer |
 | **Help** | Collect Diagnostics, About |
 
-The **toolbar** carries twelve of those actions. They are the menu's own, so one the window
+The **toolbar** carries fourteen of those actions. They are the menu's own, so one the window
 disables is disabled in both places.
 
 The **project explorer** on the left lists the project and its observations, with a filter
@@ -104,9 +104,10 @@ observation does not hold — cannot be ticked.
 
 ![Analysis](images/tab-analysis.png)
 
-**Analysis type** is the question; **Result** is what to ask it of. The columns, what may be
-grouped by, and the filters under **Only these** are all read from the result itself, so a
-calculation added later appears here with its own columns.
+**Parameters** on the left is the question: **Analysis type** is what to ask, **Result** what
+to ask it of, and under them the columns and what may be grouped by. **Filters** on the right
+narrows the rows. All three lists are read from the result itself, so a calculation added
+later appears here with its own columns.
 
 Every numeric filter opens filled with the span that is actually there, which turns filtering
 into narrowing. A moment is a calendar reading `yyyy-MM-dd HH:mm:ss`. **Show** asks;
@@ -173,16 +174,18 @@ and is read as you leave it.
 
 ![Calculating](images/dialog-calculation.png)
 
-Tick calculations on the left and observations on the right. What a ticked calculation needs is
-added by the backend, in the order that satisfies it.
+Two tabs. **Calculations** ticks what to run and which observations to run it over; what a
+ticked calculation needs is added by the backend, in the order that satisfies it.
 
-**Time step** is the spacing between sampled moments. **Recompute everything** forces what is
-current as well as what is stale, which is for a change in a calculation rather than in the
-model. **Clear Data** throws the selected observations' results away, and asks first.
+**Time step** under **Run** is the spacing between sampled moments, offered where anything
+selected samples. **Recompute everything** forces what is current as well as what is stale,
+for a change in a calculation rather than in the model. **Clear Data** throws the selected
+observations' results away, and asks first.
 
-The **Sensitivity** group is offered only beside a calculation that takes it. **Fill the SEFD
-tables** writes a computed SEFD into the station it was computed for, over the band, and never
-over a measurement.
+**Sensitivity** is the second tab: a detection threshold, the recording, the weather and the
+gain curves, each offered only beside a calculation that takes it. **Fill the SEFD tables**
+writes a computed SEFD into the station it was computed for, over the band, and never over a
+measurement.
 
 ### Plots
 

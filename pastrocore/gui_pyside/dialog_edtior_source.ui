@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>SourceEditorDialog</class>
  <widget class="QDialog" name="SourceEditorDialog">
@@ -9,8 +8,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>460</width>
-    <height>380</height>
+    <width>820</width>
+    <height>420</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -30,8 +29,7 @@
    <bool>true</bool>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <layout class="QFormLayout" name="formLayout">
+   <item><layout class="QHBoxLayout" name="fieldsRow"><item><layout class="QFormLayout" name="formLayout">
      <item row="0" column="0">
       <widget class="QLabel" name="labelName">
        <property name="text">
@@ -228,16 +226,12 @@
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="Line" name="line_2">
+   </item><item><widget class="Line" name="line_2">
      <property name="orientation">
-      <enum>Qt::Orientation::Horizontal</enum>
+      <enum>Qt::Vertical</enum>
      </property>
     </widget>
-   </item>
-   <item>
-    <layout class="QGridLayout" name="gridLayout">
+   </item><item><layout class="QGridLayout" name="gridLayout">
      <item row="2" column="0">
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
@@ -300,16 +294,12 @@
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="Line" name="line">
+   </item></layout></item><item><widget class="Line" name="line">
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="buttonLayout">
+   </item><item><layout class="QHBoxLayout" name="buttonLayout">
      <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
@@ -341,8 +331,7 @@
       </widget>
      </item>
     </layout>
-   </item>
-  </layout>
+   </item></layout>
  </widget>
  <resources>
   <include location="../gui/icons/icons.qrc" />

@@ -152,22 +152,28 @@ def hide_the_path(window):
 
 
 def hide_paths(widget, real):
-    """Replace the directory this ran from, wherever a screen shows it.
+    """Replace every directory of this machine, wherever a screen shows one.
 
     Notes:
-        - A path reaches a screen three ways -- the status bar, a report, a field filled with
-          where the project is -- and each was found by looking at a picture rather than by
-          reasoning. This covers the class: whatever a widget says, it does not say the
-          temporary directory this ran in, under the name of whoever ran it.
+        - Two of them: where this run put its project, and where the application itself is
+          installed, which Preferences shows as the path of each shipped catalogue.
+        - Each was found by looking at a picture rather than by reasoning, so this covers
+          the class: whatever a widget says, it does not say a path off this machine.
     """
     from PySide6.QtWidgets import QLabel, QLineEdit
 
-    shown = "D:\\schedules" if os.name == "nt" else "/home/you/schedules"
+    windows = os.name == "nt"
+    swaps = [(real, "D:\\schedules" if windows else "/home/you/schedules"),
+             (str(ROOT), "C:\\Program Files\\pAstroCORE" if windows else "/opt/pastrocore")]
     for kind in (QLineEdit, QLabel):
         for found in widget.findChildren(kind):
             said = found.text()
-            if said and real in said:
-                found.setText(said.replace(real, shown))
+            if not said:
+                continue
+            for here, shown in swaps:
+                said = said.replace(here, shown).replace(here.replace("\\", "/"), shown)
+            if said != found.text():
+                found.setText(said)
 
 
 def grab(widget, name):

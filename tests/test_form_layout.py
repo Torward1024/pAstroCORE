@@ -223,3 +223,29 @@ def test_a_long_progress_message_neither_widens_the_window_nor_is_cut_off(qt_app
     finally:
         dialog.finish()
         dialog.deleteLater()
+
+
+def test_a_table_with_nothing_in_it_still_shows_its_headings(qt_application):
+    """On a project with no observations the columns shrank to their contents, which is
+    nothing, and the headings were cut to `:od`, `ype`, `requencie`. A heading is the one
+    thing a table shows before it holds anything."""
+    from PySide6.QtGui import QStandardItemModel
+    from PySide6.QtWidgets import QTableView
+
+    from pastrocore.gui.p_custom_model import fit_columns
+
+    headings = ["#", "", "Code", "Type", "Frequencies", "Start Time", "Duration",
+                "Sources", "Telescopes", "Scans"]
+    model = QStandardItemModel(0, len(headings))
+    model.setHorizontalHeaderLabels(headings)
+    view = QTableView()
+    view.setModel(model)
+
+    fit_columns(view)
+
+    metrics = view.horizontalHeader().fontMetrics()
+    for column, heading in enumerate(headings):
+        if not heading or column < 2:
+            continue                                # the number and the activity dot
+        assert view.columnWidth(column) >= metrics.horizontalAdvance(heading), (
+            f"'{heading}' is wider than the column it is written in")

@@ -125,10 +125,10 @@ class ScanEditorDialog(QDialog):
                 is_off_source=False,
                 isactive=True
             )
-            self.setWindowTitle("Add Scan")
+            self.setWindowTitle("Create Scan")
             logger.debug("Creating new scan with default parameters")
         else:
-            self.setWindowTitle(f"Edit Scan '{self.scan.name}'")
+            self.setWindowTitle("Edit Scan")
             logger.debug("Editing existing scan '%s'", self.scan.name)
 
         self.load_sources()

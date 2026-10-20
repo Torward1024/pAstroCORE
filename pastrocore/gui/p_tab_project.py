@@ -43,8 +43,10 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.setSortingEnabled(True)
         self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
-        fit_narrow_columns(self.ui.projectInfoTable)
         self.ui.projectInfoTable.setColumnHidden(2, True)
+        # Sized here as well as on every refresh: a window opens on an empty project, which
+        # never reaches `update_tab`, and its headings came out cut to `:od` and `ype`.
+        fit_columns(self.ui.projectInfoTable)
 
     def setup_connections(self):
         """Connect signals to slots."""

@@ -78,3 +78,30 @@ def test_the_menu_opens_on_a_row_the_model_cannot_answer_for(tab, monkeypatch):
 
     assert opened, "the menu never opened"
     assert "Add Observation" in opened[0], f"the menu offered only {opened[0]}"
+
+
+def test_an_empty_project_still_shows_its_headings(qt_application):
+    """The first thing anybody sees is a project with nothing in it, and the columns were
+    sized to their contents -- which is nothing. The headings came out as `:od`, `ype`,
+    `requencie`: cut by the column they are written in."""
+    from PySide6.QtCore import Qt
+
+    from pastrocore.gui.p_tab_project import ProjectInfoTab
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    widget = ProjectInfoTab(ScheduleManipulator(ScheduleProject(name="Untitled Project")))
+    widget.update_tab()
+    try:
+        table = widget.ui.projectInfoTable
+        metrics = table.horizontalHeader().fontMetrics()
+        narrow = {0, 1, 2}                          # the number, the activity dot, the hidden name
+        for column in range(table.model().columnCount()):
+            if column in narrow:
+                continue
+            heading = str(table.model().headerData(column, Qt.Horizontal))
+            # Room for the sort arrow as well: the heading shares the width with it.
+            assert table.columnWidth(column) >= metrics.horizontalAdvance(heading) + 20, (
+                f"'{heading}' has no room for itself and the sort arrow")
+    finally:
+        widget.close()
+        widget.deleteLater()

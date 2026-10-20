@@ -25,7 +25,7 @@ class Ui_ScanEditorDialog(object):
         if not ScanEditorDialog.objectName():
             ScanEditorDialog.setObjectName(u"ScanEditorDialog")
         ScanEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        ScanEditorDialog.resize(560, 420)
+        ScanEditorDialog.resize(1000, 590)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)

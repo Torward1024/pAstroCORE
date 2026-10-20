@@ -98,7 +98,12 @@ class Scan(BaseEntity):
             is_off_source=self.is_off_source,
             isactive=self.isactive
         )
-    
+
+    def clone(self) -> 'Scan':
+        """Return a copy. `BaseEntity.clone` rebuilds from a dict, which needs the observation."""
+        return self.copy()
+
+
     def _check_activity_status(self, observation: 'Observation') -> bool:
         """Check if the scan is active based on telescope, frequency, and source availability."""
         from pastrocore.base.observation import Observation

@@ -61,9 +61,18 @@ def fit_columns(view, narrow: int = 2) -> None:
     """Size a filled table: its data columns to what they hold, its narrow ones to what they are.
 
     Notes:
-        - `resizeColumnsToContents` does not measure a heading, so the narrow ones follow.
+        - A column is never narrower than its own heading. Sized to their contents alone,
+          an empty project's columns cut `Code` to `:od` and `Frequencies` to `requencie`.
     """
     view.resizeColumnsToContents()
+    header = view.horizontalHeader()
+    # Room for the sort arrow, which a sortable table draws inside the heading: the hint is
+    # the text alone, so `Code` came out at 36 pixels and lost a letter to the arrow.
+    arrow = 20 if view.isSortingEnabled() else 0
+    for column in range(narrow, header.count()):
+        if not view.isColumnHidden(column):
+            view.setColumnWidth(column, max(view.columnWidth(column),
+                                            header.sectionSizeHint(column) + arrow))
     fit_narrow_columns(view, narrow)
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):

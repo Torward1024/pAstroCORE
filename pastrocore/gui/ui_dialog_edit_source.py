@@ -26,7 +26,7 @@ class Ui_SourceEditorDialog(object):
         if not SourceEditorDialog.objectName():
             SourceEditorDialog.setObjectName(u"SourceEditorDialog")
         SourceEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        SourceEditorDialog.resize(460, 380)
+        SourceEditorDialog.resize(820, 420)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -38,6 +38,8 @@ class Ui_SourceEditorDialog(object):
         SourceEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(SourceEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
+        self.fieldsRow = QHBoxLayout()
+        self.fieldsRow.setObjectName(u"fieldsRow")
         self.formLayout = QFormLayout()
         self.formLayout.setObjectName(u"formLayout")
         self.labelName = QLabel(SourceEditorDialog)
@@ -160,14 +162,14 @@ class Ui_SourceEditorDialog(object):
         self.formLayout.setWidget(6, QFormLayout.FieldRole, self.isActiveCheckBox)
 
 
-        self.verticalLayout.addLayout(self.formLayout)
+        self.fieldsRow.addLayout(self.formLayout)
 
         self.line_2 = QFrame(SourceEditorDialog)
         self.line_2.setObjectName(u"line_2")
-        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShape(QFrame.Shape.VLine)
         self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.verticalLayout.addWidget(self.line_2)
+        self.fieldsRow.addWidget(self.line_2)
 
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
@@ -210,7 +212,10 @@ class Ui_SourceEditorDialog(object):
         self.gridLayout.addWidget(self.labelFluxTable, 0, 0, 1, 1)
 
 
-        self.verticalLayout.addLayout(self.gridLayout)
+        self.fieldsRow.addLayout(self.gridLayout)
+
+
+        self.verticalLayout.addLayout(self.fieldsRow)
 
         self.line = QFrame(SourceEditorDialog)
         self.line.setObjectName(u"line")

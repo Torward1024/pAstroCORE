@@ -176,3 +176,42 @@ def test_a_scan_that_cannot_be_active_cannot_be_ticked(scan_editor):
 
     assert not dialog.ui.chk_active.isChecked(), "it is ticked with no telescope selected"
     assert not dialog.ui.chk_active.isEnabled(), "and it can still be ticked"
+
+
+def test_a_scan_can_be_copied_for_an_editor_to_write_into(project):
+    """`clone` is `from_dict(to_dict())`, and a scan's `from_dict` cannot resolve its source
+    without the observation holding it -- so cloning any scan that points at something
+    raised, and the scan editor could not be opened at all."""
+    observation = project.get_observations()[0]
+    scan = observation.get_scans().get_items()[0]
+    assert scan.get_source(observation) is not None, "this fixture has nothing to resolve"
+
+    copy = scan.clone()
+
+    assert copy.name == scan.name
+    assert copy.get_source(observation) is not None, "the copy lost its source"
+    assert copy is not scan
+
+
+def test_an_editor_says_whether_it_is_creating_or_editing(project, qt_application):
+    """The title bar read `Dialog`, `Frequency Editor`, and `Edit Scan 'scan_734fb6c4...'`
+    -- a generated name nobody can read. It says which of the two things it is doing."""
+    from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
+    from pastrocore.gui.p_dialog_edit_scan import ScanEditorDialog
+
+    observation = project.get_observations()[0]
+    manipulator = ScheduleManipulator(project)
+    scan = observation.get_scans().get_items()[0]
+    band = observation.get_frequencies().get_items()[0]
+
+    made = [(ScanEditorDialog(observation, manipulator, scan=None), "Create Scan"),
+            (ScanEditorDialog(observation, manipulator, scan=scan.clone()), "Edit Scan"),
+            (IFEditorDialog(None), "Create Frequency"),
+            (IFEditorDialog(band.copy()), "Edit Frequency")]
+    try:
+        for dialog, expected in made:
+            assert dialog.windowTitle() == expected, (
+                f"the title says '{dialog.windowTitle()}' where it should say '{expected}'")
+    finally:
+        for dialog, _ in made:
+            dialog.deleteLater()

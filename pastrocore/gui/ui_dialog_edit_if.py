@@ -25,7 +25,7 @@ class Ui_IFEditorDialog(object):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
         IFEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        IFEditorDialog.resize(430, 296)
+        IFEditorDialog.resize(430, 470)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)

@@ -201,3 +201,29 @@ def test_a_baseline_plot_is_labelled_the_same_whichever_door_it_came_through(pro
     assert uv_units("wavelengths") == "wavelengths"
     assert uv_units("furlongs") == "wavelengths", "an unknown unit is not silently another one"
     assert UV_UNITS["earth_diameters"]["axis"] == "xED"
+
+
+def test_a_time_step_is_offered_when_anything_sampled_is_selected(calculations):
+    """Ticking everything disabled it: the step applied only where *every* selected
+    calculation samples, and SEFD and a beam pattern take no samples at all. Selecting all
+    of them is the ordinary thing to do, so the step could only be changed in Preferences."""
+    from PySide6.QtCore import Qt
+
+    from pastrocore.base.data_structure import CalculatedDataStructure
+
+    calculations.select_all_calcs()
+    chosen = [calculations.ui.calcList.item(i).data(Qt.UserRole + 1)
+              for i in range(calculations.ui.calcList.count())]
+    sampled = [key for key in chosen if CalculatedDataStructure.uses_time_step(key)]
+    unsampled = [key for key in chosen if not CalculatedDataStructure.uses_time_step(key)]
+
+    assert sampled and unsampled, "this fixture cannot tell the two cases apart"
+    assert calculations.ui.timeStepSpin.isEnabled(), (
+        "everything is selected, including calculations that sample, and the step is refused")
+
+
+def test_a_time_step_is_not_offered_when_nothing_sampled_is_selected(calculations):
+    """The other half: a beam pattern alone is drawn per dish, at no moment in particular."""
+    calculations.clear_all_calcs()
+
+    assert not calculations.ui.timeStepSpin.isEnabled(), "a step is offered to nothing"

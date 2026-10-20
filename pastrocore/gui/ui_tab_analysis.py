@@ -28,8 +28,15 @@ class Ui_AnalysisTab(object):
         AnalysisTab.resize(900, 620)
         self.verticalLayout = QVBoxLayout(AnalysisTab)
         self.verticalLayout.setObjectName(u"verticalLayout")
+        self.askRow = QHBoxLayout()
+        self.askRow.setObjectName(u"askRow")
         self.questionBox = QGroupBox(AnalysisTab)
         self.questionBox.setObjectName(u"questionBox")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.questionBox.sizePolicy().hasHeightForWidth())
+        self.questionBox.setSizePolicy(sizePolicy)
         self.questionForm = QFormLayout(self.questionBox)
         self.questionForm.setObjectName(u"questionForm")
         self.questionLabel = QLabel(self.questionBox)
@@ -96,14 +103,19 @@ class Ui_AnalysisTab(object):
         self.questionForm.setWidget(5, QFormLayout.FieldRole, self.atLeastSpin)
 
 
-        self.verticalLayout.addWidget(self.questionBox)
+        self.askRow.addWidget(self.questionBox)
 
         self.filtersBox = QGroupBox(AnalysisTab)
         self.filtersBox.setObjectName(u"filtersBox")
+        sizePolicy.setHeightForWidth(self.filtersBox.sizePolicy().hasHeightForWidth())
+        self.filtersBox.setSizePolicy(sizePolicy)
         self.filtersForm = QFormLayout(self.filtersBox)
         self.filtersForm.setObjectName(u"filtersForm")
 
-        self.verticalLayout.addWidget(self.filtersBox)
+        self.askRow.addWidget(self.filtersBox)
+
+
+        self.verticalLayout.addLayout(self.askRow)
 
         self.buttonRow = QHBoxLayout()
         self.buttonRow.setObjectName(u"buttonRow")
@@ -150,14 +162,14 @@ class Ui_AnalysisTab(object):
 
     def retranslateUi(self, AnalysisTab):
         AnalysisTab.setWindowTitle(QCoreApplication.translate("AnalysisTab", u"Analysis", None))
-        self.questionBox.setTitle(QCoreApplication.translate("AnalysisTab", u"What to ask", None))
+        self.questionBox.setTitle(QCoreApplication.translate("AnalysisTab", u"Parameters", None))
         self.questionLabel.setText(QCoreApplication.translate("AnalysisTab", u"Analysis type", None))
         self.resultLabel.setText(QCoreApplication.translate("AnalysisTab", u"Result", None))
         self.columnsLabel.setText(QCoreApplication.translate("AnalysisTab", u"Columns", None))
         self.groupByLabel.setText(QCoreApplication.translate("AnalysisTab", u"Group by", None))
         self.gapsCheck.setText(QCoreApplication.translate("AnalysisTab", u"Gaps instead of windows", None))
         self.atLeastLabel.setText(QCoreApplication.translate("AnalysisTab", u"Stations at once", None))
-        self.filtersBox.setTitle(QCoreApplication.translate("AnalysisTab", u"Only these", None))
+        self.filtersBox.setTitle(QCoreApplication.translate("AnalysisTab", u"Filters", None))
         self.exportButton.setText(QCoreApplication.translate("AnalysisTab", u"Export...", None))
         self.refreshButton.setText(QCoreApplication.translate("AnalysisTab", u"Refresh", None))
         self.askButton.setProperty(u"role", QCoreApplication.translate("AnalysisTab", u"primary", None))

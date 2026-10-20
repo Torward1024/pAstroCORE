@@ -229,6 +229,8 @@
    <addaction name="actionOpenProject"/>
    <addaction name="actionSaveProject"/>
    <addaction name="separator"/>
+   <addaction name="actionImport_CFX"/>
+   <addaction name="actionExport_CFX"/>
    <addaction name="actionImport_VEX"/>
    <addaction name="actionExport_VEX"/>
    <addaction name="actionExport_Calulcated_Data"/>
@@ -401,6 +403,9 @@
    </property>
   </action>
   <action name="actionImport_CFX">
+   <property name="iconText">
+    <string>Import CFX</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/cfx_import.svg</normaloff>:/icons/cfx_import.svg</iconset>
@@ -413,6 +418,9 @@
    </property>
   </action>
   <action name="actionExport_CFX">
+   <property name="iconText">
+    <string>Export CFX</string>
+   </property>
    <property name="icon">
     <iconset resource="../gui/icons/icons.qrc">
      <normaloff>:/icons/cfx_export.svg</normaloff>:/icons/cfx_export.svg</iconset>

@@ -25,7 +25,7 @@ class Ui_PreferencesDialog(object):
         if not PreferencesDialog.objectName():
             PreferencesDialog.setObjectName(u"PreferencesDialog")
         PreferencesDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        PreferencesDialog.resize(450, 350)
+        PreferencesDialog.resize(790, 390)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -178,7 +178,7 @@ class Ui_PreferencesDialog(object):
     # setupUi
 
     def retranslateUi(self, PreferencesDialog):
-        PreferencesDialog.setWindowTitle(QCoreApplication.translate("PreferencesDialog", u"Dialog", None))
+        PreferencesDialog.setWindowTitle(QCoreApplication.translate("PreferencesDialog", u"Preferences", None))
         self.lbl_telescopes_catalog_path.setText(QCoreApplication.translate("PreferencesDialog", u"Telescopes catalog path:", None))
         self.openSourcesCatalogButton.setText(QCoreApplication.translate("PreferencesDialog", u"Open...", None))
         self.lbl_sources_catalog_path.setText(QCoreApplication.translate("PreferencesDialog", u"Sources catalog path:", None))

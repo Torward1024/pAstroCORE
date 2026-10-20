@@ -16,17 +16,17 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDialog, QDoubleSpinBox, QFrame, QGridLayout,
-    QGroupBox, QHBoxLayout, QHeaderView, QLabel,
-    QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
-    QSpacerItem, QTableView, QWidget)
+    QDialog, QDoubleSpinBox, QGridLayout, QGroupBox,
+    QHBoxLayout, QHeaderView, QLabel, QListWidget,
+    QListWidgetItem, QPushButton, QSizePolicy, QSpacerItem,
+    QTabWidget, QTableView, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_CalculationDialog(object):
     def setupUi(self, CalculationDialog):
         if not CalculationDialog.objectName():
             CalculationDialog.setObjectName(u"CalculationDialog")
         CalculationDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        CalculationDialog.resize(700, 700)
+        CalculationDialog.resize(980, 820)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -38,13 +38,12 @@ class Ui_CalculationDialog(object):
         CalculationDialog.setModal(True)
         self.gridLayout_3 = QGridLayout(CalculationDialog)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.line = QFrame(CalculationDialog)
-        self.line.setObjectName(u"line")
-        self.line.setFrameShape(QFrame.Shape.HLine)
-        self.line.setFrameShadow(QFrame.Shadow.Sunken)
-
-        self.gridLayout_3.addWidget(self.line, 1, 0, 1, 1)
-
+        self.tabs = QTabWidget(CalculationDialog)
+        self.tabs.setObjectName(u"tabs")
+        self.tabCalculations = QWidget()
+        self.tabCalculations.setObjectName(u"tabCalculations")
+        self.layouttabCalculations = QGridLayout(self.tabCalculations)
+        self.layouttabCalculations.setObjectName(u"layouttabCalculations")
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
         self.horizontalLayout_2 = QHBoxLayout()
@@ -53,12 +52,12 @@ class Ui_CalculationDialog(object):
 
         self.horizontalLayout_2.addItem(self.horizontalSpacer_3)
 
-        self.selectAllCalcButton = QPushButton(CalculationDialog)
+        self.selectAllCalcButton = QPushButton(self.tabCalculations)
         self.selectAllCalcButton.setObjectName(u"selectAllCalcButton")
 
         self.horizontalLayout_2.addWidget(self.selectAllCalcButton)
 
-        self.clearAllCalcButton = QPushButton(CalculationDialog)
+        self.clearAllCalcButton = QPushButton(self.tabCalculations)
         self.clearAllCalcButton.setObjectName(u"clearAllCalcButton")
 
         self.horizontalLayout_2.addWidget(self.clearAllCalcButton)
@@ -66,23 +65,23 @@ class Ui_CalculationDialog(object):
 
         self.gridLayout.addLayout(self.horizontalLayout_2, 6, 2, 1, 1)
 
-        self.targetList = QListWidget(CalculationDialog)
+        self.targetList = QListWidget(self.tabCalculations)
         self.targetList.setObjectName(u"targetList")
         self.targetList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
 
         self.gridLayout.addWidget(self.targetList, 3, 3, 1, 1)
 
-        self.labelTargets = QLabel(CalculationDialog)
+        self.labelTargets = QLabel(self.tabCalculations)
         self.labelTargets.setObjectName(u"labelTargets")
 
         self.gridLayout.addWidget(self.labelTargets, 2, 3, 1, 1)
 
-        self.labelCalc = QLabel(CalculationDialog)
+        self.labelCalc = QLabel(self.tabCalculations)
         self.labelCalc.setObjectName(u"labelCalc")
 
         self.gridLayout.addWidget(self.labelCalc, 2, 2, 1, 1)
 
-        self.calcList = QListWidget(CalculationDialog)
+        self.calcList = QListWidget(self.tabCalculations)
         self.calcList.setObjectName(u"calcList")
 
         self.gridLayout.addWidget(self.calcList, 3, 2, 1, 1)
@@ -93,13 +92,13 @@ class Ui_CalculationDialog(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer_2)
 
-        self.selectAllObsButton = QPushButton(CalculationDialog)
+        self.selectAllObsButton = QPushButton(self.tabCalculations)
         self.selectAllObsButton.setObjectName(u"selectAllObsButton")
         self.selectAllObsButton.setFlat(True)
 
         self.horizontalLayout.addWidget(self.selectAllObsButton)
 
-        self.clearAllObsButton = QPushButton(CalculationDialog)
+        self.clearAllObsButton = QPushButton(self.tabCalculations)
         self.clearAllObsButton.setObjectName(u"clearAllObsButton")
 
         self.horizontalLayout.addWidget(self.clearAllObsButton)
@@ -108,9 +107,9 @@ class Ui_CalculationDialog(object):
         self.gridLayout.addLayout(self.horizontalLayout, 6, 3, 1, 1)
 
 
-        self.gridLayout_3.addLayout(self.gridLayout, 0, 0, 1, 1)
+        self.layouttabCalculations.addLayout(self.gridLayout, 0, 0, 1, 1)
 
-        self.groupRun = QGroupBox(CalculationDialog)
+        self.groupRun = QGroupBox(self.tabCalculations)
         self.groupRun.setObjectName(u"groupRun")
         self.gridRun = QGridLayout(self.groupRun)
         self.gridRun.setObjectName(u"gridRun")
@@ -140,39 +139,16 @@ class Ui_CalculationDialog(object):
         self.gridRun.addWidget(self.recalculateCheck, 1, 0, 1, 2)
 
 
-        self.gridLayout_3.addWidget(self.groupRun, 2, 0, 1, 1)
+        self.layouttabCalculations.addWidget(self.groupRun, 1, 0, 1, 1)
 
-        self.buttonLayout = QHBoxLayout()
-        self.buttonLayout.setObjectName(u"buttonLayout")
-        self.clrButton = QPushButton(CalculationDialog)
-        self.clrButton.setObjectName(u"clrButton")
-
-        self.buttonLayout.addWidget(self.clrButton)
-
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.buttonLayout.addItem(self.horizontalSpacer)
-
-        self.calcButton = QPushButton(CalculationDialog)
-        self.calcButton.setObjectName(u"calcButton")
-        self.calcButton.setAutoDefault(False)
-        self.calcButton.setFlat(True)
-
-        self.buttonLayout.addWidget(self.calcButton)
-
-        self.cancelButton = QPushButton(CalculationDialog)
-        self.cancelButton.setObjectName(u"cancelButton")
-        self.cancelButton.setAutoDefault(True)
-        self.cancelButton.setFlat(True)
-
-        self.buttonLayout.addWidget(self.cancelButton)
-
-
-        self.gridLayout_3.addLayout(self.buttonLayout, 5, 0, 1, 1)
-
+        self.tabs.addTab(self.tabCalculations, "")
+        self.tabSensitivity = QWidget()
+        self.tabSensitivity.setObjectName(u"tabSensitivity")
+        self.layouttabSensitivity = QGridLayout(self.tabSensitivity)
+        self.layouttabSensitivity.setObjectName(u"layouttabSensitivity")
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.groupSensitivity = QGroupBox(CalculationDialog)
+        self.groupSensitivity = QGroupBox(self.tabSensitivity)
         self.groupSensitivity.setObjectName(u"groupSensitivity")
         self.gridLayoutSensitivity = QGridLayout(self.groupSensitivity)
         self.gridLayoutSensitivity.setObjectName(u"gridLayoutSensitivity")
@@ -281,17 +257,45 @@ class Ui_CalculationDialog(object):
         self.gridLayout_2.addWidget(self.groupSensitivity, 2, 0, 1, 2)
 
 
-        self.gridLayout_3.addLayout(self.gridLayout_2, 3, 0, 1, 1)
+        self.layouttabSensitivity.addLayout(self.gridLayout_2, 0, 0, 1, 1)
 
-        self.line_2 = QFrame(CalculationDialog)
-        self.line_2.setObjectName(u"line_2")
-        self.line_2.setFrameShape(QFrame.Shape.HLine)
-        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
+        self.tabs.addTab(self.tabSensitivity, "")
 
-        self.gridLayout_3.addWidget(self.line_2, 4, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.tabs, 0, 0, 1, 1)
+
+        self.buttonLayout = QHBoxLayout()
+        self.buttonLayout.setObjectName(u"buttonLayout")
+        self.clrButton = QPushButton(CalculationDialog)
+        self.clrButton.setObjectName(u"clrButton")
+
+        self.buttonLayout.addWidget(self.clrButton)
+
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.buttonLayout.addItem(self.horizontalSpacer)
+
+        self.calcButton = QPushButton(CalculationDialog)
+        self.calcButton.setObjectName(u"calcButton")
+        self.calcButton.setAutoDefault(False)
+        self.calcButton.setFlat(True)
+
+        self.buttonLayout.addWidget(self.calcButton)
+
+        self.cancelButton = QPushButton(CalculationDialog)
+        self.cancelButton.setObjectName(u"cancelButton")
+        self.cancelButton.setAutoDefault(True)
+        self.cancelButton.setFlat(True)
+
+        self.buttonLayout.addWidget(self.cancelButton)
+
+
+        self.gridLayout_3.addLayout(self.buttonLayout, 1, 0, 1, 1)
 
 
         self.retranslateUi(CalculationDialog)
+
+        self.tabs.setCurrentIndex(0)
+
 
         QMetaObject.connectSlotsByName(CalculationDialog)
     # setupUi
@@ -310,11 +314,8 @@ class Ui_CalculationDialog(object):
         self.recalculateCheck.setToolTip(QCoreApplication.translate("CalculationDialog", u"A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.", None))
 #endif // QT_CONFIG(tooltip)
         self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recompute everything", None))
-        self.clrButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear Data", None))
-        self.calcButton.setProperty(u"role", QCoreApplication.translate("CalculationDialog", u"primary", None))
-        self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
-        self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
-        self.groupSensitivity.setTitle(QCoreApplication.translate("CalculationDialog", u"Sensitivity", None))
+        self.tabs.setTabText(self.tabs.indexOf(self.tabCalculations), QCoreApplication.translate("CalculationDialog", u"Calculations", None))
+        self.groupSensitivity.setTitle("")
         self.labelThreshold.setText(QCoreApplication.translate("CalculationDialog", u"Detection (sigma):", None))
 #if QT_CONFIG(tooltip)
         self.thresholdSpin.setToolTip(QCoreApplication.translate("CalculationDialog", u"The signal-to-noise a baseline needs to count as a detection.", None))
@@ -338,5 +339,10 @@ class Ui_CalculationDialog(object):
         self.opacityRemove.setText(QCoreApplication.translate("CalculationDialog", u"Remove", None))
         self.gainCurveAdd.setText(QCoreApplication.translate("CalculationDialog", u"Add", None))
         self.gainCurveRemove.setText(QCoreApplication.translate("CalculationDialog", u"Remove", None))
+        self.tabs.setTabText(self.tabs.indexOf(self.tabSensitivity), QCoreApplication.translate("CalculationDialog", u"Sensitivity", None))
+        self.clrButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear Data", None))
+        self.calcButton.setProperty(u"role", QCoreApplication.translate("CalculationDialog", u"primary", None))
+        self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
+        self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
     # retranslateUi
 

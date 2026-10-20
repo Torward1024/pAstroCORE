@@ -54,10 +54,10 @@ class IFEditorDialog(QDialog):
         if not self.if_obj:
             self.if_obj = IF(name=f"if_{uuid.uuid4().hex[:32]}", frequency=1000.0,
                              bandwidth=16.0, polarizations=[], isactive=True)
-            self.setWindowTitle("Add Intermediate Frequency")
+            self.setWindowTitle("Create Frequency")
             logger.debug("Creating new IF")
         else:
-            self.setWindowTitle("Edit Intermediate Frequency")
+            self.setWindowTitle("Edit Frequency")
             logger.debug("Editing existing IF '%s'", self.if_obj.name)
 
         self.ui.frequencyEdit.setValue(self.if_obj.frequency)

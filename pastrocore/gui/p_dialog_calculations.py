@@ -323,10 +323,10 @@ class CalculationDialog(QDialog):
         selected_keys = [self.ui.calcList.item(i).data(Qt.UserRole + 1)
                          for i in range(self.ui.calcList.count())
                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
-        # Whether a time step applies follows from what the calculations record, not from
-        # comparing a title against the one calculation that happens not to be sampled.
-        sampled = all(CalculatedDataStructure.uses_time_step(key) for key in selected_keys if key)
-        self.ui.timeStepSpin.setEnabled(bool(selected_keys) and sampled)
+        # Offered where *anything* selected samples. With `all`, ticking everything disabled
+        # it -- SEFD and a beam pattern take no samples -- and Preferences was the only way.
+        sampled = any(CalculatedDataStructure.uses_time_step(key) for key in selected_keys if key)
+        self.ui.timeStepSpin.setEnabled(sampled)
 
         wanted = self._wanted_parameters(selected_keys)
         for parameter, widgets in self.PARAMETER_WIDGETS.items():
