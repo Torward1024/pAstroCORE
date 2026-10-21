@@ -147,6 +147,7 @@
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionCheckForUpdates"/>
     <addaction name="actionDiagnostics"/>
     <addaction name="actionAbout"/>
    </widget>
@@ -478,6 +479,18 @@
    </property>
    <property name="iconText">
     <string>Settings</string>
+   </property>
+  </action>
+  <action name="actionCheckForUpdates">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/update.svg</normaloff>:/icons/update.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Check for Updates...</string>
+   </property>
+   <property name="toolTip">
+    <string>Ask whether a newer version has been released</string>
    </property>
   </action>
   <action name="actionDiagnostics">

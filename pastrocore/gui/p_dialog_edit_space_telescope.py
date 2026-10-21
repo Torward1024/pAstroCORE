@@ -8,6 +8,12 @@ from astropy.time import Time
 from msb_arch.utils.logging_setup import logger
 import re
 
+#: What an orbit arrives as. `.scf` from a ballistics group, `.dat` or `.txt` from everywhere
+#: else, and everything last, because the next one will have a suffix nobody here predicted.
+ORBIT_FILES = ("Orbit files (*.scf *.dat *.txt *.oem *.csv);;"
+               "SCF (*.scf);;Text (*.txt *.dat);;All files (*.*)")
+
+
 class SpaceTelescopeEditorDialog(QDialog):
     """Dialog for editing or adding SpaceTelescope objects."""
     def __init__(self, telescope: SpaceTelescope = None, parent=None):
@@ -50,7 +56,7 @@ class SpaceTelescopeEditorDialog(QDialog):
 
     def browse_orbit_file(self):
         """Open file dialog to select orbit file."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Orbit File", "", "Orbit Files (*.txt *.csv)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Orbit File", "", ORBIT_FILES)
         if file_path:
             self.ui.orbitFileEdit.setText(file_path)
             logger.debug("Selected orbit file: %s", file_path)

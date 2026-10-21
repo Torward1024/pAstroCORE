@@ -273,6 +273,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionPreferences: self.open_preferences,
             self.ui.actionAbout: self.show_about,
             self.ui.actionDiagnostics: self.collect_diagnostics,
+            self.ui.actionCheckForUpdates: self.check_for_updates,
             self.ui.actionSource_Catalog_Manager: self.open_source_catalog_manager,
             self.ui.actionTelescope_Catalog_Manager: self.open_telescope_catalog_manager,
             self.ui.actionCalculate: self.open_calculation_dialog,
@@ -1386,6 +1387,69 @@ class PAstroCoreMainWindow(QMainWindow):
         from pastrocore.gui.p_dialog_about import AboutDialog
         dialog = AboutDialog(self)
         dialog.exec()
+
+    @Slot()
+    def check_for_updates(self):
+        """Ask whether a newer version has been released, and offer to fetch it.
+
+        Notes:
+            - Asked only when a person asks: nothing here reaches the network on its own.
+            - The file is opened rather than run: the system installs a `.exe`, mounts a
+              `.dmg` and shows an AppImage, each the way that platform expects.
+        """
+        from pastrocore import updates
+
+        found = updates.check(__version__)
+        if found.error:
+            QMessageBox.warning(self, "Check for Updates",
+                                f"Could not ask about releases:\n{found.error}")
+            return
+        if not found.newer:
+            QMessageBox.information(
+                self, "Check for Updates",
+                f"pAstroCORE {__version__} is the latest release.")
+            return
+        if found.asset is None:
+            QMessageBox.information(
+                self, "Check for Updates",
+                f"Version {found.version} is out, with nothing built for this platform.\n\n"
+                f"{found.page}")
+            return
+
+        size = int(found.asset.get("size") or 0) / 1e6
+        asked = QMessageBox.question(
+            self, "Check for Updates",
+            f"pAstroCORE {found.version} is out; this is {__version__}.\n\n"
+            f"Download {found.asset['name']} ({size:.0f} MB)?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if asked != QMessageBox.StandardButton.Yes:
+            return
+        self._fetch_update(found)
+
+    def _fetch_update(self, found):
+        """Download the release asset into a directory the user picks, and open it."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        from pastrocore import updates
+
+        into = QFileDialog.getExistingDirectory(self, "Where to put the download",
+                                                str(Path.home()))
+        if not into:
+            return
+        try:
+            written = updates.fetch(found.asset, into)
+        except Exception as e:                      # noqa: BLE001 - said, never a crash
+            logger.error("Could not download the update: %s", str(e), exc_info=True)
+            QMessageBox.critical(self, "Check for Updates",
+                                 f"Could not download it:\n{e}")
+            return
+
+        QMessageBox.information(
+            self, "Check for Updates",
+            f"Downloaded {written.name}.\n\nIt opens next; close pAstroCORE before "
+            f"installing over it.")
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(written)))
 
     @Slot()
     def collect_diagnostics(self):

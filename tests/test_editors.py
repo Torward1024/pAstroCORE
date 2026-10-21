@@ -215,3 +215,26 @@ def test_an_editor_says_whether_it_is_creating_or_editing(project, qt_applicatio
     finally:
         for dialog, _ in made:
             dialog.deleteLater()
+
+
+def test_the_orbit_chooser_offers_the_formats_an_orbit_comes_in(qt_application, monkeypatch):
+    """An orbit arrives as `.scf` from the ballistics group, and as `.dat` or `.txt` from
+    everywhere else. The chooser offered `*.txt *.csv`, so the file somebody had was not in
+    the list and the dialog looked empty."""
+    from PySide6.QtWidgets import QFileDialog
+
+    from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
+
+    asked = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: asked.append(a) or ("", "")))
+    dialog = SpaceTelescopeEditorDialog()
+    try:
+        dialog.browse_orbit_file()
+    finally:
+        dialog.deleteLater()
+
+    assert asked, "the chooser was never opened"
+    offered = asked[0][-1]
+    for suffix in ("*.scf", "*.dat", "*.txt", "*.*"):
+        assert suffix in offered, f"{suffix} is not offered: {offered}"
