@@ -70,9 +70,18 @@ analysis = Analysis(
 
 archive = PYZ(analysis.pure)
 
+#: Shown while the interpreter starts, which is the second before Qt exists and nothing can
+#: be drawn from inside the application. PyInstaller stops the build outright on macOS,
+#: where a secondary thread may not touch the screen, so that platform goes without.
+SPLASH = ROOT / "packaging" / "splash.png"
+splash = (Splash(str(SPLASH), binaries=analysis.binaries, datas=analysis.datas,
+                 text_pos=None, always_on_top=False)
+          if SPLASH.is_file() and sys.platform != "darwin" else None)
+
 executable = EXE(
     archive,
     analysis.scripts,
+    *([splash] if splash else []),
     [],
     exclude_binaries=True,
     name=NAME,
@@ -83,6 +92,7 @@ executable = EXE(
 collected = COLLECT(
     executable,
     analysis.binaries,
+    *([splash.binaries] if splash else []),
     analysis.datas,
     name=NAME,
 )

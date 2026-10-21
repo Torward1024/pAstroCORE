@@ -32,6 +32,7 @@ build/
 dist/
 
 # Made by `tools/make_icons.py` from the icon the application ships, every build.
+packaging/splash.png
 packaging/pastrocore.ico
 packaging/pastrocore.icns
 packaging/pastrocore.iconset/

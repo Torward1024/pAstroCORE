@@ -1875,6 +1875,23 @@ def opened_on_start(window, path) -> str:
     return f"opened '{window.project.get_name()}' with {len(held)} observation(s)"
 
 
+def _close_splash() -> None:
+    """Take down the picture a build shows while it starts.
+
+    Notes:
+        - `pyi_splash` exists only inside a build that has one, so this does nothing from a
+          checkout and nothing on macOS, where PyInstaller has no splash to take down.
+    """
+    try:
+        import pyi_splash                           # noqa: F401 - only inside a build
+    except ImportError:
+        return
+    try:
+        pyi_splash.close()
+    except Exception as why:                        # noqa: BLE001 - a picture, not the work
+        logger.debug("Could not close the splash: %s", str(why))
+
+
 def said_for_itself(window, opened: str) -> int:
     """Say what this build can do, and return what the process should exit with.
 
@@ -1919,6 +1936,7 @@ def main() -> None:
     # Maximized, not merely shown: the window is tables beside plots, and the first thing
     # anybody did with it was drag it bigger.
     window.showMaximized()
+    _close_splash()
     said = opened_on_start(window, asked.project)
 
     if asked.selftest:

@@ -75,6 +75,7 @@ def run(*command, **extra):
 def bundle():
     """Build the folder PyInstaller makes, and return it."""
     run(sys.executable, "tools/make_icons.py")
+    run(sys.executable, "tools/make_splash.py")
     shutil.rmtree(DIST / NAME, ignore_errors=True)
     run(sys.executable, "-m", "PyInstaller", "packaging/pastrocore.spec", "--noconfirm",
         "--distpath", "dist", "--workpath", "build")

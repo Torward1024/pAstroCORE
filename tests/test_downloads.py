@@ -131,3 +131,24 @@ def test_every_platform_is_built_and_started():
     for runner in ("windows-latest", "macos-latest", "ubuntu-22.04"):
         assert runner in workflow, f"{runner} builds nothing"
     assert workflow.count("--selftest") == 3, "a platform builds a download it never starts"
+
+
+def test_the_build_shows_something_while_the_interpreter_starts():
+    """A second passes between the double-click and anything on screen, and Qt does not
+    exist yet to fill it. PyInstaller's own splash is the only thing that can."""
+    text = SPEC.read_text(encoding="utf-8")
+
+    assert "Splash(" in text, "the build shows nothing while it starts"
+    assert 'sys.platform != "darwin"' in text, (
+        "PyInstaller stops the build outright on macOS, which has no splash")
+    assert (ROOT / "tools" / "make_splash.py").is_file(), "nothing draws the splash"
+    assert "make_splash.py" in (ROOT / "tools" / "make_download.py").read_text(encoding="utf-8"), (
+        "the splash is not drawn as part of a build")
+
+
+def test_the_application_takes_the_splash_down():
+    """Left up, it sits over the window it was covering for."""
+    text = (ROOT / "pastrocore" / "app.py").read_text(encoding="utf-8-sig")
+
+    assert "pyi_splash" in text and "_close_splash()" in text, (
+        "nothing closes the splash once the window is up")
