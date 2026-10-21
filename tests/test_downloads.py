@@ -58,10 +58,14 @@ def test_no_excluded_module_is_one_the_application_imports():
 
 def test_the_spec_names_files_that_are_here():
     """A spec pointing at a renamed file fails on the build machine and nowhere else."""
+    # Drawn during a build and kept out of the repository, so a checkout does not hold them:
+    # the icons by `tools/make_icons.py`, the splash by `tools/make_splash.py`.
+    drawn = ("pastrocore.ico", "pastrocore.icns", "splash.png")
+
     text = SPEC.read_text(encoding="utf-8")
     for named in re.findall(r'"([\w./]+\.(?:py|png|ico|icns))"', text):
-        if named.endswith((".ico", ".icns")):
-            continue                                # made by `tools/make_icons.py` at build time
+        if named.endswith(drawn):
+            continue
         assert (ROOT / named).is_file() or (ROOT / "packaging" / named).is_file(), (
             f"the spec names {named}, which is not here")
 
