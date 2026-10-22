@@ -8,6 +8,80 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.21.1] - 2026-10-22
+
+### Changed
+
+- **`msb_arch` 3.2.1.** A container and a project now keep the fields they declare: written,
+  restored, and counted towards equality. Before, a collection wrote a field and read the
+  class's default back, while `__eq__` called the two objects equal.
+
+  Nothing here declares such a field, so nothing here changes shape. The release is worth
+  having for two other reasons.
+
+  `save` refuses to write a state that breaks its own rules, because restoring checks them: a
+  project whose observations collided on a code could be written and then not opened. The
+  explicit check in `set_observation_code` stays -- it still refuses the rename at the moment it
+  is made, which is earlier and clearer than refusing the save.
+
+  And an address now round-trips through a nested project, which keeps a recorded session
+  replayable against a model of another shape.
+
+  **Skip 3.2.0.** It handed a collection's fields to constructors that had not asked for them,
+  and every `ScheduleProject.from_dict` raised `TypeError`: 668 of the tests here failed on it.
+  3.2.1 is that release with the mistake taken out, and the pin names it.
+
+## [1.21.0] - 2026-10-21
+
+The second a program spends before its window exists is a second it should account for.
+
+### Added
+
+- **A splash while Qt loads.** Drawn from the palette and the icon, it covers the second before
+  the window exists and costs 3.5 MB. macOS goes without one: there the splash would be drawn
+  from a secondary thread, which the system forbids, and a bundle already bounces in the Dock.
+- **Help -> Check for Updates.** It asks GitHub what is out and compares versions as numbers,
+  so 1.9.0 is older than 1.10.0 rather than newer by string order.
+
+  What is downloaded is run, so the URL is checked against the one host it may come from rather
+  than trusted for looking right, and a file whose length is not the length offered is not kept.
+  GitHub answers sixty questions an hour from one address -- which a department shares -- and
+  that limit is explained in words rather than reported as a failure.
+
+- An orbit file may be a `.scf`.
+
+## [1.20.0] - 2026-10-20
+
+The scan editor had been shut for four releases while 1 573 tests passed.
+
+### Fixed
+
+- **The scan editor opens again.** Cloning a scan is `from_dict(to_dict())`, which cannot
+  resolve the scan's source without the observation around it, so the dialog refused to open from
+  1.17.0 through 1.19.0. The editor was handed a copy to stop it writing into the observation,
+  and the copy could not be made.
+
+  Every test of those dialogs built them itself, which is why none of them noticed. They are
+  now reached the way a person reaches them: through each tab's own `add_` and `edit_` methods,
+  found rather than listed.
+
+  The count of opened dialogs is asserted, because a tab catches what its editor raises -- the
+  first version of this check passed with the fix taken out.
+
+- **The application's picture stayed its own.** Repainting a widget's icons took the window icon
+  with them, and filling every opaque pixel with one ink turned the picture into a blue square.
+  An icon is repainted only where its solid pixels are shades of a single colour: a stroked icon
+  spans a few, a photograph spans the range.
+- The window has its icon back, the time step is offered again, and headings are no longer cut.
+- The check that no log carries a home directory reads the text with the placeholders taken out.
+  The commit before it edited only the import and CI failed the same way twice.
+
+### Changed
+
+- **Calculate is two tabs, and Analysis asks for Parameters and Filters.**
+- The stylesheet is generated once. `main` set it and the window's constructor set it again, so
+  333 lines were built twice at every start.
+
 ## [1.19.0] - 2026-10-07
 
 The first release shaped by somebody else using it.
@@ -42,23 +116,6 @@ The first release shaped by somebody else using it.
   It is tried twice now, the answer is read off the disk rather than taken from the call, and a
   removal that did not happen is said. Found as a test that failed once in a full run and never
   again.
-
-
-### Added
-
-- **Help -> Collect Diagnostics.** One file to send when something goes wrong: the version, the
-  platform, what the build offers, what the project holds, the settings, and the last 2 000
-  lines of the log.
-
-  Home directories and user names are taken out of all three, in every spelling -- including
-  Windows' 8.3 form, which a log writes about half the time and which the first version of the
-  scrubbing left in. Found by reading an archive rather than by testing for it.
-
-### Changed
-
-- **`--selftest` does the work rather than counting it.** It runs the calculations the opened
-  project allows and draws every plot that has a result, and fails on zero of either. Offering
-  a calculation is not running one, and CI now sees the difference.
 
 ## [1.18.1] - 2026-10-06
 
