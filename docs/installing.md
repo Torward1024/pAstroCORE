@@ -21,7 +21,9 @@ that does not start is a failed build rather than a release.
 
 ## Installing with pip instead
 
-Python 3.12 or later.
+Python 3.12 or 3.13. Not 3.14: PySide6 does not go there yet, and neither do the pinned
+versions of numpy, scipy, astropy and matplotlib. The downloads above carry their own Python
+and do not care which one is installed.
 
 ```bash
 pip install .

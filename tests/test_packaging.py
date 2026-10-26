@@ -10,6 +10,7 @@ different working directory, which is the only way to tell the two apart.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -126,6 +127,67 @@ def test_every_dependency_the_code_imports_is_declared():
     for needed in ("msb_arch", "polars", "astropy", "numpy", "scipy", "matplotlib",
                    "pyside6", "pyarrow", "psutil", "prompt_toolkit"):
         assert needed in declared, f"{needed} is imported and not declared"
+
+
+def test_the_python_versions_promised_are_ones_every_dependency_allows():
+    """`requires-python` is a promise pip believes before it tries anything.
+
+    The pins here are a scientific stack and a Qt binding, and PySide6 6.8.2.1 states its own
+    limit as `<3.14`. With `>=3.12` and no upper bound, pip on 3.14 accepts the install,
+    resolves until it reaches PySide6, and fails there -- or, for the pins that merely have no
+    3.14 wheel, starts compiling numpy from source. An upper bound turns all of that into one
+    sentence before anything is downloaded.
+
+    Read from the installed distributions rather than a list written here, so moving a pin
+    moves the check with it.
+    """
+    import importlib.metadata as metadata
+
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    promised = manifest["project"]["requires-python"]
+    ours = min((tuple(int(p) for p in m) for m in
+                re.findall(r"<\s*(\d+)\.(\d+)", promised)), default=None)
+    assert ours is not None, (
+        f"requires-python is {promised!r}: it needs an upper bound, since the pinned "
+        "dependencies have one")
+
+    tightest, by_whom = None, None
+    for requirement in manifest["project"]["dependencies"]:
+        name = re.split(r"[\[<>=!~;]", requirement, maxsplit=1)[0].strip()
+        try:
+            declared = metadata.metadata(name).get("Requires-Python") or ""
+        except metadata.PackageNotFoundError:
+            continue
+        for found in re.findall(r"<\s*(\d+)\.(\d+)", declared):
+            limit = tuple(int(part) for part in found)
+            if tightest is None or limit < tightest:
+                tightest, by_whom = limit, f"{name} ({declared})"
+
+    if tightest is not None:
+        assert ours <= tightest, (
+            f"requires-python promises up to {ours[0]}.{ours[1]}, but {by_whom} stops lower")
+
+
+def test_the_tested_pythons_are_the_promised_ones():
+    """The gap MSB had found in it on the same day: four versions promised, one ever run. A
+    version in `requires-python` that nothing runs is a claim, not a supported interpreter."""
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    promised = manifest["project"]["requires-python"]
+    low = re.search(r">=\s*(\d+)\.(\d+)", promised)
+    high = re.search(r"<\s*(\d+)\.(\d+)", promised)
+    assert low and high, f"requires-python is {promised!r}; this test reads '>=X.Y,<X.Z'"
+
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    matrix = re.search(r"python-version:\s*\[([^\]]+)\]", workflow)
+    assert matrix, "the workflow does not declare a python-version matrix"
+    tested = [tuple(int(p) for p in v.split(".")) for v in
+              re.findall(r"['\"](\d+\.\d+)['\"]", matrix.group(1))]
+
+    first = (int(low.group(1)), int(low.group(2)))
+    last = (int(high.group(1)), int(high.group(2)) - 1)
+    expected = [(first[0], minor) for minor in range(first[1], last[1] + 1)]
+
+    assert tested == expected, f"promised {expected}, tested {tested}"
 
 
 def test_the_data_files_are_included_in_the_wheel():

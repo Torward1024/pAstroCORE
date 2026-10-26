@@ -12,6 +12,17 @@ jobs:
     # A hung test should fail the build in minutes, not occupy a runner until it is noticed.
     timeout-minutes: 15
 
+    strategy:
+      # Every Python `requires-python` promises, which is 3.12 and 3.13 while PySide6 caps at
+      # `<3.14`. Only 3.12 was ever run, and a promised version nothing runs is a claim: on the
+      # same day, msb_arch found two interpreters it had been broken on for a year that way.
+      # One version failing must not hide the rest, so the matrix does not stop at the first.
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+
+    name: test (Python ${{ matrix.python-version }})
+
     env:
       # Qt has no display on a build machine; the offscreen platform is how it runs anyway.
       QT_QPA_PLATFORM: offscreen
@@ -23,7 +34,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: ${{ matrix.python-version }}
         cache: pip
 
     # PySide6 needs these to load even offscreen.

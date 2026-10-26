@@ -10,7 +10,12 @@ name = "pastrocore"
 dynamic = ["version"]
 description = "Planning and checking VLBI schedules, ground and space"
 readme = "README.md"
-requires-python = ">=3.12"
+# Upper bound because the pins below have one: PySide6 6.8.2.1 states `<3.14` itself, and the
+# scientific stack ships no wheel past cp313. Without it pip on 3.14 accepts the install,
+# resolves as far as PySide6 and fails there -- or starts building numpy from source. With it,
+# pip says which Python is wanted before downloading anything. Raise it when the pins move, and
+# `tests/test_packaging.py` holds the two together.
+requires-python = ">=3.12,<3.14"
 license = {file = "LICENSE"}
 authors = [
     {name = "Alexey Rudnitskiy", email = "almax1024@gmail.com"}

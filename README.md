@@ -1,6 +1,6 @@
 # pAstroCORE
 
-[![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/python-3.12%20--%203.13-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.21.1-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
 [![Built on MSB](https://img.shields.io/badge/built%20on-MSB%203.2.1-8a2be2.svg)](https://github.com/Torward1024/MSB)
