@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.12%20--%203.13-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.21.1-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
-[![Built on MSB](https://img.shields.io/badge/built%20on-MSB%203.2.1-8a2be2.svg)](https://github.com/Torward1024/MSB)
+[![Built on MSB](https://img.shields.io/badge/built%20on-MSB%203.2.2-8a2be2.svg)](https://github.com/Torward1024/MSB)
 
 A versatile tool for scheduling radio-astronomical observations.
 
@@ -35,7 +35,7 @@ pip install .
 That gives two commands from any directory: `pastrocore` opens the window, `pastrocore-cli`
 does the same work in a terminal.
 
-Requires `msb_arch` 3.2.1 or later. Fifteen of its releases came out of this project: mapping
+Requires `msb_arch` 3.2.2 or later. Fifteen of its releases came out of this project: mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
 collection, a handler that could not say what arguments it takes, a journal that kept alive
 everything it recorded, and a pair documented as inverses that were not.
