@@ -36,6 +36,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
+        # Keyed on the file that decides the dependencies, not on the one that installs them.
+        # `requirements.txt` is `-e .` and never changes, so the restored cache -- which holds
+        # pip's cached index pages, not only wheels -- outlived a pin it no longer satisfied:
+        # raising the msb_arch pin to a release ten minutes old failed with "no matching
+        # distribution", from a package listing that predated it. Pinning the key to
+        # pyproject.toml means a changed dependency gets a fresh look at the index.
+        cache-dependency-path: |
+          requirements.txt
+          pyproject.toml
 
     # PySide6 needs these to load even offscreen.
     - name: Install system libraries Qt links against
